@@ -104,7 +104,7 @@
 
 \subsection{B1. Ringkasan}
 
-SeBatt adalah \textit{Secure Battery Identity Chip} yang ditanam pada paket baterai kendaraan listrik untuk membuktikan keaslian baterai dan keaslian data tegangan yang dikirim ke stasiun penukaran. Chip membaca tegangan paket melalui ADC, lalu menggunakan \textit{Physical Unclonable Function} (PUF) dan HMAC-SHA-256 untuk menandatangani identitas dan data tersebut tanpa menyimpan kunci permanen. Dengan demikian, pemalsuan identitas, manipulasi data tegangan, dan serangan \textit{replay} dapat dideteksi oleh stasiun.
+SeBatt adalah \textit{Secure Battery Identity Chip} yang ditanam pada paket baterai kendaraan listrik untuk membuktikan keaslian baterai dan keaslian data tegangan yang dikirim ke stasiun penukaran. Chip membaca tegangan paket melalui ADC, lalu menggunakan \textit{Physical Unclonable Function} (PUF) dan HMAC-SHA-256 untuk menandatangani identitas dan data tersebut. Kunci tidak disimpan di memori chip, melainkan diturunkan ulang dari PUF setiap kali dibutuhkan. Dengan demikian, pemalsuan identitas, manipulasi data tegangan, dan serangan \textit{replay} dapat dideteksi oleh stasiun.
 
 \subsection{B2. Masalah dan Pengguna Sasaran}
 
@@ -129,7 +129,7 @@ Pada \textit{proof of concept}, sistem akan diimplementasikan menggunakan FPGA N
   \label{fig:arsitektur}
 \end{figure}
 
-Input sistem berupa \textit{nonce}, perintah autentikasi, data identitas, dan sampel tegangan dari ADC. Pemrosesan dilakukan oleh modul RTL pada FPGA, sedangkan output berupa nilai tegangan, respons kriptografis, dan status autentikasi. Demonstrasi diprioritaskan pada autentikasi valid, penolakan respons lama, penolakan data tegangan yang diubah, dan penanganan status \textit{lock}. Implementasi PUF akan diuji secara terpisah; jika kestabilannya belum memadai, kunci tetap digunakan sebagai skenario cadangan yang dinyatakan secara terbuka.
+Input sistem berupa \textit{nonce}, perintah autentikasi, data identitas, dan sampel tegangan dari ADC. Pemrosesan dilakukan oleh modul RTL pada FPGA, sedangkan output berupa nilai tegangan, respons kriptografis, dan status autentikasi. Demonstrasi diprioritaskan pada autentikasi valid, penolakan respons lama, penolakan data tegangan yang diubah, dan penanganan status \textit{lock}. \textit{Proof of concept} dibangun dalam dua tahap. Tahap pertama memakai kunci tetap di dalam FPGA agar seluruh alur autentikasi dapat diuji lebih dulu. Tahap kedua mengganti kunci tetap dengan kunci dari RO-PUF apabila hasil pengukuran PUF memadai. Keandalan PUF diukur dari jarak Hamming antarpembacaan pada instans yang sama, sedangkan keunikannya diukur dari jarak Hamming antara beberapa instans PUF di lokasi FPGA yang berbeda.
 
 \subsection{B4. Kebaruan dan Pembanding}
 
@@ -141,7 +141,7 @@ Kebaruan yang ditargetkan adalah kombinasi PUF, pembentukan kunci sementara, HMA
 
 Pada 21 Oktober 2026, tim akan menyelesaikan integrasi AXI4-Lite, FSM autentikasi, dan HMAC-SHA-256 serta melakukan simulasi RTL menggunakan Verilator atau simulator yang tersedia dan \textit{testbench} Python. Pada 22 Oktober, tim akan mengintegrasikan IP ke dalam desain MicroBlaze menggunakan AMD Vivado, menguji komunikasi \textit{host} dan pembacaan ADC, serta mengevaluasi implementasi RO-PUF pada FPGA. Pada 23 Oktober, tim akan menguji autentikasi valid, respons \textit{replay}, data tegangan yang diubah, dan status \textit{lock}, kemudian menyiapkan demo serta dokumentasi hasil.
 
-Perangkat keras yang digunakan adalah FPGA Artix-7, modul ADC dengan antarmuka SPI, dan PC (laptop). Perangkat lunak meliputi AMD Vivado, Verilog/SystemVerilog, Python, serta Verilator atau simulator RTL yang tersedia. Target minimum adalah IP autentikasi berjalan pada FPGA, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. PUF dan deteksi \textit{tamper} akan didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Kunci tetap menjadi \textit{fallback} jika PUF belum stabil. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
+Perangkat keras yang digunakan adalah FPGA Artix-7, modul ADC dengan antarmuka SPI, dan PC (laptop). Perangkat lunak meliputi AMD Vivado, Verilog/SystemVerilog, Python, serta Verilator atau simulator RTL yang tersedia. Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF dan deteksi \textit{tamper} didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Angka pengukuran PUF dilaporkan apa adanya. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
 
 \subsection{B6. Potensi Bisnis}
 
