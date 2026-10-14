@@ -51,6 +51,7 @@
 \titlespacing*{\section}{0pt}{14pt}{4pt}
 \titlespacing*{\subsection}{0pt}{10pt}{2pt}
 
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[#1]}}}
 \newcommand{\hdr}[1]{\cellcolor{hdrgray}\textbf{#1}}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
@@ -112,7 +113,7 @@ SeBatt adalah \textit{Secure Battery Identity Chip} yang ditanam pada paket bate
 
 Sistem penukaran baterai kendaraan listrik perlu memastikan dua hal pada setiap baterai yang diterima, yaitu identitas yang dapat dipercaya dan data kondisi yang jujur. Nomor seri dan kode QR dapat disalin. Data tegangan, jumlah siklus, dan riwayat pemakaian dikirim oleh firmware \textit{Battery Management System} (BMS), sehingga dapat diubah sebelum sampai ke stasiun, termasuk pada baterai yang identitasnya asli. Kondisi tersebut dapat menyebabkan kerugian bagi operator, menyulitkan pemeriksaan riwayat baterai, dan meningkatkan risiko penggunaan baterai yang tidak memenuhi standar keselamatan.
 
-Menurut Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 \rujuk{ref:ruptl}, jumlah kendaraan listrik roda dua di Indonesia mencapai sekitar 168 ribu unit pada akhir 2024.
+Skala masalah tersebut tumbuh bersama jumlah kendaraan listrik roda dua, yang menurut Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 \rujuk{ref:ruptl} mencapai sekitar 168 ribu unit di Indonesia pada akhir 2024.
 
 Pengguna sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen baterai dan BMS, penyedia layanan sewa baterai, serta lembaga tepercaya yang mengelola basis data identitas baterai.
 
@@ -169,7 +170,7 @@ Input sistem berupa \textit{nonce}, perintah autentikasi, dan sampel tegangan, s
 
 \subsection{B4. Kebaruan dan Pembanding}
 
-Pendekatan identifikasi konvensional menggunakan label, kode QR, atau nomor seri yang dapat disalin. \textit{Secure element} komersial seperti DS28E38 \rujuk{ref:ds28e38} sudah menyediakan autentikasi kriptografis berbasis PUF, tetapi hanya menandatangani data yang dikirim oleh mikrokontroler \textit{host}. Pada baterai, data pengukuran melewati firmware BMS lebih dulu, sehingga data yang sudah diubah tetap memperoleh tanda tangan yang sah.
+\textit{Secure element} komersial seperti DS28E38 \rujuk{ref:ds28e38} sudah menyediakan autentikasi kriptografis berbasis PUF, tetapi hanya menandatangani data yang dikirim oleh mikrokontroler \textit{host}. Data pengukuran baterai melewati firmware BMS lebih dulu, sehingga data yang sudah diubah tetap memperoleh tanda tangan yang sah.
 
 Kebaruan SeBatt adalah penandatanganan data di titik pengukuran. Pembacaan ADC, kunci dari PUF, dan HMAC-SHA-256 berada dalam satu IP, sehingga sampel tegangan tidak melewati perangkat lunak mana pun sebelum ditandatangani. Rancangan dalam bentuk RTL memungkinkan IP dievaluasi pada FPGA, lalu dikembangkan menjadi ASIC atau diintegrasikan ke dalam chip BMS.
 
@@ -196,7 +197,7 @@ Sebelum 21 Oktober, tim memverifikasi RTL SHA-256 dan HMAC terhadap vektor uji F
   \end{tabularx}
 \end{table}
 
-Perangkat yang digunakan meliputi FPGA dan \textit{tools} EDA dari panitia, modul ADC dengan antarmuka SPI, PC, Python, Verilator, serta Yosys. Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA panitia, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF dan deteksi \textit{tamper} didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Angka pengukuran PUF dilaporkan apa adanya. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
+Perangkat yang digunakan meliputi FPGA dan \textit{tools} EDA dari panitia, modul ADC dengan antarmuka SPI, PC, Python, Verilator, serta Yosys. Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA panitia, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Angka pengukuran PUF dilaporkan apa adanya. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
 
 \subsection{B6. Potensi Bisnis}
 
@@ -228,10 +229,10 @@ Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen bater
   \hdr{Item} & \hdr{Isian} \\ \hline
   Nama lengkap & Guntur Sulistyo \\ \hline
   Program studi, angkatan/ Instansi/Perusahaan & Teknik Elektro, 2022, Universitas Gadjah Mada \\ \hline
-  Keahlian teknis & Power Electronic \\ \hline
-  Pengalaman proyek, riset, atau magang & FPGA-based Hardware-in-the-Loop Real-Time Emulator for Three-Phase Grid-Connected Inverter \\ \hline
-  Prestasi atau lomba & \\ \hline
-  Portofolio & \\ \hline
+  Keahlian teknis & Desain digital FPGA (Verilog, Vivado), emulasi \textit{real-time Hardware-in-the-Loop}, elektronika daya \\ \hline
+  Pengalaman proyek, riset, atau magang & FPGA-based Hardware-in-the-Loop Real-Time Emulator for Three-Phase Grid-Connected Inverter; Hardware-in-the-Loop inverter tiga fasa beban RL pada FPGA Cmod S7 dengan kendali STM32; Riset pengembangan model FMU inverter tiga fasa (hibah P2M); Asisten Laboratorium Elektronika Daya, DTETI UGM \\ \hline
+  Prestasi atau lomba & \todo{isi prestasi atau tulis -} \\ \hline
+  Portofolio & \todo{isi tautan GitHub/portofolio atau tulis -} \\ \hline
 \end{tabularx}
 
 \subsection{Anggota 2 --- Dimas Eryan Ahnaf Fahrezi}
@@ -241,7 +242,7 @@ Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen bater
   \hdr{Item} & \hdr{Isian} \\ \hline
   Nama lengkap & Dimas Eryan Ahnaf Fahrezi \\ \hline
   Program studi, angkatan/ Instansi/Perusahaan & Teknik Elektro, 2023, Universitas Gadjah Mada \\ \hline
-  Keahlian teknis & Power Electronic \\ \hline
+  Keahlian teknis & Sensing tegangan terisolasi dan antarmuka ADC \textit{embedded}, elektronika daya \\ \hline
   Pengalaman proyek, riset, atau magang & An Isolated Voltage Sensing Architecture Using the AMC1200 Amplifier for Inverter Monitoring and Embedded ADC Interfacing; Pembuatan \& Perancangan PV Charger; Perancangan Pengembangan PLTS Wilayah MAPANA; Analysis Health Index Trafo di Kilang Pertamina RU VI; Standarisasi Overhaul Motor 3 fasa di Pertamina RU VI \\ \hline
   Prestasi atau lomba & - \\ \hline
   Portofolio & - \\ \hline
@@ -254,7 +255,7 @@ Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen bater
   \hdr{Item} & \hdr{Isian} \\ \hline
   Nama lengkap & Muhammad Muqtada Alhaddad \\ \hline
   Program studi, angkatan/ Instansi/Perusahaan & Teknologi Informasi, 2022, Universitas Gadjah Mada \\ \hline
-  Keahlian teknis & Digital IC Design \\ \hline
+  Keahlian teknis & Digital IC design (Verilog/SystemVerilog, antarmuka AXI4-Lite, akselerator perangkat keras) \\ \hline
   Pengalaman proyek, riset, atau magang & ANN Accelerator; I\textsuperscript{2}S Peripheral dengan AXI4-Lite Interface; IIR Filter dengan AXI4-Lite Interface \\ \hline
   Prestasi atau lomba & Fighting Spirit Award, 29th LSI Design Contest in Okinawa 2026 --- Team GAN Golden Model, Universitas Gadjah Mada \\ \hline
   Portofolio & \url{https://adakhaddad.github.io} \\ \hline
