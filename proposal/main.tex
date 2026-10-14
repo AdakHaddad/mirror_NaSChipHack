@@ -1,0 +1,204 @@
+% =====================================================================
+%  Mini Proposal Hackathon Deeptech 2026: Indonesia Chip Hackathon Challenge
+%  SeBatt: Secure Battery Identity Chip (Tim NaS, Universitas Gadjah Mada)
+%  Kompilasi: latexmk -pdf main.tex  (atau pdflatex main.tex dua kali)
+%  Format wajib: A4, Arial 11 pt, spasi 1,15, Bagian A-B maks. 5 halaman,
+%  Bagian B 200-1.000 kata, CV maks. 1 halaman per anggota.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Tata letak & huruf ----------
+\usepackage[a4paper,margin=2.54cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[scaled=0.92]{helvet}        % pengganti Arial untuk pdflatex
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.15}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+\urlstyle{same}
+\frenchspacing
+\hypersetup{
+  pdftitle={SeBatt: Secure Battery Identity Chip - Mini Proposal},
+  pdfauthor={Tim NaS, Universitas Gadjah Mada},
+  pdfsubject={Hackathon Deeptech 2026: Indonesia Chip Hackathon Challenge 2026},
+}
+
+% ---------- Warna (mengikuti template) ----------
+\definecolor{hdrgray}{HTML}{F2F2F2}
+\definecolor{subtle}{HTML}{6B7280}
+
+% ---------- Judul bagian ----------
+\titleformat{\section}{\large\bfseries\raggedright}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries\raggedright}{}{0em}{}
+\titlespacing*{\section}{0pt}{14pt}{4pt}
+\titlespacing*{\subsection}{0pt}{10pt}{2pt}
+
+\newcommand{\hdr}[1]{\cellcolor{hdrgray}\textbf{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=2pt}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+\renewcommand{\figurename}{Gambar}
+\renewcommand{\tablename}{Tabel}
+\renewcommand{\arraystretch}{1.25}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\footnotesize\color{subtle}ChipHack26 --- NaS --- Mini Proposal \quad|\quad \thepage}
+
+% =====================================================================
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries Mini Proposal}\\[2pt]
+  {\large Hackathon Deeptech 2026: Indonesia Chip Hackathon Challenge 2026}\\[2pt]
+  Tema: ``Designing Chips for Real-World Impact''
+\end{center}
+
+% ---------------------------------------------------------------------
+\section{A. Identitas Tim}
+
+\begin{tabularx}{\linewidth}{|L{3.4cm}|Y|}
+  \hline
+  \hdr{Item} & \hdr{Isian} \\ \hline
+  Judul usulan & SeBatt - Secure Battery Identity Chip : Perancangan IP Keamanan Berbasis PUF dan HMAC-SHA-256 untuk Autentikasi Baterai Kendaraan Listrik \\ \hline
+  Nama tim & NaS \\ \hline
+  Tema & Internet of Things \\ \hline
+  Ketua tim & Guntur Sulistyo \\ \hline
+\end{tabularx}
+
+\vspace{8pt}
+{\small
+\begin{tabularx}{\linewidth}{|c|L{3.9cm}|L{3.3cm}|Y|L{3.2cm}|}
+  \hline
+  \hdr{No} & \hdr{Nama} & \hdr{NIM} & \hdr{Program studi/Divisi Instansi/Divisi Perusahaan} & \hdr{Perguruan tinggi/ Instansi/Perusahaan} \\ \hline
+  1 & Guntur Sulistyo & 22/505305/TK/55288 & Teknik Elektro & Universitas Gadjah Mada \\ \hline
+  2 & Dimas Eryan Ahnaf Fahrezi & 23/518972/TK/57204 & Teknik Elektro & Universitas Gadjah Mada \\ \hline
+  3 & Muhammad Muqtada Alhaddad & 22/500341/TK/54841 & Teknologi Informasi & Universitas Gadjah Mada \\ \hline
+  4 & & & & \\ \hline
+  5 & & & & \\ \hline
+\end{tabularx}
+}
+
+% ---------------------------------------------------------------------
+\section{B. Deskripsi Usulan Produk}
+
+\subsection{B1. Ringkasan}
+
+SeBatt adalah \textit{Secure Battery Identity Chip} untuk memverifikasi keaslian baterai kendaraan listrik pada stasiun penukaran. Chip menggunakan \textit{Physical Unclonable Function} (PUF) dan HMAC-SHA-256 untuk menghasilkan respons autentikasi tanpa menyimpan kunci permanen, sehingga membantu mencegah pemalsuan identitas dan serangan \textit{replay}.
+
+\subsection{B2. Masalah dan Pengguna Sasaran}
+
+Sistem penukaran baterai kendaraan listrik membutuhkan mekanisme untuk memastikan bahwa baterai yang diterima benar-benar terdaftar dan memiliki identitas yang dapat dipercaya. Nomor seri dan kode QR dapat disalin, sedangkan data riwayat pemakaian yang dilaporkan oleh \textit{Battery Management System} (BMS) berpotensi dimanipulasi. Kondisi tersebut dapat menyebabkan kerugian bagi operator, menyulitkan pemeriksaan riwayat baterai, dan meningkatkan risiko penggunaan baterai yang tidak memenuhi standar keselamatan.
+
+Berdasarkan dokumen Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 yang dirujuk dalam proposal awal SeBatt, jumlah kendaraan listrik roda dua di Indonesia mencapai sekitar 168 ribu unit pada akhir 2024. Pengembangan ekosistem kendaraan listrik dan stasiun penukaran baterai memperkuat kebutuhan akan sistem identitas baterai yang aman dan dapat digunakan lintas operator.
+
+Pengguna sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen baterai dan BMS, penyedia layanan sewa baterai, serta lembaga tepercaya yang mengelola basis data identitas baterai.
+
+\subsection{B3. Solusi yang Diusulkan}
+
+SeBatt mengusulkan chip keamanan digital yang dirancang untuk ditanamkan pada paket baterai kendaraan listrik. Chip memanfaatkan \textit{Ring-Oscillator} PUF untuk memperoleh karakteristik unik perangkat, kemudian menggunakan proses pembentukan kunci dan HMAC-SHA-256 untuk menghitung respons terhadap \textit{nonce} atau angka acak yang diberikan oleh stasiun melalui basis data identitas. Basis data memverifikasi respons dan menentukan apakah baterai dapat diterima.
+
+Pada \textit{proof of concept}, sistem akan diimplementasikan menggunakan FPGA Nexys A7-100T berbasis Artix-7. Modul keamanan dirancang sebagai IP RTL dengan antarmuka AXI4-Lite dan dikendalikan melalui MicroBlaze. PC menjalankan perangkat lunak Python sebagai emulator stasiun dan basis data untuk mengirim tantangan, memverifikasi respons, serta mencatat hasil autentikasi.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{header.png}
+  \caption{Arsitektur \textit{proof of concept} SeBatt.}
+  \label{fig:arsitektur}
+\end{figure}
+
+Input sistem berupa \textit{nonce}, perintah autentikasi, dan data identitas. Pemrosesan dilakukan oleh modul RTL pada FPGA, sedangkan output berupa respons kriptografis dan status autentikasi. Demonstrasi diprioritaskan pada autentikasi valid, penolakan respons lama, dan penanganan status \textit{lock}. Implementasi PUF akan diuji secara terpisah; jika kestabilannya belum memadai, kunci tetap digunakan sebagai skenario cadangan yang dinyatakan secara terbuka.
+
+\subsection{B4. Kebaruan dan Pembanding}
+
+Pendekatan identifikasi konvensional menggunakan label, kode QR, atau nomor seri yang dapat disalin. Beberapa \textit{secure element} komersial telah menyediakan autentikasi kriptografis, termasuk IC berbasis kunci tersimpan dan perangkat berbasis PUF seperti DS28E38 dari Analog Devices. Namun, SeBatt mengusulkan IP keamanan dengan arsitektur RTL yang dapat diperiksa dan dikembangkan untuk integrasi dengan sistem identitas baterai lintas operator.
+
+Kebaruan yang ditargetkan adalah kombinasi PUF, pembentukan kunci sementara, HMAC-SHA-256, \textit{challenge-response}, dan pemantauan \textit{tamper} dalam satu rancangan IP yang dapat dievaluasi pada FPGA sebelum dikembangkan menjadi ASIC. Riwayat baterai direncanakan bersumber dari pengukuran stasiun dan basis data tepercaya, bukan hanya dari data yang dilaporkan BMS. Prototipe FPGA merupakan validasi awal fungsi digital, bukan bukti bahwa seluruh perlindungan fisik tingkat ASIC telah tercapai.
+
+\subsection{B5. Rencana Proof of Concept (21--23 Oktober 2026)}
+
+Pada 21 Oktober 2026, tim akan menyelesaikan integrasi AXI4-Lite, FSM autentikasi, dan HMAC-SHA-256 serta melakukan simulasi RTL menggunakan Verilator atau simulator yang tersedia dan \textit{testbench} Python. Pada 22 Oktober, tim akan mengintegrasikan IP ke dalam desain MicroBlaze menggunakan AMD Vivado, menguji komunikasi \textit{host}, dan mengevaluasi implementasi RO-PUF pada FPGA. Pada 23 Oktober, tim akan menguji autentikasi valid, respons \textit{replay}, dan status \textit{lock}, kemudian menyiapkan demo serta dokumentasi hasil.
+
+Perangkat keras yang digunakan adalah FPGA Artix-7 dan PC (laptop). Perangkat lunak meliputi AMD Vivado, Verilog/SystemVerilog, Python, serta Verilator atau simulator RTL yang tersedia. Target minimum adalah IP autentikasi berjalan pada FPGA dan terhubung ke emulator stasiun. PUF dan deteksi \textit{tamper} akan didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Kunci tetap menjadi \textit{fallback} jika PUF belum stabil. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
+
+\subsection{B6. Potensi Bisnis}
+
+Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen baterai dan BMS, produsen kendaraan listrik, serta pengelola armada. Calon mitra industri adalah penyedia infrastruktur \textit{battery swapping} dan integrator sistem \textit{embedded} yang membutuhkan autentikasi baterai. Model pendapatan dapat berupa lisensi IP \textit{core}, integrasi modul keamanan pada BMS, dan pengembangan ASIC khusus untuk produsen baterai.
+
+\subsection{B7. Referensi}
+
+\begin{enumerate}[label={[\arabic*]}]
+  \item PT PLN (Persero). \textit{Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) 2025--2034}. 2025.
+  \item Republik Indonesia. \textit{Peraturan Presiden Nomor 55 Tahun 2019 tentang Percepatan Program Kendaraan Bermotor Listrik Berbasis Baterai untuk Transportasi Jalan}. 2019.
+  \item Republik Indonesia. \textit{Peraturan Presiden Nomor 79 Tahun 2023 tentang Perubahan atas Peraturan Presiden Nomor 55 Tahun 2019}. 2023.
+  \item European Parliament and Council of the European Union. \textit{Regulation (EU) 2023/1542 concerning batteries and waste batteries}. 2023. \url{https://eur-lex.europa.eu/eli/reg/2023/1542/oj}
+  \item Suh, G. E., \& Devadas, S. ``Physical Unclonable Functions for Device Authentication and Secret Key Generation.'' \textit{Proceedings of the Design Automation Conference (DAC)}, 2007.
+  \item Maes, R. \textit{Physically Unclonable Functions: Constructions, Properties and Applications}. Springer, 2013.
+  \item Analog Devices. \textit{DS28E38 DeepCover Secure Authenticator with ChipDNA PUF Protection}. \url{https://www.analog.com/en/products/ds28e38.html}
+  \item Digilent. \textit{Nexys A7 FPGA Board Reference Manual}. \url{https://digilent.com/reference/programmable-logic/nexys-a7/start}
+  \item AMD. \textit{MicroBlaze Processor Reference Guide} dan dokumentasi AXI4-Lite untuk integrasi IP pada Vivado. \url{https://docs.amd.com/}
+\end{enumerate}
+
+% ---------------------------------------------------------------------
+\newpage
+\section{C. CV Anggota}
+
+\subsection{Anggota 1 --- Guntur Sulistyo}
+
+\begin{tabularx}{\linewidth}{|L{4.6cm}|Y|}
+  \hline
+  \hdr{Item} & \hdr{Isian} \\ \hline
+  Nama lengkap & Guntur Sulistyo \\ \hline
+  Program studi, angkatan/ Instansi/Perusahaan & Teknik Elektro, 2022, Universitas Gadjah Mada \\ \hline
+  Keahlian teknis & Power Electronic \\ \hline
+  Pengalaman proyek, riset, atau magang & FPGA-based Hardware-in-the-Loop Real-Time Emulator for Three-Phase Grid-Connected Inverter \\ \hline
+  Prestasi atau lomba & \\ \hline
+  Portofolio & \\ \hline
+\end{tabularx}
+
+\subsection{Anggota 2 --- Dimas Eryan Ahnaf Fahrezi}
+
+\begin{tabularx}{\linewidth}{|L{4.6cm}|Y|}
+  \hline
+  \hdr{Item} & \hdr{Isian} \\ \hline
+  Nama lengkap & Dimas Eryan Ahnaf Fahrezi \\ \hline
+  Program studi, angkatan/ Instansi/Perusahaan & Teknik Elektro, 2023, Universitas Gadjah Mada \\ \hline
+  Keahlian teknis & Power Electronic \\ \hline
+  Pengalaman proyek, riset, atau magang & An Isolated Voltage Sensing Architecture Using the AMC1200 Amplifier for Inverter Monitoring and Embedded ADC Interfacing; Pembuatan \& Perancangan PV Charger; Perancangan Pengembangan PLTS Wilayah MAPANA; Analysis Health Index Trafo di Kilang Pertamina RU VI; Standarisasi Overhaul Motor 3 fasa di Pertamina RU VI \\ \hline
+  Prestasi atau lomba & - \\ \hline
+  Portofolio & - \\ \hline
+\end{tabularx}
+
+\subsection{Anggota 3 --- Muhammad Muqtada Alhaddad}
+
+\begin{tabularx}{\linewidth}{|L{4.6cm}|Y|}
+  \hline
+  \hdr{Item} & \hdr{Isian} \\ \hline
+  Nama lengkap & Muhammad Muqtada Alhaddad \\ \hline
+  Program studi, angkatan/ Instansi/Perusahaan & Teknologi Informasi, 2022, Universitas Gadjah Mada \\ \hline
+  Keahlian teknis & Digital IC Design \\ \hline
+  Pengalaman proyek, riset, atau magang & ANN Accelerator; I\textsuperscript{2}S Peripheral dengan AXI4-Lite Interface; IIR Filter dengan AXI4-Lite Interface \\ \hline
+  Prestasi atau lomba & Fighting Spirit Award, 29th LSI Design Contest in Okinawa 2026 --- Team GAN Golden Model, Universitas Gadjah Mada \\ \hline
+  Portofolio & \url{https://adakhaddad.github.io} \\ \hline
+\end{tabularx}
+
+\end{document}
