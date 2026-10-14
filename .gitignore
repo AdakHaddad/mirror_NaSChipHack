@@ -1,0 +1,63 @@
+# Pengaturan lokal Claude Code
+.claude/settings.local.json
+
+# Windows / editor
+desktop.ini
+Thumbs.db
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Simulasi (cocotb / Verilator / Icarus)
+sim_build/
+obj_dir/
+sim/obj_*/
+results.xml
+*.vcd
+*.fst
+*.vvp
+
+# Vivado
+fpga/**/*.cache/
+fpga/**/*.hw/
+fpga/**/*.runs/
+fpga/**/*.sim/
+fpga/**/*.ip_user_files/
+fpga/**/.Xil/
+*.jou
+vivado*.log
+
+# Quartus
+fpga/**/db/
+fpga/**/incremental_db/
+fpga/**/output_files/*
+!fpga/**/output_files/*.sof
+fpga/**/*.qws
+fpga/**/*.rpt
+
+# File kerja sementara Office
+~$*
+.~lock.*
+
+# LaTeX (file sementara kompilasi)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Catatan kerja pribadi
+active/
+
+# Instruksi Claude Code (pribadi)
+CLAUDE.md
+
+# Dokumen panitia (tidak dipublikasikan)
+docs/panduan/
