@@ -54,6 +54,7 @@
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
 \setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=2pt}
+\newcommand{\rujuk}[1]{[\ref{#1}]}   % sitasi bernomor ke daftar B7
 \captionsetup{font=small,labelfont=bf,labelsep=period}
 \renewcommand{\figurename}{Gambar}
 \renewcommand{\tablename}{Tabel}
@@ -109,7 +110,7 @@ SeBatt adalah \textit{Secure Battery Identity Chip} untuk memverifikasi keaslian
 
 Sistem penukaran baterai kendaraan listrik membutuhkan mekanisme untuk memastikan bahwa baterai yang diterima benar-benar terdaftar dan memiliki identitas yang dapat dipercaya. Nomor seri dan kode QR dapat disalin, sedangkan data riwayat pemakaian yang dilaporkan oleh \textit{Battery Management System} (BMS) berpotensi dimanipulasi. Kondisi tersebut dapat menyebabkan kerugian bagi operator, menyulitkan pemeriksaan riwayat baterai, dan meningkatkan risiko penggunaan baterai yang tidak memenuhi standar keselamatan.
 
-Berdasarkan dokumen Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 yang dirujuk dalam proposal awal SeBatt, jumlah kendaraan listrik roda dua di Indonesia mencapai sekitar 168 ribu unit pada akhir 2024. Pengembangan ekosistem kendaraan listrik dan stasiun penukaran baterai memperkuat kebutuhan akan sistem identitas baterai yang aman dan dapat digunakan lintas operator.
+Menurut Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 \rujuk{ref:ruptl}, jumlah kendaraan listrik roda dua di Indonesia mencapai sekitar 168 ribu unit pada akhir 2024. Pengembangan ekosistem kendaraan listrik dan stasiun penukaran baterai memperkuat kebutuhan akan sistem identitas baterai yang aman dan dapat digunakan lintas operator.
 
 Pengguna sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen baterai dan BMS, penyedia layanan sewa baterai, serta lembaga tepercaya yang mengelola basis data identitas baterai.
 
@@ -146,8 +147,8 @@ Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen bater
 
 \subsection{B7. Referensi}
 
-\begin{enumerate}[label={[\arabic*]}]
-  \item PT PLN (Persero). \textit{Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) 2025--2034}. 2025.
+\begin{enumerate}[label={[\arabic*]},ref={\arabic*}]
+  \item\label{ref:ruptl} PT PLN (Persero). \textit{Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) 2025--2034}. 2025.
   \item Republik Indonesia. \textit{Peraturan Presiden Nomor 55 Tahun 2019 tentang Percepatan Program Kendaraan Bermotor Listrik Berbasis Baterai untuk Transportasi Jalan}. 2019.
   \item Republik Indonesia. \textit{Peraturan Presiden Nomor 79 Tahun 2023 tentang Perubahan atas Peraturan Presiden Nomor 55 Tahun 2019}. 2023.
   \item European Parliament and Council of the European Union. \textit{Regulation (EU) 2023/1542 concerning batteries and waste batteries}. 2023. \url{https://eur-lex.europa.eu/eli/reg/2023/1542/oj}
