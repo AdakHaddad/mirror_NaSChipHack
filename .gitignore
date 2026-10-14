@@ -61,3 +61,6 @@ CLAUDE.md
 
 # Dokumen panitia (tidak dipublikasikan)
 docs/panduan/
+
+# Mini proposal (memuat data pribadi anggota)
+proposal/*.docx
