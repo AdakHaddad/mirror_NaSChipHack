@@ -29,6 +29,8 @@
 \usepackage{caption}
 \usepackage{float}
 \usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
 \usepackage[hidelinks]{hyperref}
 \usepackage{xurl}
 \urlstyle{same}
@@ -110,38 +112,91 @@ SeBatt adalah \textit{Secure Battery Identity Chip} yang ditanam pada paket bate
 
 Sistem penukaran baterai kendaraan listrik perlu memastikan dua hal pada setiap baterai yang diterima, yaitu identitas yang dapat dipercaya dan data kondisi yang jujur. Nomor seri dan kode QR dapat disalin. Data tegangan, jumlah siklus, dan riwayat pemakaian dikirim oleh firmware \textit{Battery Management System} (BMS), sehingga dapat diubah sebelum sampai ke stasiun, termasuk pada baterai yang identitasnya asli. Kondisi tersebut dapat menyebabkan kerugian bagi operator, menyulitkan pemeriksaan riwayat baterai, dan meningkatkan risiko penggunaan baterai yang tidak memenuhi standar keselamatan.
 
-Menurut Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 \rujuk{ref:ruptl}, jumlah kendaraan listrik roda dua di Indonesia mencapai sekitar 168 ribu unit pada akhir 2024. Pengembangan ekosistem kendaraan listrik dan stasiun penukaran baterai memperkuat kebutuhan akan sistem identitas baterai yang aman dan dapat digunakan lintas operator.
+Menurut Rencana Usaha Penyediaan Tenaga Listrik (RUPTL) PLN 2025--2034 \rujuk{ref:ruptl}, jumlah kendaraan listrik roda dua di Indonesia mencapai sekitar 168 ribu unit pada akhir 2024.
 
 Pengguna sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen baterai dan BMS, penyedia layanan sewa baterai, serta lembaga tepercaya yang mengelola basis data identitas baterai.
 
 \subsection{B3. Solusi yang Diusulkan}
 
-SeBatt mengusulkan chip keamanan digital yang dirancang untuk ditanamkan pada paket baterai kendaraan listrik. Chip memanfaatkan \textit{Ring-Oscillator} PUF untuk memperoleh karakteristik unik perangkat, kemudian menggunakan proses pembentukan kunci dan HMAC-SHA-256 untuk menghitung respons terhadap \textit{nonce} atau angka acak yang diberikan oleh stasiun melalui basis data identitas. Basis data memverifikasi respons dan menentukan apakah baterai dapat diterima.
+Chip SeBatt memanfaatkan \textit{Ring-Oscillator} PUF \rujuk{ref:suh}, \rujuk{ref:maes} untuk memperoleh karakteristik unik perangkat, lalu menghitung respons HMAC-SHA-256 terhadap \textit{nonce}, yaitu angka acak sekali pakai yang diberikan stasiun melalui basis data identitas. Basis data memverifikasi respons dan menentukan apakah baterai dapat diterima.
 
 Selain identitas, chip membaca tegangan paket baterai melalui ADC dengan antarmuka SPI dan memasukkan sampel tegangan tersebut ke dalam perhitungan HMAC bersama \textit{nonce} dan ID baterai. Stasiun menerima nilai tegangan beserta respons, lalu basis data menghitung ulang HMAC. Nilai tegangan yang diubah di jalur komunikasi atau oleh firmware BMS menghasilkan respons yang tidak cocok sehingga ditolak. Pada produk, chip berkomunikasi dengan stasiun melalui bus CAN yang umum digunakan BMS.
 
-Pada \textit{proof of concept}, sistem akan diimplementasikan menggunakan FPGA Nexys A7-100T berbasis Artix-7. Modul keamanan dirancang sebagai IP RTL dengan antarmuka AXI4-Lite dan dikendalikan melalui MicroBlaze. PC yang terhubung melalui UART, sebagai pengganti bus CAN, menjalankan perangkat lunak Python sebagai emulator stasiun dan basis data untuk mengirim tantangan, memverifikasi respons, serta mencatat hasil autentikasi.
+Pada \textit{proof of concept}, IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun prosesor lunak, sehingga dapat dipindahkan ke FPGA yang disediakan panitia. Kontroler SPI untuk ADC, FSM autentikasi, dan antarmuka UART seluruhnya berupa logika RTL. PC yang terhubung melalui UART, sebagai pengganti bus CAN, menjalankan Python sebagai emulator stasiun dan basis data untuk mengirim \textit{nonce}, memverifikasi respons, serta mencatat hasil autentikasi. Pembungkus AXI4-Lite disiapkan sebagai opsi apabila board panitia menyediakan prosesor.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\linewidth]{header.png}
-  \caption{Arsitektur \textit{proof of concept} SeBatt.}
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+      font=\footnotesize, >={Stealth[length=2mm]},
+      blk/.style={draw=#1!70!black, fill=#1!12, rounded corners=2pt, align=center,
+                  minimum width=27mm, minimum height=10mm, line width=0.6pt},
+      ip/.style={blk=orange},
+      stage2/.style={ip, dashed}]
+    % sensor
+    \node[blk=green] (bat) at (-0.9,1.7) {Paket baterai\\tegangan};
+    \node[blk=green] (adc) at (-0.9,0)   {ADC\\(modul SPI)};
+    % IP di FPGA
+    \node[stage2] (puf)  at (3.6,3.4) {\texttt{ro\_puf} + \texttt{fuzzy\_ext}\\kunci PUF (tahap 2)};
+    \node[ip]     (key)  at (3.6,1.7) {\texttt{key\_vault}\\kunci tetap (tahap 1)};
+    \node[ip]     (spi)  at (3.6,0)   {\texttt{spi\_adc}\\sampel tegangan};
+    \node[ip]     (hmac) at (7.0,1.7) {\texttt{hmac\_sha256}\\nonce $\|$ ID $\|$ V};
+    \node[ip]     (fsm)  at (7.0,0)   {\texttt{auth\_ctrl}\\FSM, status \textit{lock}};
+    \node[ip]     (uart) at (10.4,0)  {\texttt{uart\_if}\\pengganti CAN};
+    \node[font=\footnotesize\bfseries, text=orange!60!black] (lbl) at (8.7,3.4) {SeBatt IP (RTL di FPGA)};
+    \begin{scope}[on background layer]
+      \node[draw=orange!70!black, fill=orange!3, rounded corners=4pt, line width=0.8pt,
+            inner sep=3mm, fit=(puf)(spi)(uart)(lbl)] (fpga) {};
+    \end{scope}
+    % stasiun
+    \node[blk=blue, minimum width=30mm, minimum height=16mm] (pc) at (15.3,0)
+      {\textbf{PC / Python}\\emulator stasiun\\basis data identitas\\VALID / INVALID};
+    % panah
+    \draw[->] (bat) -- (adc);
+    \draw[->] (adc) -- node[above, pos=0.35]{SPI} (spi);
+    \draw[->] (spi) -- (fsm);
+    \draw[->, dashed] (puf) -- (key);
+    \draw[->] (key) -- (hmac);
+    \draw[<->] (fsm) -- (hmac);
+    \draw[<->] (fsm) -- (uart);
+    \draw[<->] (uart) -- node[above, pos=0.65]{UART} (pc);
+  \end{tikzpicture}}
+  \caption{Arsitektur \textit{proof of concept} SeBatt. Garis putus-putus menandai tahap kedua.}
   \label{fig:arsitektur}
 \end{figure}
 
-Input sistem berupa \textit{nonce}, perintah autentikasi, data identitas, dan sampel tegangan dari ADC. Pemrosesan dilakukan oleh modul RTL pada FPGA, sedangkan output berupa nilai tegangan, respons kriptografis, dan status autentikasi. Demonstrasi diprioritaskan pada autentikasi valid, penolakan respons lama, penolakan data tegangan yang diubah, dan penanganan status \textit{lock}. \textit{Proof of concept} dibangun dalam dua tahap. Tahap pertama memakai kunci tetap di dalam FPGA agar seluruh alur autentikasi dapat diuji lebih dulu. Tahap kedua mengganti kunci tetap dengan kunci dari RO-PUF apabila hasil pengukuran PUF memadai. Keandalan PUF diukur dari jarak Hamming antarpembacaan pada instans yang sama, sedangkan keunikannya diukur dari jarak Hamming antara beberapa instans PUF di lokasi FPGA yang berbeda.
+Input sistem berupa \textit{nonce}, perintah autentikasi, dan sampel tegangan, sedangkan output berupa nilai tegangan, respons HMAC, dan status autentikasi. \textit{Proof of concept} dibangun dalam dua tahap. Tahap pertama memakai kunci tetap agar seluruh alur autentikasi dapat diuji lebih dulu. Tahap kedua mengganti kunci tetap dengan kunci dari RO-PUF apabila hasil pengukuran PUF pada Tabel~\ref{tab:metrik} memadai.
 
 \subsection{B4. Kebaruan dan Pembanding}
 
 Pendekatan identifikasi konvensional menggunakan label, kode QR, atau nomor seri yang dapat disalin. \textit{Secure element} komersial seperti DS28E38 \rujuk{ref:ds28e38} sudah menyediakan autentikasi kriptografis berbasis PUF, tetapi hanya menandatangani data yang dikirim oleh mikrokontroler \textit{host}. Pada baterai, data pengukuran melewati firmware BMS lebih dulu, sehingga data yang sudah diubah tetap memperoleh tanda tangan yang sah.
 
-Kebaruan SeBatt adalah penandatanganan data di titik pengukuran. Pembacaan ADC, kunci dari PUF, dan HMAC-SHA-256 berada dalam satu IP, sehingga sampel tegangan tidak melewati perangkat lunak mana pun sebelum ditandatangani. Rancangan dalam bentuk RTL memungkinkan IP dievaluasi pada FPGA, lalu dikembangkan menjadi ASIC atau diintegrasikan ke dalam chip BMS. Prototipe FPGA merupakan validasi awal fungsi digital, bukan bukti bahwa seluruh perlindungan fisik tingkat ASIC telah tercapai.
+Kebaruan SeBatt adalah penandatanganan data di titik pengukuran. Pembacaan ADC, kunci dari PUF, dan HMAC-SHA-256 berada dalam satu IP, sehingga sampel tegangan tidak melewati perangkat lunak mana pun sebelum ditandatangani. Rancangan dalam bentuk RTL memungkinkan IP dievaluasi pada FPGA, lalu dikembangkan menjadi ASIC atau diintegrasikan ke dalam chip BMS.
 
 \subsection{B5. Rencana Proof of Concept (21--23 Oktober 2026)}
 
-Pada 21 Oktober 2026, tim akan menyelesaikan integrasi AXI4-Lite, FSM autentikasi, dan HMAC-SHA-256 serta melakukan simulasi RTL menggunakan Verilator atau simulator yang tersedia dan \textit{testbench} Python. Pada 22 Oktober, tim akan mengintegrasikan IP ke dalam desain MicroBlaze menggunakan AMD Vivado, menguji komunikasi \textit{host} dan pembacaan ADC, serta mengevaluasi implementasi RO-PUF pada FPGA. Pada 23 Oktober, tim akan menguji autentikasi valid, respons \textit{replay}, data tegangan yang diubah, dan status \textit{lock}, kemudian menyiapkan demo serta dokumentasi hasil.
+Sebelum 21 Oktober, tim memverifikasi RTL SHA-256 dan HMAC terhadap vektor uji FIPS 180-4 \rujuk{ref:fips} dan RFC 4231 \rujuk{ref:rfc} melalui simulasi Verilator dengan \textit{testbench} Python, lalu menguji jalur UART dan ADC pada board Artix-7 dan Cmod S7 milik tim. Pada 21 Oktober, rancangan dipindahkan ke FPGA panitia dan dihubungkan ke emulator stasiun. Pada 22 Oktober, tim mengukur metrik pada Tabel~\ref{tab:metrik}, mengevaluasi RO-PUF, dan menyintesis rancangan dengan Yosys ke PDK SkyWater SKY130 \rujuk{ref:sky130} sebagai perkiraan awal ASIC. Pada 23 Oktober, tim mendemonstrasikan autentikasi valid serta penolakan respons \textit{replay}, data tegangan yang diubah, dan baterai berstatus \textit{lock}.
 
-Perangkat keras yang digunakan adalah FPGA Artix-7, modul ADC dengan antarmuka SPI, dan PC (laptop). Perangkat lunak meliputi AMD Vivado, Verilog/SystemVerilog, Python, serta Verilator atau simulator RTL yang tersedia. Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF dan deteksi \textit{tamper} didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Angka pengukuran PUF dilaporkan apa adanya. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Metrik evaluasi dan target \textit{proof of concept}.}
+  \label{tab:metrik}
+  \begin{tabularx}{\linewidth}{|L{3.4cm}|Y|L{4.6cm}|}
+    \hline
+    \hdr{Metrik} & \hdr{Target} & \hdr{Cara ukur} \\ \hline
+    Latensi HMAC & $\le$ 300 siklus clock & Penghitung siklus di RTL \\ \hline
+    Latensi ujung ke ujung & $<$ 20 ms & Stempel waktu di emulator, UART 115.200 baud \\ \hline
+    \textit{Throughput} & $\ge$ 50 autentikasi per detik & 1.000 permintaan beruntun \\ \hline
+    Akurasi deteksi & 100\% respons palsu, \textit{replay}, dan data yang diubah ditolak, tanpa respons sah yang ditolak & 1.000 percobaan per skenario \\ \hline
+    Sumber daya FPGA & $<$ 5.000 LUT, Fmax $\ge$ 50 MHz & Laporan sintesis dan \textit{timing} \\ \hline
+    Keandalan PUF & Jarak Hamming intra $<$ 10\% & 100 pembacaan per instans \\ \hline
+    Keunikan PUF & Jarak Hamming inter 40--60\% & Antarinstans di lokasi FPGA berbeda \\ \hline
+    Perkiraan ASIC & Jumlah sel dan luas dilaporkan & Sintesis Yosys ke SKY130 \\ \hline
+  \end{tabularx}
+\end{table}
+
+Perangkat yang digunakan meliputi FPGA dan \textit{tools} EDA dari panitia, modul ADC dengan antarmuka SPI, PC, Python, Verilator, serta Yosys. Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA panitia, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF dan deteksi \textit{tamper} didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. Angka pengukuran PUF dilaporkan apa adanya. Pengujian tiga hari ini tidak mencakup fabrikasi ASIC atau validasi keamanan fisik tingkat produksi.
 
 \subsection{B6. Potensi Bisnis}
 
@@ -154,11 +209,12 @@ Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen bater
   \item Republik Indonesia. \textit{Peraturan Presiden Nomor 55 Tahun 2019 tentang Percepatan Program Kendaraan Bermotor Listrik Berbasis Baterai untuk Transportasi Jalan}. 2019.
   \item Republik Indonesia. \textit{Peraturan Presiden Nomor 79 Tahun 2023 tentang Perubahan atas Peraturan Presiden Nomor 55 Tahun 2019}. 2023.
   \item European Parliament and Council of the European Union. \textit{Regulation (EU) 2023/1542 concerning batteries and waste batteries}. 2023. \url{https://eur-lex.europa.eu/eli/reg/2023/1542/oj}
-  \item Suh, G. E., \& Devadas, S. ``Physical Unclonable Functions for Device Authentication and Secret Key Generation.'' \textit{Proceedings of the Design Automation Conference (DAC)}, 2007.
-  \item Maes, R. \textit{Physically Unclonable Functions: Constructions, Properties and Applications}. Springer, 2013.
+  \item\label{ref:suh} Suh, G. E., \& Devadas, S. ``Physical Unclonable Functions for Device Authentication and Secret Key Generation.'' \textit{Proceedings of the Design Automation Conference (DAC)}, 2007.
+  \item\label{ref:maes} Maes, R. \textit{Physically Unclonable Functions: Constructions, Properties and Applications}. Springer, 2013.
   \item\label{ref:ds28e38} Analog Devices. \textit{DS28E38 DeepCover Secure Authenticator with ChipDNA PUF Protection}. \url{https://www.analog.com/en/products/ds28e38.html}
-  \item Digilent. \textit{Nexys A7 FPGA Board Reference Manual}. \url{https://digilent.com/reference/programmable-logic/nexys-a7/start}
-  \item AMD. \textit{MicroBlaze Processor Reference Guide} dan dokumentasi AXI4-Lite untuk integrasi IP pada Vivado. \url{https://docs.amd.com/}
+  \item\label{ref:fips} National Institute of Standards and Technology. \textit{FIPS PUB 180-4: Secure Hash Standard (SHS)}. 2015. \url{https://doi.org/10.6028/NIST.FIPS.180-4}
+  \item\label{ref:rfc} Nystrom, M. \textit{RFC 4231: Identifiers and Test Vectors for HMAC-SHA-224, HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512}. IETF, 2005. \url{https://www.rfc-editor.org/rfc/rfc4231}
+  \item\label{ref:sky130} SkyWater Technology dan Google. \textit{SKY130 Open Source Process Design Kit}. \url{https://github.com/google/skywater-pdk}
 \end{enumerate}
 
 % ---------------------------------------------------------------------
