@@ -1,0 +1,12 @@
+[
+  {
+    "id": "FIPS-B1",
+    "msg_hex": "616263",
+    "hash_hex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  },
+  {
+    "id": "FIPS-B2",
+    "msg_hex": "6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071",
+    "hash_hex": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+  }
+]
