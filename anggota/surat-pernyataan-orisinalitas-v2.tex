@@ -1,0 +1,63 @@
+% Surat pernyataan orisinalitas, susunan anggota setelah pergantian Dimas -> Budi.
+% Teks mengikuti template panitia (docs/panduan/). Kompilasi: latexmk -pdf surat-pernyataan-orisinalitas-v2.tex
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=2.54cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[scaled=0.92]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.15}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+\renewcommand{\arraystretch}{1.3}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[#1]}}}
+% Tanda tangan: tampil hanya bila filenya ada di folder ini.
+\newcommand{\ttd}[1]{\IfFileExists{#1}{\includegraphics[height=1.3cm,width=3.6cm,keepaspectratio]{#1}}{}}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+  \textbf{SURAT PERNYATAAN ORISINALITAS KARYA DAN IDE}
+\end{center}
+
+Kami yang bertanda tangan di bawah ini, anggota tim peserta Hackathon Deeptech 2026: Indonesia Chip Hackathon Challenge 2026:
+
+\begin{tabularx}{\linewidth}{|L{4cm}|Y|}
+  \hline
+  Nama tim & NaS \\ \hline
+  Judul usulan & SeBatt - Secure Battery Identity Chip : Perancangan IP Keamanan Berbasis PUF dan HMAC-SHA-256 untuk Autentikasi Baterai Kendaraan Listrik \\ \hline
+  Sub-tema & Internet of Things \\ \hline
+  Perguruan tinggi & Universitas Gadjah Mada \\ \hline
+\end{tabularx}
+
+Dengan ini menyatakan bahwa:
+\begin{enumerate}[leftmargin=1.6em,itemsep=0pt]
+  \item Karya dan ide yang kami ajukan merupakan hasil pemikiran dan kerja tim kami sendiri.
+  \item Karya dan ide tersebut bukan hasil plagiarisme, dan seluruh sumber pihak ketiga yang digunakan telah dicantumkan.
+  \item Karya dan ide tersebut belum pernah memenangkan kompetisi lain.
+  \item Kami bersedia mematuhi seluruh ketentuan dalam Buku Panduan Hackathon Deeptech 2026, termasuk ketentuan HKI.
+  \item Apabila di kemudian hari pernyataan ini terbukti tidak benar, kami bersedia didiskualifikasi dan menerima sanksi sesuai ketentuan yang berlaku.
+\end{enumerate}
+Demikian surat pernyataan ini kami buat dengan sebenar-benarnya.
+
+\hfill Yogyakarta, 17 Oktober 2026
+
+\begin{tabularx}{\linewidth}{|c|Y|L{4.2cm}|>{\centering\arraybackslash}m{4cm}|}
+  \hline
+  \textbf{No} & \textbf{Nama} & \textbf{NIM} & \textbf{Tanda tangan} \\ \hline
+  1 & Guntur Sulistyo & 22/505305/TK/55288 & \ttd{ttd-guntur.jpg} \\ \hline
+  2 & Muhammad Budi Setiawan & 22/505064/TK/55254 & \ttd{ttd-budi.png} \\ \hline
+  3 & Muhammad Muqtada Alhaddad & 22/500341/TK/54841 & \ttd{ttd-muqtada.png} \\ \hline
+\end{tabularx}
+
+\end{document}
