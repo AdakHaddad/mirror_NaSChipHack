@@ -64,3 +64,8 @@ docs/panduan/
 
 # Mini proposal (memuat data pribadi anggota)
 proposal/*.docx
+
+# Data pribadi anggota (KTP, tanda tangan)
+anggota/ktp*
+anggota/ttd*
+anggota/Biodata Anggota Pengganti*
