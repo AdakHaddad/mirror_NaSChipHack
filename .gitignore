@@ -23,6 +23,7 @@ results.xml
 *.vvp
 
 # Vivado
+fpga/**/vivado_proj/
 fpga/**/*.cache/
 fpga/**/*.hw/
 fpga/**/*.runs/
@@ -30,6 +31,8 @@ fpga/**/*.sim/
 fpga/**/*.ip_user_files/
 fpga/**/.Xil/
 *.jou
+fpga/**/*.jou
+fpga/**/*.log
 vivado*.log
 
 # Quartus
