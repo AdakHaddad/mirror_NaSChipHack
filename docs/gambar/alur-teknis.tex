@@ -1,0 +1,91 @@
+% Alur teknis SeBatt: rantai perangkat dan urutan protokol saat penukaran.
+% Kompilasi: latexmk -pdf alur-teknis.tex
+% PNG: pdftoppm -png -r 200 -singlefile alur-teknis.pdf alur-teknis
+\documentclass[border=8pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage[scaled=0.92]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
+
+\begin{document}
+\begin{tikzpicture}[
+    font=\small, >={Stealth[length=2.2mm]},
+    blk/.style={draw=#1!70!black, fill=#1!12, rounded corners=2pt, align=center,
+                minimum width=26mm, minimum height=11mm, line width=0.6pt},
+    ip/.style={blk=orange},
+    title/.style={font=\bfseries\large, anchor=west},
+    msg/.style={->, line width=0.7pt},
+    lbl/.style={font=\footnotesize, fill=white, inner sep=1.5pt}
+  ]
+
+  % =====================================================================
+  % A. Rantai perangkat
+  % =====================================================================
+  \node[title] at (-1.4,4.6) {A. Rantai perangkat};
+
+  \node[blk=green] (bat) at (0,2.2) {Paket baterai\\{\footnotesize tegangan analog}};
+  \node[blk=green] (div) at (0,0.2) {Pembagi tegangan\\{\footnotesize ke 0--3,3 V}};
+  \node[blk=green] (adc) at (3.4,0.2) {ADC\\{\footnotesize MCP3202, 12 bit}};
+
+  \node[ip] (spi)  at (7.4,0.2) {\texttt{spi\_adc}\\{\footnotesize sampel tiap 100 ms}};
+  \node[ip] (ctrl) at (11.6,0.2) {\texttt{auth\_ctrl}\\{\footnotesize nomor urut, buffer, lock}};
+  \node[ip] (hmac) at (11.6,2.4) {\texttt{hmac\_sha256}\\{\footnotesize tanda tangan}};
+  \node[ip] (key)  at (7.4,2.4) {\texttt{key\_vault}\\{\footnotesize kunci K}};
+  \node[ip] (uart) at (15.4,0.2) {\texttt{uart\_if}\\{\footnotesize pengganti CAN}};
+  \node[font=\bfseries, text=orange!60!black] (iplbl) at (13.2,3.55) {SeBatt IP di FPGA (Kria KV260)};
+
+  \begin{scope}[on background layer]
+    \node[draw=orange!70!black, fill=orange!3, rounded corners=4pt, line width=0.8pt,
+          inner sep=3.5mm, fit=(spi)(key)(hmac)(uart)(iplbl)] (fpga) {};
+  \end{scope}
+
+  \node[blk=blue, minimum width=34mm, minimum height=20mm] (pc) at (20.8,0.9)
+    {\textbf{Stasiun (PC Python)}\\{\footnotesize emulator stasiun}\\{\footnotesize basis data: ID, K,}\\{\footnotesize seq terakhir}};
+
+  \node[blk=gray, minimum width=34mm, align=left, minimum height=22mm] (dec) at (20.8,4.0)
+    {\textbf{Keputusan}\\{\footnotesize VALID}\\{\footnotesize INVALID\_HMAC, REPLAY}\\{\footnotesize HISTORY\_GAP, ROLLBACK}\\{\footnotesize BATTERY\_LOCKED}};
+
+  \draw[->] (bat) -- (div);
+  \draw[->] (div) -- (adc);
+  \draw[->] (adc) -- node[lbl, above=1pt]{SPI} (spi);
+  \draw[->] (spi) -- node[lbl, below=1pt]{seq, v} (ctrl);
+  \draw[<->] (ctrl) -- (hmac);
+  \draw[->] (key) -- node[lbl, above=1pt]{K} (hmac);
+  \draw[<->] (ctrl) -- (uart);
+  \draw[<->] (uart) -- node[lbl, above=1pt]{UART} (pc.west |- uart);
+  \draw[->] (pc) -- (dec);
+
+  \node[font=\footnotesize\itshape, text=black!60, anchor=north west, align=left]
+    at ($(fpga.south west)+(0,-0.15)$)
+    {Data dari ADC sampai tanda tangan tidak melewati perangkat lunak.\\
+     Batasan PoC: ADC eksternal, penghitung volatil, kunci simetris di basis data.};
+
+  % =====================================================================
+  % B. Urutan protokol saat penukaran
+  % =====================================================================
+  \node[title] at (-1.4,-3.3) {B. Saat baterai ditukar di stasiun};
+
+  \node[ip, minimum width=34mm] (chip) at (4,-4.6) {\textbf{Chip SeBatt}};
+  \node[blk=blue, minimum width=34mm] (st) at (16,-4.6) {\textbf{Stasiun dan basis data}};
+
+  \draw[black!40, dashed, line width=0.6pt] (chip.south) -- ++(0,-7.4) coordinate (cend);
+  \draw[black!40, dashed, line width=0.6pt] (st.south) -- ++(0,-7.4) coordinate (send);
+
+  \def\xc{4}
+  \def\xs{16}
+
+  \draw[msg] (\xs,-5.8) -- node[lbl, above=1pt]{\textbf{1} AUTH\_REQ: \textit{nonce} acak 32 byte} (\xc,-5.8);
+  \draw[msg] (\xc,-6.9) -- node[lbl, above=1pt]{\textbf{2} AUTH\_RESP: ID, seq terakhir, v, tag HMAC} (\xs,-6.9);
+  \draw[msg] (\xs,-8.0) -- node[lbl, above=1pt]{\textbf{3} HIST\_REQ: mulai dari seq terakhir di basis data + 1} (\xc,-8.0);
+  \draw[msg] (\xc,-9.1) -- node[lbl, above=1pt]{\textbf{4} HIST\_ITEM $\times$ n: seq, v, tag HMAC, lalu HIST\_END} (\xs,-9.1);
+  \draw[msg] (\xs,-11.3) -- node[lbl, above=1pt]{\textbf{6} RESULT: diterima atau ditolak} (\xc,-11.3);
+
+  \node[blk=blue, minimum width=46mm, minimum height=9mm, align=left, font=\footnotesize] at (\xs+0.2,-10.15)
+    {\textbf{5} Hitung ulang setiap HMAC dengan K,\\ cek \textit{nonce} baru dan seq berurutan};
+
+  \node[ip, minimum width=40mm, align=left, font=\footnotesize] at (\xc-0.4,-10.15)
+    {Tag dihitung di dalam IP\\ dari isi buffer riwayat};
+
+\end{tikzpicture}
+\end{document}
