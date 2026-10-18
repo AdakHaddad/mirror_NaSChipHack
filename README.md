@@ -23,7 +23,7 @@ Seluruh IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun pr
 | ro_puf + fuzzy_ext | Kunci dari PUF (tahap 2) |
 | uart_if | Komunikasi dengan emulator stasiun |
 
-Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal](kirim/ChipHack26_NaS_InternetOfThings_MiniProposal.pdf).
+Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal](docs/kirim/ChipHack26_NaS_InternetOfThings_MiniProposal.pdf).
 
 ## Status
 
@@ -37,15 +37,13 @@ Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal
 
 | Folder | Isi |
 |---|---|
-| [proposal/](proposal/) | Sumber LaTeX mini proposal dan surat pernyataan orisinalitas |
-| [kirim/](kirim/) | PDF yang dikirim ke panitia |
 | [model/](model/) | Model referensi Python dan generator vektor uji |
 | [sim/](sim/) | Testbench dan vektor uji |
 | [rtl/](rtl/) | Kode Verilog/SystemVerilog |
 | [fpga/](fpga/) | Proyek FPGA dan constraint per board |
 | [bisnis/](bisnis/) | Business model dan analisis pasar |
 | [pitch/](pitch/) | Slide dan naskah pitch Demo Day |
-| [docs/](docs/) | Milestone dan referensi |
+| [docs/](docs/) | Dokumen lomba: milestone, mini proposal, PDF kiriman, dan dokumen anggota |
 
 ## Tim
 
