@@ -68,11 +68,8 @@ docs/panduan/
 # Mini proposal (memuat data pribadi anggota)
 docs/proposal/*.docx
 
-# Data pribadi anggota (KTP, tanda tangan)
-docs/anggota/ktp*
-docs/anggota/ttd*
-docs/anggota/Biodata Anggota Pengganti*
+# Dokumen anggota (KTP, tanda tangan, biodata, surat pernyataan), hanya lokal
+docs/anggota/
 
-# Hasil build LaTeX (versi resmi ada di docs/kirim/ dan docs/anggota/)
+# Hasil build LaTeX (versi resmi ada di docs/kirim/)
 docs/proposal/main.pdf
-docs/anggota/surat-pernyataan-orisinalitas-v2.pdf
