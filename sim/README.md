@@ -1,3 +1,3 @@
 # Simulasi
 
-Testbench dan vektor uji. Vektor uji disimpan di sim/vectors/.
+Testbench cocotb untuk RTL. Vektor uji dibuat oleh model referensi dan disimpan di [model/vectors/](../model/vectors/).

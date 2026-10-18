@@ -5,7 +5,7 @@ Dokumen lomba tim NaS untuk Hackathon Deeptech 2026.
 | Folder/File | Isi |
 |---|---|
 | [MILESTONES.md](MILESTONES.md) | Jadwal dan pembagian tugas |
-| [proposal/](proposal/) | Sumber LaTeX mini proposal dan surat pernyataan orisinalitas awal |
+| [proposal/](proposal/) | Sumber LaTeX mini proposal |
 | [kirim/](kirim/) | PDF persis seperti yang dikirim ke panitia |
 | [anggota/](anggota/) | Dokumen pergantian anggota: biodata anggota pengganti dan surat pernyataan baru |
 
