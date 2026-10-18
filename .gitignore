@@ -72,3 +72,7 @@ docs/proposal/*.docx
 docs/anggota/ktp*
 docs/anggota/ttd*
 docs/anggota/Biodata Anggota Pengganti*
+
+# Hasil build LaTeX (versi resmi ada di docs/kirim/ dan docs/anggota/)
+docs/proposal/main.pdf
+docs/anggota/surat-pernyataan-orisinalitas-v2.pdf
