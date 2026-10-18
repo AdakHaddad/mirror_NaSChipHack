@@ -116,6 +116,12 @@ if {$wrapper_files eq ""} {
     set wrapper_files [glob -nocomplain $proj_dir/vivado_proj/${proj_name}.srcs/sources_1/bd/sebatt_bd/hdl/*_wrapper.v]
 }
 add_files -norecurse $wrapper_files
+# The RTL for hmac_sha256 is also a source because it is instantiated by the
+# module-reference IP in the block design.  Do not let Vivado infer that RTL
+# module as the design top: its AXI-Lite pins are internal to the BD, not FPGA
+# package I/O.  The wrapper exposes only sys_clk, sys_resetn, uart_rxd, and
+# uart_txd.
+set_property top sebatt_bd_wrapper [current_fileset]
 update_compile_order -fileset sources_1
 
 # Add Nexys A7 XDC
