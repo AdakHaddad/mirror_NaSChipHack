@@ -90,7 +90,12 @@ static const u32 default_key[8] = {
 static XUartLite uart;
 
 static void uart_init(void) {
+#ifdef SDT
+    /* System Device Tree BSPs identify UARTLite instances by base address. */
+    XUartLite_Initialize(&uart, XPAR_AXI_UARTLITE_0_BASEADDR);
+#else
     XUartLite_Initialize(&uart, XPAR_AXI_UARTLITE_0_DEVICE_ID);
+#endif
 }
 
 static u8 uart_recv_byte(void) {

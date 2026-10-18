@@ -22,8 +22,17 @@ results.xml
 *.fst
 *.vvp
 
-# Vivado
-fpga/**/vivado_proj/
+# Vivado generated files
+fpga/**/vivado_proj/*.cache/
+fpga/**/vivado_proj/*.gen/
+fpga/**/vivado_proj/*.hw/
+fpga/**/vivado_proj/*.runs/
+fpga/**/vivado_proj/*.sim/
+fpga/**/vivado_proj/*.ip_user_files/
+fpga/**/vivado_proj/.Xil/
+fpga/**/vivado_proj/*.jou
+fpga/**/vivado_proj/*.log
+
 fpga/**/*.cache/
 fpga/**/*.hw/
 fpga/**/*.runs/
@@ -31,9 +40,7 @@ fpga/**/*.sim/
 fpga/**/*.ip_user_files/
 fpga/**/.Xil/
 *.jou
-fpga/**/*.jou
-fpga/**/*.log
-vivado*.log
+*.log
 
 # Quartus
 fpga/**/db/

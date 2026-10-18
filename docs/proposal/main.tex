@@ -170,6 +170,8 @@ Pada \textit{proof of concept}, IP ditulis dalam Verilog/SystemVerilog standar t
 
 \textit{Secure element} komersial seperti DS28E38 \rujuk{ref:ds28e38} sudah menyediakan autentikasi kriptografis berbasis PUF, tetapi hanya menandatangani data yang dikirim oleh mikrokontroler \textit{host}. Data pengukuran baterai melewati firmware BMS lebih dulu, sehingga data yang sudah diubah tetap memperoleh tanda tangan yang sah.
 
+Chip \textit{gauge} komersial juga menyimpan riwayat pemakaian: BQ40Z50 \rujuk{ref:bq40z50} mencatat \textit{lifetime data} dan \textit{black box recorder}, tetapi autentikasi SHA-1 miliknya hanya membuktikan keaslian paket kepada \textit{host}, bukan integritas riwayat; log-nya tidak ditandatangani dan dapat ditulis ulang. MAX17205 \rujuk{ref:max17205} meningkatkan autentikasi ke SHA-256, namun tetap sebatas pencegahan kloning paket. Pada sisi riset, \rujuk{ref:dsd} mengamankan struktur log dan jalur transfer data BMS menuju \textit{cloud}, otentikasi berbasis ciri sel \rujuk{ref:ccs} menyasar pemalsuan sel, dan analisis transisi baterai ke \textit{second life} \rujuk{ref:blumke} mencatat verifikasi integritas data sebagai kebutuhan yang belum terpenuhi. Ancaman yang dijawab SeBatt berbeda: pembanding tersebut melindungi pemilik merek dari pemalsu atau penyerang jaringan, sedangkan SeBatt melindungi stasiun dan pembeli dari pemilik baterai yang memanipulasi riwayatnya sendiri.
+
 Kebaruan SeBatt adalah penandatanganan riwayat pengukuran langsung di titik pengukuran. Pembacaan ADC, kunci dari PUF, dan HMAC-SHA-256 berada dalam satu IP, sehingga sampel tegangan tidak melewati perangkat lunak mana pun sebelum ditandatangani. Rancangan dalam bentuk RTL memungkinkan IP dievaluasi pada FPGA, lalu dikembangkan menjadi ASIC atau diintegrasikan ke dalam chip BMS.
 
 \subsection{B5. Rencana Proof of Concept (21--23 Oktober 2026)}
@@ -214,6 +216,11 @@ Pasar sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen bater
   \item\label{ref:fips} National Institute of Standards and Technology. \textit{FIPS PUB 180-4: Secure Hash Standard (SHS)}. 2015. \url{https://doi.org/10.6028/NIST.FIPS.180-4}
   \item\label{ref:rfc} Nystrom, M. \textit{RFC 4231: Identifiers and Test Vectors for HMAC-SHA-224, HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512}. IETF, 2005. \url{https://www.rfc-editor.org/rfc/rfc4231}
   \item\label{ref:sky130} SkyWater Technology dan Google. \textit{SKY130 Open Source Process Design Kit}. \url{https://github.com/google/skywater-pdk}
+  \item\label{ref:bq40z50} Texas Instruments. \textit{BQ40Z50 1-Series, 2-Series, 3-Series, and 4-Series Li-Ion Battery Pack Manager} (datasheet). \url{https://www.ti.com/lit/ds/symlink/bq40z50.pdf}
+  \item\label{ref:max17205} Analog Devices. \textit{MAX17205 Stand-Alone ModelGauge m5 Fuel Gauge with SHA-256 Authentication}. \url{https://www.analog.com/en/products/max17205.html}
+  \item\label{ref:dsd} Basic, F., Seifert, C., Steger, C., \& Kofler, R. ``Secure Data Acquisition for Battery Management Systems.'' \textit{Proceedings of the 26th Euromicro Conference on Digital System Design (DSD)}, 2023, hlm.~553--560. \url{https://doi.org/10.1109/DSD60849.2023.00082}
+  \item\label{ref:ccs} Marchiori, F., \& Conti, M. ``Your Battery Is a Blast! Safeguarding Against Counterfeit Batteries with Authentication.'' \textit{Proceedings of the ACM SIGSAC Conference on Computer and Communications Security (CCS)}, 2023, hlm.~105--119. \url{https://doi.org/10.1145/3576915.3623179}
+  \item\label{ref:blumke} Bl\"umke, J., Mayer, K., \& Hof, H.-J. ``An Analysis of Security Concerns in Transitioning Battery Management Systems from First to Second Life.'' \textit{Proceedings of the 19th International Conference on Availability, Reliability and Security (ARES)}, 2024, hlm.~1--11. \url{https://doi.org/10.1145/3664476.3671010}
 \end{enumerate}
 
 % ---------------------------------------------------------------------

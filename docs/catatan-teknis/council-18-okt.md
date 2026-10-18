@@ -9,7 +9,7 @@ Proposal yang lolos menjanjikan dua hal yang akan dicek juri:
 1. Setiap sampel tegangan dari ADC diberi **nomor urut** dan **ditandatangani HMAC** di dalam chip, lalu disimpan sebagai **riwayat**. Stasiun menolak riwayat yang diubah atau dihapus.
 2. Semua itu dikerjakan **rangkaian RTL tanpa prosesor lunak**.
 
-Poin 1 adalah satu-satunya pembeda SeBatt dari chip komersial. Contohnya TI BQ40Z50, yang sudah mengukur tegangan dan mengautentikasi baterai tetapi tidak menandatangani riwayatnya.
+Poin 1 adalah satu-satunya pembeda SeBatt dari chip komersial. TI BQ40Z50 sudah mengukur tegangan, menyimpan *lifetime log*, dan punya SHA-1 untuk mengautentikasi **paket** kepada host. Yang tidak dimilikinya adalah tanda tangan atas riwayat itu sendiri: log tersimpan polos di data flash, tanpa nomor urut, dan dapat ditulis ulang lewat akses data flash (bqStudio). Pembanding terkuatnya pun begitu: MAX17205 memakai SHA-256, tetapi tetap hanya anti-kloning paket, bukan integritas riwayat.
 
 Kondisi repo saat ini:
 
@@ -83,7 +83,27 @@ README 2 halaman wajib memuat diagram blok, cara menjalankan, hasil uji, dan poi
 | Apakah kunci bisa dibaca? | Di produk tidak. key_vault dibuat sekali tulis tanpa port baca, dan setiap chip punya kunci berbeda |
 | Apakah data ADC bisa dipalsukan? | Bisa, sebelum masuk chip. Pada chip akhir, ADC berada di dalam chip yang sama |
 | Kalau basis data bocor? | Kunci ikut bocor. Ini batasan skema kunci simetris |
-| Apa bedanya dengan BQ40Z50? | BQ40Z50 merekam riwayat tetapi tidak menandatanganinya, dan riwayat itu dapat di-reset |
+| Apa bedanya dengan BQ40Z50? | BQ40Z50 menyimpan lifetime log dan punya SHA-1, tetapi keduanya untuk keaslian paket: host mengautentikasi identitas, bukan isi riwayat. Log-nya tidak ditandatangani, tanpa nomor urut, dan dapat ditulis ulang lewat akses data flash. SeBatt menandatangani setiap sampel di titik ukur, sehingga riwayat yang diubah, dihapus, atau diputar balik tertolak |
+
+## Pembanding Produk dan Riset
+
+Ancaman yang dijawab SeBatt berbeda dari pembanding yang ada. Produk dan riset di bawah ini melindungi pemilik merek dari pemalsu atau penyerang jaringan, sedangkan SeBatt melindungi stasiun dan pembeli dari pemilik baterai yang memanipulasi riwayat baterainya sendiri.
+
+| | TI BQ40Z50 | ADI MAX17205 | SeBatt |
+|---|---|---|---|
+| Riwayat | Lifetime log + black box recorder, diperbarui tiap 2 jam | History log | Tiap sampel tegangan bernomor urut |
+| Tanda tangan riwayat | Tidak ada | Tidak ada | HMAC-SHA-256 per sampel, di dalam IP |
+| Anti-rollback | Tidak ada | Tidak ada | Nomor urut + anchor last_seq di stasiun |
+| Autentikasi yang ada | SHA-1, host mengautentikasi paket (anti-kloning) | SHA-256, 160-bit, anti-kloning | Identitas dari PUF, riwayat dari tanda tangan |
+| Kunci | Secure memory di gauge | 160-bit secret key | Dari PUF, tidak disimpan permanen (tahap 2) |
+
+Rujukan pembanding:
+
+- TI, *BQ40Z50 datasheet* — lifetime log, black box recorder, SHA-1: <https://www.ti.com/lit/ds/symlink/bq40z50.pdf>
+- ADI, *MAX17205* — SHA-256 untuk anti-kloning paket: <https://www.analog.com/en/products/max17205.html>
+- Basic dkk. (Graz), "Secure Data Acquisition for Battery Management Systems", DSD 2023 — struktur log BMS dan pengamanan transfer ke cloud: <https://doi.org/10.1109/DSD60849.2023.00082>
+- Marchiori & Conti, "Your Battery Is a Blast!", CCS 2023 — autentikasi baterai dari ciri sel: <https://doi.org/10.1145/3576915.3623179>
+- Blümke dkk., "Security Concerns in Transitioning BMS from First to Second Life", ARES 2024 — verifikasi integritas data sebagai kebutuhan saat transisi: <https://doi.org/10.1145/3664476.3671010>
 
 ## Kerapian Repositori
 

@@ -1,0 +1,4 @@
+domain_path: /home/muqtada/Documents/sebatt/fpga/ws/platform_basys3/export/platform_basys3/sw/standalone_microblaze_riscv_0
+app_src_dir: /tools/Xilinx/Vitis/2024.2/data/embeddedsw/lib/sw_apps/empty_application
+template: empty_application
+lang: c

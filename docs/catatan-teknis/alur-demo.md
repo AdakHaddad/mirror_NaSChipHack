@@ -126,7 +126,7 @@ Tidak ditampilkan di demo utama, tetapi siap dijalankan bila juri bertanya.
 | "Bagaimana kalau jawaban lama dikirim ulang?" | Tombol kirim ulang di laptop BMS curang, hasilnya DITOLAK: jawaban lama |
 | "Bagaimana kalau dicoba terus?" | Tiga kali gagal berturut-turut, LED merah menyala, chip terkunci |
 | "Bagaimana kalau dayanya dicabut?" | Cabut daya board, nomor urut kembali ke 0, stasiun menolak: penghitung diputar balik. Akui bahwa produk membutuhkan memori permanen |
-| "Apa bedanya dengan chip yang sudah ada?" | Slide pembanding BQ40Z50 dan contoh alat reset siklus baterai iPhone |
+| "Apa bedanya dengan chip yang sudah ada?" | Slide pembanding BQ40Z50 (SHA-1 untuk keaslian paket, lifetime log tanpa tanda tangan) dan contoh alat reset siklus baterai iPhone. Sebut juga MAX17205: SHA-256, tetapi tetap anti-kloning paket, bukan integritas riwayat |
 
 ## Latihan
 

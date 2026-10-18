@@ -18,6 +18,7 @@ set_property -dict {PACKAGE_PIN U18 IOSTANDARD LVCMOS33} [get_ports sys_resetn]
 set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS33} [get_ports uart_rxd]
 set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS33} [get_ports uart_txd]
 
+
 ## --- Status LEDs (active-high) ---
 ## LD0 = heartbeat
 ## LD1 = HMAC busy
