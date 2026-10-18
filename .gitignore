@@ -66,9 +66,9 @@ CLAUDE.md
 docs/panduan/
 
 # Mini proposal (memuat data pribadi anggota)
-proposal/*.docx
+docs/proposal/*.docx
 
 # Data pribadi anggota (KTP, tanda tangan)
-anggota/ktp*
-anggota/ttd*
-anggota/Biodata Anggota Pengganti*
+docs/anggota/ktp*
+docs/anggota/ttd*
+docs/anggota/Biodata Anggota Pengganti*
