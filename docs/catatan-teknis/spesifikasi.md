@@ -2,7 +2,7 @@
 
 Kontrak teknis antara RTL (Muqtada), program stasiun (Budi), dan perangkat keras (Guntur) untuk demo di Kria KV260. Dokumen ini memuat keputusan protokol riwayat. Peta lengkap kode dan cara menjalankannya ada di [context.md](../../context.md), prosedur board di [cara-jalan-board.md](cara-jalan-board.md) dan [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md). Apabila ada perbedaan soal protokol, dokumen ini yang dipakai.
 
-Penanda status (keadaan repo per commit 200c754, 20 Oktober):
+Penanda status (keadaan repo per commit 6b8b382, 21 Oktober):
 - **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (15/15, dijalankan ulang 20 Okt di laptop Guntur). Uji di board disebut terpisah.
 - **[Disepakati]** sudah disetujui, belum diimplementasikan.
 - **[Usulan]** menunggu persetujuan Muqtada dan Budi.
@@ -24,7 +24,7 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | uart_if | UART 115200 8N1 | [Sudah ada] |
 | axil_master | Menulis kunci dan pesan ke register hmac_sha256 | [Sudah ada] |
 | auth_ctrl | Pembaca frame, CRC-8, AUTH_REQ → ADC → HMAC → AUTH_RESP | [Sudah ada], lolos 4/4 uji cocotb |
-| auth_ctrl, tambahan | Pengambil sampel berkala, seq, buffer, READ_HIST, RESULT, LOCK, UNLOCK, STATUS, lock | [Disepakati], belum dikerjakan |
+| auth_ctrl, tambahan | Pengambil sampel berkala, seq, buffer, READ_HIST, RESULT, LOCK, UNLOCK, STATUS, lock | [Disepakati]. Pengambil sampel berkala dilaporkan sudah ada di laptop Muqtada, belum di-push. Sisanya belum dikerjakan |
 | sumber_sampel | Pemilih sumber: ADS1115, ROM rekaman, atau switch | [Usulan] |
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
@@ -51,15 +51,17 @@ Field tegangan (V) berisi **milivolt 16 bit di masukan sumber**. Untuk ADS1115, 
 
 | Parameter | Nilai |
 |---|---|
-| Periode sampel | 100 ms (parameter SAMPLE_PERIOD dalam siklus clock, karena Cmod S7 12 MHz dan KV260 100 MHz) |
+| Periode sampel | 1 detik untuk demo. 100 ms tetap tersedia sebagai mode uji beban (parameter dalam siklus clock, karena Cmod S7 12 MHz dan KV260 100 MHz) [Usulan] |
 | Arti satu sampel di cerita demo | 3 jam pemakaian |
 | Nomor urut (seq) | 32 bit, mulai 0 saat reset, bertambah satu per sampel |
-| Buffer | 64 catatan × (seq 4 byte + V 2 byte) = 384 byte, berbentuk ring |
+| Buffer | 64 catatan × (seq 4 byte + V 2 byte + tag 32 byte) = 2.432 byte, berbentuk ring [Usulan] |
 | Saat buffer penuh | Catatan tertua ditimpa, seq tetap bertambah |
 
-Saat ini ads1115_ctrl dipicu satu kali setiap AUTH_REQ. Pada Flow B lengkap, pemicunya adalah pewaktu di auth_ctrl setiap 100 ms. Satu pembacaan single-shot memerlukan sekitar 10 ms ditambah transaksi I2C, sehingga masih muat dalam periode tersebut.
+Periode 1 detik membuat buffer mencakup 64 detik terakhir. Dengan 100 ms, buffer hanya mencakup 6,4 detik, sehingga catatan baterai terkuras sudah tertimpa sebelum adegan "hapus catatan" dijalankan. Satu pembacaan single-shot ADS1115 memerlukan sekitar 10 ms ditambah transaksi I2C, sehingga muat di kedua periode.
 
-Buffer hanya menyimpan seq dan V. Tanda tangan dihitung saat riwayat diminta, karena isi buffer berada di dalam IP dan tidak dapat diubah dari luar.
+**Tanda tangan dibuat saat sampel diambil [Usulan].** Setiap sampel langsung ditandatangani dengan pesan catatan (bagian 6), lalu seq, V, dan tag disimpan bersama di buffer. Cara ini sesuai dengan klaim penandatanganan di titik ukur, dan READ_HIST_RESP cukup membaca isi buffer ditambah satu tanda tangan ringkasan. Satu HMAC per detik jauh di bawah kemampuan hmac_sha256, dan 2,4 KB muat di satu blok RAM.
+
+Pewaktu sampel di auth_ctrl dilaporkan sudah dikerjakan Muqtada (interval 100 ms, regresi 16/16), tetapi belum di-push ke repo per commit 6b8b382. Latar belakang usulan di bagian ini ada di [desain-sampling-riwayat.md](desain-sampling-riwayat.md).
 
 ## 5. Kunci dan Identitas
 
@@ -202,6 +204,8 @@ RTL diuji dengan cocotb terhadap vektor yang sama, seperti test_auth_ctrl.py saa
 - Kunci simetris juga tersimpan di basis data, dan stasiun harus terhubung ke server.
 - Kunci uji sama untuk semua chip.
 - Apabila sumber ROM dipakai, input berupa data rekaman, bukan sensor live.
+- Chip tidak memiliki sumber waktu tepercaya. seq membuktikan urutan catatan yang dikirim, tetapi tidak membuktikan bahwa sampel benar-benar diambil setiap interval.
+- Anchor stasiun hanya mendeteksi rollback apabila stasiun pernah melihat seq yang lebih tinggi.
 
 ## 16. Keputusan yang Perlu Disetujui
 
@@ -216,3 +220,6 @@ RTL diuji dengan cocotb terhadap vektor yang sama, seperti test_auth_ctrl.py saa
 | 7 | Dashboard meminta dump penuh setiap 0,5 detik (bagian 12) | Tanpa perintah tambahan | Budi |
 | 8 | key_vault tanpa port baca dan sekali tulis, dipakai di Flow B (bagian 5) | auth_ctrl tidak lagi menulis kunci | Muqtada |
 | 9 | Pin Pmod KV260 dengan SCL dan SDA di pin 1–2 (bagian 13) | Kabel sama dengan Cmod S7 | Muqtada, Guntur |
+| 10 | Periode sampel demo 1 detik, 100 ms sebagai mode uji beban (bagian 4) | Catatan kejadian tidak tertimpa sebelum adegan demo selesai | Muqtada, Budi |
+| 11 | Tanda tangan dibuat saat sampel diambil dan disimpan di buffer, 2.432 byte (bagian 4) | READ_HIST_RESP cukup membaca buffer. Sesuai Opsi A di desain-sampling-riwayat.md | Muqtada |
+| 12 | Hash chain, ECDSA, penghapusan catatan setelah ACK, dan field tambahan tidak dikerjakan untuk demo | Masuk roadmap di slide | Semua |
