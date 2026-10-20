@@ -80,3 +80,7 @@ docs/anggota/
 
 # Hasil build LaTeX (versi resmi ada di docs/kirim/)
 docs/proposal/main.pdf
+
+# Vivado scratch at repo root
+clockInfo.txt
+.Xil/

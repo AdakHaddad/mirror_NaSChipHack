@@ -1,5 +1,10 @@
 # Milestone Proyek
 
+> **Revisi 18–20 Okt:** jalur demo utama sekarang **Flow B** — RTL murni + UART,
+> Cmod S7 lalu KV260. Flow A (MicroBlaze + AXI) hanya fallback. Lihat
+> [`context.md` §7.3](../context.md). Tabel dan arsitektur di bawah tetap
+> disimpan sebagai catatan rencana awal.
+
 Rencana kerja dari seleksi sampai Demo Day. Centang `[x]` setiap tugas yang selesai dan isi kolom PIC (penanggung jawab).
 
 | # | Milestone | Tenggat | Hasil akhir |

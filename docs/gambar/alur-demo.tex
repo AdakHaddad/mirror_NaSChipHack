@@ -51,7 +51,7 @@
 \fill[ok] (1.35,2.45) circle (0.13);
 \fill[bad] (1.75,2.45) circle (0.13);
 \node[font=\scriptsize] at (1.55,2.08) {LED};
-\node[font=\scriptsize, text=black!60, align=center] at (0.6,-0.25) {potensiometer + ADC};
+\node[font=\scriptsize, text=black!60, align=center] at (0.6,-0.25) {potensiometer + ADS1115 (I2C)};
 
 % Juri memutar kenop
 \pic at (-1.0,4.55) {person};
@@ -90,7 +90,7 @@
 \node[font=\scriptsize\bfseries, align=center] at (21.0,1.6) {layar proyektor\\{\normalfont dashboard}\\{\normalfont huruf besar}};
 
 % --- Kabel
-\draw[->, line width=0.8pt] (2.1,1.45) -- node[lbl, above=2pt]{SPI} (4.0,1.45);
+\draw[->, line width=0.8pt] (2.1,1.45) -- node[lbl, above=2pt]{I2C} (4.0,1.45);
 \draw[->, line width=0.8pt] (7.2,1.45) -- node[lbl, above=2pt]{UART} (9.4,1.45);
 \draw[->, line width=0.8pt] (13.0,1.45) -- node[lbl, above=2pt]{UART} (14.6,1.45);
 \draw[->, line width=0.8pt] (18.2,1.45) -- node[lbl, above=2pt]{HDMI} (19.6,1.45);

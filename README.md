@@ -16,9 +16,9 @@ Seluruh IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun pr
 
 | Modul | Tugas |
 |---|---|
-| spi_adc | Membaca sampel tegangan dari modul ADC |
-| auth_ctrl | FSM autentikasi, penghitung nomor urut, penguncian setelah gagal berulang |
-| hmac_sha256 | Menandatangani ID, nomor urut, dan sampel tegangan, serta menjawab nonce |
+| ads1115_ctrl + i2c_master | Membaca sampel tegangan dari modul ADS1115 (I2C) |
+| auth_ctrl | FSM autentikasi `AUTH_REQ -> ADC -> HMAC -> AUTH_RESP`; seq counter dan penguncian menyusul |
+| hmac_sha256 | Menandatangani nonce, ID, dan sampel tegangan |
 | key_vault | Kunci tetap (tahap 1) |
 | ro_puf + fuzzy_ext | Kunci dari PUF (tahap 2) |
 | uart_if | Komunikasi dengan emulator stasiun |
@@ -31,6 +31,7 @@ Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal
 |---|---|
 | Mini proposal | Lolos seleksi |
 | Persiapan pra-onsite | Berjalan, lihat [milestone](docs/MILESTONES.md) |
+| RTL Flow B + bitstream Cmod S7 | Selesai 20 Okt; uji board T6/T7/T9 menyusul |
 | Onsite dan Demo Day | 21–23 Oktober 2026 |
 
 ## Struktur Repositori

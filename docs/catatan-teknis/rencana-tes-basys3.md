@@ -1,5 +1,11 @@
 # Rencana Tes Basys 3 — Sesi Hardware Satu-satunya
 
+> **Revisi 19 Okt:** board sesi ini adalah **Cmod S7**, bukan Basys 3 (Basys 3
+> tidak tersedia; tidak ada Basys/Nexys di hari-H). Langkah Flow A/Basys 3 di
+> bawah disimpan sebagai referensi artefak dan pin; untuk Cmod S7 ganti target
+> (cek part di Vivado; umumnya `xc7s25csga225-1`), XDC, dan input sampel ke
+> **ADS1115 (I2C)**.
+
 Sesi ini satu-satunya kesempatan menyentuh hardware sebelum hari-H. Tiga hasil wajib sebelum pulang:
 
 1. **Flow A jalan** (halt fix hw_server 2024.1 bekerja) + **video fallback terekam** (asuransi hari-H).
@@ -70,7 +76,7 @@ Harus berakhir dengan `Demo completed successfully. All security scenarios verif
 
 **1.8 Jalankan hw_server** — terminal A, biarkan hidup sampai sesi selesai:
 ```bash
-pkill hw_server
+pkill -x hw_server        # jangan `pkill -f`: pola bisa cocok dengan shell sendiri
 ~/Xilinx/HWSRVR/2024.1/bin/hw_server 2>&1 | tee /tmp/hw_server.log
 ```
 Tunggu log mencetak pesan listening / port 3121. Jangan pakai hw_server 2024.2 (bug `Cannot halt hart`, AR000037627).
@@ -92,21 +98,24 @@ Kalau T2 gagal total: cek `/tmp/hw_server.log`, ulang dari T1; jangan habiskan >
 
 ## 3. Fase 2 — Rantai RTL Minimal (target utama, replika KV260)
 
-Blok yang belum ada dan ditulis pagi ini:
+Blok Fase 2 (status per 20 Okt):
 
 | File | Isi |
 |---|---|
-| `rtl/uart_rx.v`, `rtl/uart_tx.v` | 115200 @ 100 MHz, 8N1, oversampling 16x (pengganti CAN) |
-| `rtl/auth_ctrl.v` | Parse frame `[CMD][LEN:2][PAYLOAD][CRC8]`; `AUTH_REQ` → msg = `nonce‖ID(4)‖V(2)` → HMAC → `AUTH_RESP`; simpan seq counter (modal Fase 3) |
-| `rtl/axil_master.v` | Master AXI4-Lite kecil untuk KEY/MSG/CTRL ke `hmac_sha256` (IP sudah AXI-Lite dan terverifikasi sim). Opsi B: bungkus native `sha256_core` — default opsi A, putuskan 10 menit pertama |
-| `rtl/sebatt_top.v` | Kunci semua: clk/reset/uart + switch + LED heartbeat |
-| `fpga/basys_3/rtl/xdc` | Aktifkan LED + switch dari tabel pin bawah |
+| `rtl/uart_if.v` | **Sudah ada (20 Okt).** UART 8N1, sampling tengah bit, `BIT_CYCLES = CLK_HZ/BAUD` |
+| `rtl/auth_ctrl.v` | **Sudah ada (20 Okt).** Parse frame `[CMD][LEN:2][PAYLOAD][CRC8]`, `AUTH_REQ` → ADC → HMAC → `AUTH_RESP` |
+| `rtl/axil_master.v` | **Sudah ada (20 Okt).** Master AXI4-Lite untuk KEY/MSG/CTRL ke `hmac_sha256` |
+| `rtl/i2c_master.v` + `rtl/ads1115_ctrl.v` | **Sudah ada (20 Okt).** ADS1115 I2C: tulis config `0xC383`, baca AIN0 single-ended, `V_mV = code / 8`; sim `make ads1115` PASS 2/2 |
+| `rtl/sebatt_top.v` | **Sudah ada (20 Okt).** clk/reset/uart + ADS1115 + `auth_ctrl` + LED heartbeat |
+| `fpga/cmod_s7/` | **Sudah ada (20 Okt).** `cmod_s7_top.v`, `cmod_s7.xdc`, `build.tcl`, `program.tcl`; bitstream WNS +52,746 ns |
 
 **Aturan pagi: SIM DULU, board belakangan.**
 - Regresi lama: `source .venv/bin/activate && cd sim && make hmac` (cocotb 2.1.0 di `.venv`; python3 sistem tidak punya).
-- TB baru `sim/test_auth_ctrl.py`: kirim frame `AUTH_REQ` memakai `model.protocol.WireProtocol`, bandingkan byte `AUTH_RESP` dengan `model.protocol` (Python = referensi emas). **Merah = jangan ke board.**
+- ADS1115: `make ads1115` → 2/2 PASS (config `0xC383`, 26400→3300 mV, 16000→2000 mV, 0x8000→0 mV).
+- Auth chain: `make auth` → 4/4 PASS (`sim/test_auth_ctrl.py`); responsive, nonce kedua, CRC salah diabaikan, command tak dikenal diabaikan. Bandingkan byte `AUTH_RESP` dengan `model.hmac`/`model.protocol` (Python = referensi emas). **Merah = jangan ke board.**
+- Regresi total: `make all` → 5 sha256 + 4 hmac + 2 ads1115 + 4 auth = 15/15 PASS.
 
-**Mapping tegangan (beku untuk tes ini):** `V_mV = 3000 + sw[7:0] * 5` → 3000–4275 mV. RTL membaca pin switch langsung; station hanya mempercayai nilai dari dalam frame.
+**Mapping tegangan (beku untuk tes ini):** switch `V_mV = 3000 + sw[7:0] * 5` → 3000–4275 mV (fallback). ADS1115 `V_mV = code / 8` (LSB 0,125 mV), AIN0 0–3,3 V dari potensiometer. RTL membaca pin switch/I2C langsung; station hanya mempercayai nilai dari dalam frame.
 
 Tabel pin (verified dari Digilent Basys-3-Master.xdc; W5/U18/B18/A18 sudah ada di `basys_3.xdc`):
 
@@ -117,10 +126,11 @@ Tabel pin (verified dari Digilent Basys-3-Master.xdc; W5/U18/B18/A18 sudah ada d
 
 | # | Tes | Perintah | Ekspektasi |
 |---|---|---|---|
-| T5 | Build bitstream RTL | Vivado `xc7a35tcpg236-1`, top `sebatt_top` | Bitstream jadi, timing hijau |
-| T6 | Program | Hardware Manager (seperti T1) | LED heartbeat berkedip |
-| T7 | Auth RTL | `python3 -m model.station --port /dev/ttyUSB1 --interactive` → AUTH | VALID; putar switch → AUTH → VALID dengan V baru |
+| T5 | Build bitstream RTL | Cmod S7: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl`; part `xc7s25csga225-1`, top `cmod_s7_top` | **PASS 20 Okt:** bitstream jadi, WNS +52,746 ns (semua constraint met), 4 417 LUT / 5 233 FF |
+| T6 | Program | `cd fpga/cmod_s7 && vivado -mode batch -source program.tcl` (atau Hardware Manager) | LED heartbeat berkedip |
+| T7 | Auth RTL | `python3 -m model.station --port /dev/ttyUSB1 --interactive` → AUTH | VALID; putar pot ADS1115 / switch → AUTH → VALID dengan V baru |
 | T8 | LED status (opsional) | – | LED valid/reject saat T7 |
+| T9 | ADS1115 I2C | Scan `0x48`, baca AIN0 sambil pot diputar | `V_mV` berubah mengikuti pot; tidak ada NACK |
 
 **T7 PASS = target hari ini tercapai.** Ini yang akan dijalankan di KV260.
 
@@ -137,10 +147,10 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 
 ## 5. Fase 4 — Tanpa Board (sore / sambil menunggu)
 
-- [ ] Sim/synth `xck26` (port KV260): ganti part → synth → catat WNS/LUT/BRAM
+- [x] Sim/synth `xck26` (port KV260): **20 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +2,749 ns, 4 444 LUT / 5 216 FF; lihat `fpga/kv260/`
 - [ ] SD image Ubuntu untuk KV260 + kenalan update BOOT.BIN
 - [ ] Loopback CP2102: jumper TX–RX, kirim/terima via pyserial
-- [ ] Draft `fpga/kv260/`: constraint PMOD (nama pin dari master XDC KV260), `shell.json`, `.bif` + `bootgen` untuk `.bit → .bit.bin`
+- [ ] `fpga/kv260/`: constraint PMOD asli (nama pin dari carrier KV260), `shell.json`, `.bif` + `bootgen` untuk `.bit → .bit.bin`; timing-only check sudah ada
 
 ## 6. Aturan Stop (keras)
 
@@ -155,9 +165,11 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 | | T2 | | |
 | | T3 | | |
 | | T4 | | |
-| | T5 | | |
+| 20 Okt | T5 | PASS | `cmod_s7_top.bit`; WNS +52,746 ns; 4 417 LUT / 5 233 FF |
 | | T6 | | |
 | | T7 | | |
+| | T8 | | |
+| | T9 | | |
 | | Fase 3 | | |
 | | Fase 4 | | |
 
@@ -167,7 +179,7 @@ Semua cek persiapan manual ada tertulis di bagian 1 (Fase 0) — tidak ada skrip
 
 ```bash
 # hw_server fix (terminal A, biarkan hidup)
-pkill hw_server
+pkill -x hw_server        # jangan `pkill -f`: pola bisa cocok dengan shell sendiri
 ~/Xilinx/HWSRVR/2024.1/bin/hw_server 2>&1 | tee /tmp/hw_server.log
 
 # Station (terminal B)

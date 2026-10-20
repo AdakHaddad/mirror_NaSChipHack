@@ -104,7 +104,7 @@ Kalimat jujur yang bisa dipakai:
 | Cepat? | Ya. Perhitungan di chip memakan ratusan siklus clock; lewat kabel serial hanya milidetik. |
 | Mahal? | Model bisnisnya lisensi IP. Target biaya di bawah 1 dolar per chip; FPGA hanya prototipe. |
 | Apa bedanya dengan chip baterai biasa? | Chip biasa mengamankan **identitas** baterai. SeBatt mengamankan **isi riwayatnya**. |
-| Datanya bisa dipalsukan? | Pada demo, sensor masih terpisah. Pada chip akhir, sensor berada di chip yang sama. |
+| Datanya bisa dipalsukan? | Pada demo, sensor (ADS1115) masih terpisah. Pada chip akhir, sensor berada di chip yang sama. |
 
 ## Kalimat yang boleh dan jangan dipakai
 
@@ -112,7 +112,7 @@ Kalimat jujur yang bisa dipakai:
 |---|---|
 | "Kami sudah membuktikan pengaman dan protokolnya." | "Semua fitur sudah selesai." |
 | "PUF adalah rencana tahap dua." | "PUF sudah jalan di demo." |
-| "Demo memakai ADC terpisah." | "ADC sudah menyatu di chip." |
+| "Demo memakai ADC (ADS1115) terpisah." | "ADC sudah menyatu di chip." |
 | "Riwayat 64 catatan adalah target demo." | "Riwayat 64 catatan sudah jalan." |
 | "Counter masih hilang saat daya putus." | "Rollback sudah teratasi sepenuhnya." |
 
@@ -121,7 +121,9 @@ Kalimat jujur yang bisa dipakai:
 | Istilah | Arti sederhana |
 |---|---|
 | ADC | Alat yang mengubah tegangan listrik menjadi angka. |
+| ADS1115 | Modul ADC murah yang dipakai di demo; dihubungkan ke FPGA lewat dua kabel I2C. |
 | BMS | Otak baterai yang mengatur pengisian dan melindungi sel. |
+| Cmod S7 | Board FPGA kecil milik tim untuk latihan sebelum pindah ke KV260. |
 | HMAC | Stempel rahasia yang dibuat dari isi catatan dan kunci. |
 | Kunci | Rahasia yang hanya dimiliki chip; dipakai untuk membuat stempel. |
 | Nonce | Angka acak baru untuk setiap penukaran, supaya jawaban lama tidak bisa dipakai ulang. |

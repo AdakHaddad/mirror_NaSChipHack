@@ -11,7 +11,7 @@ Rencana demo sekitar 60 detik di dalam pitch 5 menit. Penjelasan teknis alurnya 
 | Barang | Jumlah | Keterangan | Penanggung jawab |
 |---|---|---|---|
 | AMD Kria KV260 + SD card + adaptor daya | 1 | Dari panitia. Berperan sebagai chip SeBatt | Muqtada |
-| Modul ADC SPI (MCP3202) | 1 + 1 cadangan | Dibawa sendiri | Guntur |
+| Modul ADC I2C (ADS1115) | 1 + 1 cadangan | Dibawa sendiri; VDD 3,3 V, addr 0x48 (ADDR→GND) | Guntur |
 | Potensiometer 10 kΩ dengan kenop besar | 1 + 1 cadangan | Kenop yang diputar juri | Guntur |
 | Adaptor USB-UART (CP2102) | 3 | Board ke laptop BMS, laptop BMS ke laptop stasiun (TX dan RX disilang, GND disambung), satu cadangan | Guntur |
 | LED besar merah dan hijau + resistor | 2 set | Penanda di breadboard, terlihat dari jauh | Guntur |
@@ -22,6 +22,11 @@ Rencana demo sekitar 60 detik di dalam pitch 5 menit. Penjelasan teknis alurnya 
 | Laptop BMS curang | 1 | Menjalankan program perantara | Guntur |
 | Kabel HDMI dan konverter | 1 set | Untuk proyektor | Budi |
 | Flashdisk | 1 | Bitstream, dataset, video cadangan | Semua |
+
+**Wiring ADS1115 (3,3 V):** VDD → 3,3 V, GND → GND, SCL/SDA → dua pin I2C FPGA,
+ADDR → GND (alamat `0x48`), AIN0 → wiper potensiometer, ujung potensiometer →
+3,3 V dan GND. Modul ADS1115 umumnya sudah punya pull-up 10 kΩ di SCL/SDA;
+kalau tidak, tambahkan 4,7 kΩ ke 3,3 V.
 
 ### Perangkat lunak dan file
 
@@ -45,15 +50,15 @@ Rencana demo sekitar 60 detik di dalam pitch 5 menit. Penjelasan teknis alurnya 
 ## Susunan Meja
 
 ```
-[Kotak PAKET BATERAI]     [KV260 "CHIP SeBatt"]     [Laptop BMS curang]     [Laptop stasiun] → proyektor
- kenop + ADC + LED  ──SPI──→   rangkaian SeBatt  ──UART──→  tombol Hapus/Ubah  ──UART──→  dashboard
+[Kotak PAKET BATERAI]         [KV260 "CHIP SeBatt"]     [Laptop BMS curang]     [Laptop stasiun] → proyektor
+ kenop + ADS1115 + LED  ──I2C──→   rangkaian SeBatt  ──UART──→  tombol Hapus/Ubah  ──UART──→  dashboard
 ```
 
 Data mengalir dari kiri ke kanan. Laptop BMS curang diletakkan di tengah dan diberi label, agar juri melihat bahwa penyerang berada di antara baterai dan stasiun.
 
 ## Konversi Tegangan
 
-Potensiometer menghasilkan 0–3,3 V ke ADC. Dashboard menampilkannya sebagai tegangan satu sel Li-ion dengan skala 0–4,2 V, seolah melalui pembagi tegangan.
+Potensiometer menghasilkan 0–3,3 V ke ADS1115 (AIN0, rentang ±4,096 V, LSB 0,125 mV). Dashboard menampilkannya sebagai tegangan satu sel Li-ion dengan skala 0–4,2 V, seolah melalui pembagi tegangan.
 
 | Posisi kenop | Tegangan sel di layar | Zona |
 |---|---|---|

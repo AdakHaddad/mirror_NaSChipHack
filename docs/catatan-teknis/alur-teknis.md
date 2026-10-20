@@ -47,7 +47,7 @@ Masalah serupa sudah terjadi di HP. iPhone menampilkan jumlah siklus dan kesehat
 
 Langkah ini berjalan sendiri di dalam chip setiap selang waktu tertentu (100 ms pada demo, yang mewakili 3 jam pemakaian). Tidak ada perangkat lunak yang ikut campur.
 
-1. **Ukur.** spi_adc meminta ADC membaca tegangan paket. Contohnya, hasilnya 3,7 V.
+1. **Ukur.** ads1115_ctrl meminta modul ADS1115 (lewat I2C) membaca tegangan paket. Contohnya, hasilnya 3,7 V.
 2. **Beri nomor.** auth_ctrl menaikkan penghitung, misalnya dari 120 menjadi 121.
 3. **Simpan.** auth_ctrl menulis pasangan (121, 3,7 V) ke buffer riwayat di dalam chip.
 
@@ -134,7 +134,7 @@ BMS yang curang berada di antara chip dan stasiun. BMS dapat mengubah atau membu
 
 | Modul | Peran dalam alur |
 |---|---|
-| spi_adc | Langkah 1.1: membaca ADC |
+| ads1115_ctrl + i2c_master | Langkah 1.1: membaca ADS1115 lewat I2C |
 | auth_ctrl | Langkah 1.2–1.3: memberi nomor dan menyimpan. Langkah 2–3: melayani stasiun. Langkah 5: menghitung kegagalan dan mengunci |
 | key_vault | Menyimpan K. Hanya terhubung ke hmac_sha256 |
 | hmac_sha256 | Langkah 2.2 dan 3.2: menghitung tanda tangan |
@@ -184,7 +184,7 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 
 | Produk nyata | Pada demo |
 |---|---|
-| Sel baterai, pembagi tegangan, ADC | Potensiometer atau satu sel, pembagi tegangan, modul MCP3202 |
+| Sel baterai, pembagi tegangan, ADC | Potensiometer atau satu sel, pembagi tegangan, modul ADS1115 (I2C, 16 bit) |
 | Chip SeBatt | FPGA Kria KV260 |
 | Bus CAN di konektor | UART melalui PMOD dan adaptor USB-UART |
 | Stasiun dan basis data | Program Python di laptop stasiun |
@@ -192,20 +192,23 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 
 ## Batasan
 
-- ADC masih modul terpisah, sehingga tegangan dapat dipalsukan sebelum masuk chip. Pada chip akhir, ADC berada di dalam chip.
+- ADC masih modul terpisah (ADS1115 lewat I2C), sehingga tegangan dapat dipalsukan sebelum masuk chip. Pada chip akhir, ADC berada di dalam chip.
 - Penghitung dan buffer riwayat hilang saat daya putus, termasuk saat baterai terkuras sangat dalam. Produk membutuhkan memori permanen atau cadangan daya.
 - K juga tersimpan di basis data, sehingga basis data yang bocor berarti kunci bocor, dan stasiun harus terhubung ke server.
 - Kunci uji di demo sama untuk semua chip. Pada produk, setiap chip memiliki kunci sendiri.
 
-## Status Pengerjaan per 18 Oktober
+## Status Pengerjaan per 20 Oktober (revisi ADC: ADS1115/I2C)
 
 | Bagian | Status |
 |---|---|
 | hmac_sha256 dan inti SHA-256 | Ada, lolos 9/9 vektor uji |
 | key_vault | Ada, versi uji (kunci masih dapat dibaca dan ditulis ulang) |
-| Emulator stasiun Python | Ada untuk protokol lama (satu tanda tangan per autentikasi) |
-| spi_adc dan uart_if versi RTL | Belum |
+| Emulator stasiun Python | Ada untuk autentikasi (nonce + HMAC); riwayat/seq belum |
+| ads1115_ctrl + i2c_master | Ada, lolos 2/2 uji cocotb (20 Okt); lihat `sim/test_ads1115.py` |
+| uart_if versi RTL | Ada, lolos 4/4 uji rantai auth (20 Okt) |
+| auth_ctrl + axil_master + sebatt_top | Ada, lolos 4/4 uji `make auth` (20 Okt) |
+| Bitstream Cmod S7 | Ada (20 Okt), timing WNS +52,746 ns; uji board T6/T7/T9 belum |
 | Nomor urut, buffer riwayat, penguncian di chip | Belum |
 | Permintaan riwayat dan pemeriksaan urutan di stasiun | Belum |
 | Kartu kesehatan baterai di dashboard | Belum |
-| Port ke KV260 | Belum |
+| Port ke KV260 | Timing 100 MHz PASS (WNS +2,749 ns); pin PMOD/bit.bin belum |

@@ -4,8 +4,12 @@
 >
 > Written 19 October 2026. Verified against the repository at that date:
 > Python model 40/40 tests pass, RTL simulation 9/9 tests pass, offline station
-> demo passes. Hardware results are marked separately because the Basys 3 was
-> not connected when this was written.
+> demo passes. Hardware results are marked separately.
+>
+> **Revision 19 Oct 2026 (hardware session):** the demo ADC changed from an
+> SPI MCP3202 to an **ADS1115 over I2C** (no SPI ADC available). Practice board
+> is the **Cmod S7**; demo-day board remains the **Kria KV260**. The Flow A
+> Basys 3 / MicroBlaze path is kept only as a fallback and video source.
 
 This file is the "master map". The formal narrative lives in
 [`docs/catatan-teknis/alur-teknis.md`](docs/catatan-teknis/alur-teknis.md) and
@@ -121,8 +125,9 @@ placement**:
 
 **Out of scope / accepted limitations**
 
-- **ADC outside the chip in the demo.** The voltage can be spoofed before it
-  enters the FPGA. The final product puts the ADC on the same die.
+- **ADC outside the chip in the demo.** The ADS1115 (I2C) is a separate module,
+  so the voltage can be spoofed before it enters the FPGA. The final product
+  puts the ADC on the same die.
 - **Volatile history and counter.** FPGA BRAM loses state on power loss. A real
   product needs flash/EEPROM/FRAM or a small backup supply.
 - **Symmetric keys.** `K` is in the chip and in the operator database. A database
@@ -153,8 +158,8 @@ This is the flow that exists in the repository today and that produced the
 Basys 3 artifacts.
 
 ```
-Station (PC, Python)                         Basys 3 / Nexys A7
-────────────────────                         ──────────────────
+Station (PC, Python)                         Basys 3 (Flow A fallback)
+────────────────────                         ─────────────────────────
 AUTH_REQ(nonce 32B)  ───── UART 115200 ────→ AXI UART Lite
                                              MicroBlaze firmware
                                                msg = nonce ‖ ID(4) ‖ V(2)
@@ -182,13 +187,13 @@ Properties:
 This is what the demo must become.
 
 ```
-                 ┌──────────────────────── FPGA (chip) ────────────────────────┐
- voltage source  │  spi_adc ──→ auth_ctrl ──→ hmac_sha256 ──→ uart_if ──→ PC   │
- (switch / pot / │              │  seq counter                               │
-  scripted ramp) │              │  64-record buffer                          │
-                 │              │  lock after 3 failures                     │
-                 │              └── key_vault / ro_puf                        │
-                 └────────────────────────────────────────────────────────────┘
+                 ┌──────────────────────── FPGA (chip) ─────────────────────────┐
+ voltage source  │  ads1115_ctrl ──→ auth_ctrl ──→ hmac_sha256 ──→ uart_if ──→ PC │
+ (pot + ADS1115  │                   │  seq counter                            │
+  over I2C, or   │                   │  64-record buffer                       │
+  switch / ramp) │                   │  lock after 3 failures                  │
+                 │                   └── key_vault / ro_puf                     │
+                 └─────────────────────────────────────────────────────────────┘
 ```
 
 Planned history exchange:
@@ -454,11 +459,20 @@ sebatt/
 │   ├── sha256_core.v         SHA-256 compression engine
 │   ├── hmac_sha256.v         HMAC wrapper + AXI4-Lite slave
 │   ├── key_vault.v           Fixed key store (stage 1)
-│   └── ro_puf.v              RO-PUF (stage 2, behavioral/synthesis)
+│   ├── ro_puf.v              RO-PUF (stage 2, behavioral/synthesis)
+│   ├── i2c_master.v          I2C master (100 kHz) for the ADS1115
+│   ├── ads1115_ctrl.v        ADS1115 config/read FSM, outputs mV
+│   ├── uart_if.v             UART 8N1 byte interface
+│   ├── axil_master.v         AXI4-Lite master for the HMAC registers
+│   ├── auth_ctrl.v           Frame parser + auth FSM + HMAC glue
+│   └── sebatt_top.v          Flow B top level
 ├── sim/
-│   ├── Makefile              cocotb targets (sha256, hmac)
+│   ├── Makefile              cocotb targets (sha256, hmac, ads1115, auth)
 │   ├── test_sha256.py        5 tests
-│   └── test_hmac.py          4 tests
+│   ├── test_hmac.py          4 tests
+│   ├── test_ads1115.py       ADS1115 I2C model + controller tests
+│   ├── tb_auth.v             12 MHz wrapper for the auth tests
+│   └── test_auth_ctrl.py     4 auth-chain tests (UART -> ADC -> HMAC -> UART)
 ├── fpga/
 │   ├── README.md             Flow A build/run guide
 │   ├── create_bd.tcl         MicroBlaze + AXI UART Lite + HMAC BD
@@ -466,15 +480,18 @@ sebatt/
 │   ├── fw/sebatt_fw.c        MicroBlaze firmware
 │   ├── ws/                   Vitis workspace + built .elf/.bit artifacts
 │   ├── basys_3/              Basys 3 Vivado project
-│   └── nexys_a7/             Nexys A7 Vivado project
+│   ├── nexys_a7/             Nexys A7 Vivado project
+│   ├── cmod_s7/              Flow B Cmod S7 build + bitstream
+│   └── kv260/                KV260 100 MHz timing/fit check
 ├── bisnis/                   Business model and lean canvas
 ├── pitch/                    Pitch deck and comparison notes
 └── tools/preflight_basys3.sh Preflight script (optional)
 ```
 
-Important: the repo currently contains **Flow A** artifacts and the **core
-crypto RTL**, but not the target Flow B modules (`spi_adc`, `uart_if`,
-`auth_ctrl`, `sebatt_top`) and not the history protocol.
+Important: the repo contains **Flow A** artifacts, the **core crypto RTL**,
+and the Flow B chain (`ads1115_ctrl`/`i2c_master`, `uart_if`, `axil_master`,
+`auth_ctrl`, `sebatt_top`). The history protocol (READ_HIST, seq counter,
+64-record log) is still not implemented.
 
 ---
 
@@ -687,6 +704,8 @@ Known sharp edges:
 - `Makefile` targets:
   - `make sha256` → `TOPLEVEL=sha256_core`, `MODULE=test_sha256`;
   - `make hmac` → `TOPLEVEL=hmac_sha256`, `MODULE=test_hmac`;
+  - `make ads1115` → `TOPLEVEL=ads1115_ctrl`, `MODULE=test_ads1115`;
+  - `make auth` → `TOPLEVEL=tb_auth`, `MODULE=test_auth_ctrl`;
   - `make all`, `make clean`.
 - Uses Icarus Verilog (`SIM=icarus`) and cocotb 2.1.0 from `.venv`.
 - `test_sha256.py`:
@@ -698,13 +717,17 @@ Known sharp edges:
 - `test_hmac.py`:
   - RFC 4231 cases 1, 2, 3,
   - SeBatt protocol vector (`nonce=bytes(range(32))`, `BAT\x00`, 3000 mV).
+- `test_ads1115.py`: behavioral ADS1115 model; 2 tests (3300 mV and 2000 mV /
+  0 mV raw values).
+- `test_auth_ctrl.py`: 4 tests against `model.hmac`/`model.protocol` — normal
+  AUTH_RESP, second nonce, bad CRC ignored, unknown command ignored.
 - Drivers model AXI4-Lite transactions manually (`axi_write`, `axi_read`,
   `start_and_wait`, `read_hash`).
 
-**Important operational note:** switching between `make hmac` and `make sha256`
-without cleaning can leave a stale `sim_build/sim.vvp`, producing
-`RuntimeError: Can not find root handle`. Run `make clean` first when switching
-targets, or fix the Makefile to depend on the source list. Verified:
+**Important operational note:** Icarus reuses `sim_build/sim.vvp` across
+targets. `make all` now runs `make clean` between each target. A standalone
+target after another target still needs `make clean` first, otherwise you can
+get `RuntimeError: Can not find root handle` or a stale DUT. Verified:
 
 ```bash
 source .venv/bin/activate
@@ -713,9 +736,13 @@ make clean
 make sha256   # TESTS=5 PASS=5
 make clean
 make hmac     # TESTS=4 PASS=4
+make clean
+make ads1115  # TESTS=2 PASS=2
+make clean
+make auth     # TESTS=4 PASS=4
 ```
 
-Total: 9/9.
+Total: 15/15.
 
 ### 6.4 FPGA Flow A (`fpga/`)
 
@@ -736,7 +763,8 @@ Total: 9/9.
   - sends `AUTH_RESP` with `ID ‖ V ‖ HMAC`.
 - `main()`: initializes UART, prints banner, loops over frames, handles
   `AUTH_REQ`, `LOCK`, `UNLOCK`, `STATUS`.
-- `voltage_mv` is fixed at 3700. There is no ADC.
+- `voltage_mv` is fixed at 3700 in Flow A. The Flow B voltage source is the
+  ADS1115 over I2C (`ads1115_ctrl` + `i2c_master`).
 - `locked` is local and does not gate `handle_auth_req()`; the station's DB is
   what rejects locked batteries.
 
@@ -824,7 +852,7 @@ Rules:
 Consequences:
 
 - The demo voltage source must be a pin/RTL source: switches, XADC, a scripted
-  ramp, or a SPI ADC connected to the FPGA.
+  ramp, or the ADS1115 (I2C) connected to the FPGA.
 - Do not feed the voltage from the PS (Zynq ARM), PYNQ, AXI, or UART. If you do,
   the sample passes through software before signing, and the central claim
   collapses.
@@ -836,9 +864,9 @@ Consequences:
 | | Flow A | Flow B |
 |---|---|---|
 | Compute | MicroBlaze + C firmware | pure RTL |
-| Voltage | fixed 3700 mV | ADC / switch / scripted ramp |
+| Voltage | fixed 3700 mV | ADS1115 (I2C) / switch / scripted ramp |
 | History | none | 64-record signed ring buffer |
-| Status | works (when board available) | target |
+| Status | fallback; Basys 3 reset bug open | auth chain built, Cmod S7 bitstream built; history/seq pending |
 | KV260 | not portable (soft CPU) | portable |
 | Purpose | fallback, video, hardware smoke test | real demo |
 
@@ -930,12 +958,18 @@ write_hw_platform -fixed -include_bit -file sebatt_bd_wrapper.xsa
 ```
 
 Then build the firmware in Vitis from the `.xsa`, program the bitstream, and run
-the station. The full board sequence with test IDs T1–T8 is in
+the station. The full board sequence with test IDs T1–T9 is in
 `docs/catatan-teknis/rencana-tes-basys3.md`.
 
 ---
 
-## 9. Basys 3 / KV260 bring-up
+## 9. Board bring-up (Cmod S7 practice, KV260 demo day)
+
+> 19 Oct change: the team has no Basys 3 / Nexys A7 for demo day. Practice and
+> fallback recording use the **Cmod S7**; the hackathon stage uses the **KV260**.
+> The Basys 3 section below is kept because the frozen Flow A artifacts target
+> it; the RTL Flow B chain targets `xc7s25csga225-1` (Cmod S7, confirmed in
+> Vivado) and `xck26` (KV260).
 
 ### 9.1 Basys 3 pin table (from the test plan)
 
@@ -966,7 +1000,7 @@ V_mV = 3000 + sw[7:0] * 5      → 3000–4275 mV
 
 The station trusts only the value inside the signed frame.
 
-### 9.2 Basys 3 test sequence (T1–T8)
+### 9.2 Board test sequence (T1–T9)
 
 1. **Preflight**: FTDI visible, `/dev/ttyUSB1`, `dialout`, artifacts exist,
    hw_server 2024.1, `.venv`, offline demo.
@@ -978,11 +1012,15 @@ The station trusts only the value inside the signed frame.
    REPLAY_DETECTED, INVALID_HMAC, BATTERY_LOCKED.
 5. **T4**: record 60–90 s fallback video. Back it up in two places. This is
    mandatory.
-6. **T5**: build the RTL bitstream (`xc7a35tcpg236-1`, top `sebatt_top`).
-7. **T6**: program it; heartbeat LED blinks.
-8. **T7**: station `--interactive` → `auth` → VALID; flip switches → `auth` →
-   VALID with the new voltage. **T7 PASS is the main goal.**
+6. **T5**: ~~build the RTL bitstream.~~ Done 20 Oct for the Cmod S7
+   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +52.746 ns.
+7. **T6**: program `fpga/cmod_s7/build/cmod_s7_top.bit`; heartbeat LED blinks.
+8. **T7**: station `--interactive` → `auth` → VALID; turn the ADS1115 pot
+   (or flip switches) → `auth` → VALID with the new voltage. **T7 PASS is the
+   main goal.**
 9. **T8** (optional): LED valid/reject.
+10. **T9**: scan I2C `0x48`, read AIN0 while turning the pot; `V_mV` follows
+    the pot and there is no NACK.
 
 Hard stops from the test plan:
 
@@ -995,8 +1033,8 @@ Hard stops from the test plan:
   in the block design as a clock source.
 - The onboard UART belongs to the PS. The SeBatt UART must leave through a
   **PMOD + CP2102/CH340/FT232** adapter.
-- Only one PMOD (8 pins) is available: enough for SPI ADC (4) + UART (2), or
-  UART (2) + LED (1) + spare.
+- One PMOD (8 pins) is enough for ADS1115 I2C (2) + UART (2) + LED (1) +
+  spare.
 - Take PMOD pin names from the KV260 master XDC; do not guess.
 - Load the bitstream with `xmutil loadapp` or `fpgautil`; unload the stock
   `k26-starter-kits` app first.
@@ -1013,7 +1051,7 @@ The demo is about 60 seconds inside a 5-minute pitch.
 
 ```
 [PAKET BATERAI]        [KV260 "CHIP SeBatt"]      [Laptop BMS curang]      [Laptop stasiun] → projector
- knob + ADC + LED  ──SPI──→  SeBatt logic  ──UART──→  Hapus / Ubah  ──UART──→  dashboard
+ knob + ADS1115 + LED  ──I2C──→  SeBatt logic  ──UART──→  Hapus / Ubah  ──UART──→  dashboard
 ```
 
 The attacker laptop sits physically in the middle, labelled, so the audience
@@ -1093,43 +1131,48 @@ sees that the attacker is between the battery and the station.
 | RO-PUF model + RTL | Behavioral/stage 2, not integrated |
 | Protocol model + wire framing | Auth only |
 | Station emulator | Auth, replay, lock, benchmark, offline demo |
-| Flow A FPGA | Artifacts built; hardware not re-tested in this session |
-| Test plan | Written, preflight items pass except board detection |
+| Flow A FPGA | Artifacts built; 19 Oct session found Basys 3 reset-polarity / debug-reset blockers |
+| ADS1115 I2C RTL | Done 20 Oct: `i2c_master.v` + `ads1115_ctrl.v` + cocotb model, 2/2 tests pass |
+| Flow B auth RTL | Done 20 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; cocotb `make auth` 4/4 pass |
+| Cmod S7 bitstream | Built 20 Oct: `xc7s25csga225-1`, WNS +52.746 ns, 4 417 LUT / 5 233 FF; hardware run pending |
+| KV260 timing check | 20 Oct: `xck26-sfvc784-2LV-c` at 100 MHz, WNS +2.749 ns, 4 444 LUT / 5 216 FF; pins/bit.bin pending |
+| Test plan | Written; preflight passes, Flow A blocked by reset bug |
 | Business/pitch | Drafts exist |
 
 ### 11.2 What is missing (Flow B)
 
 | Missing piece | Why it matters |
 |---|---|
-| `rtl/spi_adc.v` | Real voltage source |
-| `rtl/uart_if.v` | UART in RTL instead of AXI UART Lite |
-| `rtl/auth_ctrl.v` | seq counter, 64-record buffer, lock FSM |
-| `rtl/sebatt_top.v` | Top-level integration |
+| Seq counter + 64-record log | History and rollback detection inside `auth_ctrl` |
 | `READ_HIST` in Python | History request/response contract |
 | History verification in station | Delete/edit detection |
 | Dashboard / health card | Demo visuals |
 | BMS attacker proxy | Demo scenes 2–3 |
-| KV260 port | `xck26` synthesis, PMOD XDC, `.bit.bin`, boot |
+| Cmod S7 hardware run | Program the built bitstream, run T7/T9 on the board |
+| KV260 port | Real carrier/PMOD XDC, `.bit.bin`, boot (100 MHz timing check already passes) |
 | Fallback video | Insurance for demo day |
 
 ### 11.3 Known discrepancies and risks
 
 1. **Docs describe the target, code implements the auth subset.**
-   `alur-teknis.md` talks about seq, 64-record history, lock after 3 failures, and
-   domain separation. Those are **not** in the current code. Do not claim they
-   are implemented.
+   The Flow B chain now performs a real AUTH_REQ -> ADC -> HMAC -> AUTH_RESP
+   round trip in simulation and synthesizes for the Cmod S7. Seq, 64-record
+   history, lock after 3 failures, and domain separation are **not** in the
+   current code. Do not claim they are implemented.
 
 2. **MILESTONES says M3 demo is done.**
    That refers to Flow A (MicroBlaze). After the 18 October pivot, Flow A is only
-   a fallback. The main demo path (Flow B) is still to be built.
+   a fallback. Flow B RTL is built and sim-verified; the board run and KV260 port
+   are still pending.
 
 3. **Basys 3 XDC mismatch.**
    `fpga/basys_3/nexys_a7.xdc` contains Nexys pins. The Basys 3 project points
    to a generated `basys_3.xdc`. Create a correct Basys 3 XDC before T5.
 
 4. **Stale cocotb build.**
-   Switching `make` targets without `make clean` gives
-   `Can not find root handle`. Always clean between targets.
+   Icarus reuses `sim_build/sim.vvp` across targets. `make all` now runs
+   `make clean` between targets; a standalone `make <target>` after another
+   target still needs an explicit `make clean`.
 
 5. **HMAC message length limit.**
    The RTL wrapper supports ≤ 55 bytes per message. The auth message is 38, so
@@ -1146,7 +1189,8 @@ sees that the attacker is between the battery and the station.
    implemented.
 
 8. **Fixed voltage in Flow A.**
-   No ADC. The demo's voltage changes require Flow B or a proxy/dataset.
+   Flow A has no ADC. Flow B reads the ADS1115 over I2C; the demo's voltage
+   changes require Flow B or a proxy/dataset.
 
 9. **PUF is not production-ready.**
    The behavioral model's fuzzy extractor is simplified. The RTL uses
@@ -1178,15 +1222,18 @@ Ordered by critical path.
    Regenerate vectors and add unit tests.
 2. **Add station history verification.** Load anchor `last_seq`, verify each
    tag, detect gaps/rollback, render a text health card.
-3. **Write `rtl/auth_ctrl.v`.** Start with the seq counter and a small BRAM
-   buffer; add the UART-facing frame parser afterward.
-4. **Write `rtl/uart_if.v`.** 115200, 8N1, 16× oversampling at 100 MHz.
-5. **Write `rtl/spi_adc.v`.** MCP3202 interface; keep a switch-based fallback.
-6. **Write `rtl/sebatt_top.v`.** clk/reset/UART/switch/LED.
-7. **Write the cocotb TB for `auth_ctrl`.** Compare response bytes against
-   `model.protocol`; red means do not go to the board.
-8. **KV260 prep.** Synthesize `xck26`, draft PMOD constraints, convert
-   `.bit` → `.bit.bin`, prepare the Ubuntu SD/BOOT.BIN.
+3. **~~Write `rtl/auth_ctrl.v`.~~** Done 20 Oct: frame parser + CRC-8 + ADC
+   + HMAC + response. Seq counter and 64-record buffer still missing.
+4. **~~Write `rtl/uart_if.v`.~~** Done 20 Oct: 115200 8N1, mid-bit sampling.
+5. **~~Write `rtl/i2c_master.v` + `rtl/ads1115_ctrl.v`.~~** Done 20 Oct;
+   cocotb `make ads1115` passes 2/2. Integrated in `sebatt_top`; Cmod S7
+   hardware T9 still pending.
+6. **~~Write `rtl/sebatt_top.v`.~~** Done 20 Oct: clk/reset/UART/I2C/LED.
+7. **~~Write the cocotb TB for `auth_ctrl`.~~** Done 20 Oct: `make auth`
+   passes 4/4 against `model.hmac`/`model.protocol`.
+8. **KV260 prep.** Cmod S7 bitstream built; `xck26` 100 MHz timing/fit check
+   passes (WNS +2.749 ns). Next: real PMOD/carrier pins, `.bit` → `.bit.bin`,
+   Ubuntu SD/BOOT.BIN.
 
 ### When a board is available
 
@@ -1210,6 +1257,8 @@ Ordered by critical path.
 | Term | Meaning |
 |---|---|
 | ADC | Analog-to-Digital Converter; turns voltage into a number |
+| ADS1115 | 16-bit I2C ADC used as the external demo voltage source |
+| I2C | Two-wire bus (SCL/SDA) used by the ADS1115 |
 | AXI4-Lite | Simple memory-mapped bus used by MicroBlaze to reach peripherals |
 | BMS | Battery Management System; monitors and protects the pack |
 | BRAM | Block RAM inside the FPGA; volatile |
@@ -1239,7 +1288,8 @@ Ordered by critical path.
 | Battery ID (demo) | `42 41 54 01` (`BAT\x01`) |
 | Key (demo) | `00 01 02 ... 1F` (32 bytes) |
 | Default voltage (Flow A) | 3700 mV |
-| Voltage mapping (RTL test) | `3000 + sw[7:0] * 5` mV |
+| Demo ADC | ADS1115, I2C addr `0x48` (ADDR→GND), ±4.096 V, 0.125 mV/LSB |
+| Voltage mapping (RTL switch test) | `3000 + sw[7:0] * 5` mV |
 | Nonce length | 32 bytes |
 | HMAC length | 32 bytes |
 | Auth message length | 38 bytes (`nonce + ID + V`) |

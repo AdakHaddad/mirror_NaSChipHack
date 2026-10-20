@@ -1,4 +1,10 @@
-# FPGA Build & Run Guide
+# FPGA Build & Run Guide (Flow A — MicroBlaze fallback)
+
+> The main demo path is **Flow B**: pure RTL on the Cmod S7, then KV260. See
+> [`cmod_s7/README.md`](cmod_s7/README.md) for the built bitstream, pin map, and
+> programming steps. The KV260 100 MHz timing/fit check is in
+> [`kv260/README.md`](kv260/README.md). This document describes the older Flow A
+> MicroBlaze fallback.
 
 ## Prerequisites
 

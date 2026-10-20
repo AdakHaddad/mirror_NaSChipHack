@@ -119,9 +119,9 @@ Pengguna sasaran SeBatt meliputi operator stasiun penukaran baterai, produsen ba
 
 Chip SeBatt memanfaatkan \textit{Ring-Oscillator} PUF \rujuk{ref:suh}, \rujuk{ref:maes} untuk memperoleh karakteristik unik perangkat, lalu menghitung respons HMAC-SHA-256 terhadap \textit{nonce}, yaitu angka acak sekali pakai yang diberikan stasiun melalui basis data identitas.
 
-Selain identitas, chip mengambil sampel tegangan paket secara berkala melalui ADC dengan antarmuka SPI. Setiap sampel diberi nomor urut dari penghitung di dalam IP yang hanya dapat bertambah, lalu ditandatangani HMAC bersama ID baterai. Saat penukaran, stasiun meminta riwayat sampel dan respons atas \textit{nonce} yang memuat nomor urut terakhir, lalu basis data menghitung ulang setiap HMAC. Sampel yang diubah, dihapus, atau disisipkan oleh firmware BMS maupun di jalur komunikasi menghasilkan tanda tangan atau urutan yang tidak cocok sehingga ditolak. Pada produk, chip berkomunikasi melalui bus CAN yang umum digunakan BMS.
+Selain identitas, chip mengambil sampel tegangan paket secara berkala melalui ADC dengan antarmuka I2C (ADS1115 pada prototipe). Setiap sampel diberi nomor urut dari penghitung di dalam IP yang hanya dapat bertambah, lalu ditandatangani HMAC bersama ID baterai. Saat penukaran, stasiun meminta riwayat sampel dan respons atas \textit{nonce} yang memuat nomor urut terakhir, lalu basis data menghitung ulang setiap HMAC. Sampel yang diubah, dihapus, atau disisipkan oleh firmware BMS maupun di jalur komunikasi menghasilkan tanda tangan atau urutan yang tidak cocok sehingga ditolak. Pada produk, chip berkomunikasi melalui bus CAN yang umum digunakan BMS.
 
-Pada \textit{proof of concept}, IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun prosesor lunak, sehingga dapat dipindahkan ke FPGA yang disediakan panitia. Kontroler SPI untuk ADC, FSM autentikasi, dan antarmuka UART seluruhnya berupa logika RTL. PC yang terhubung melalui UART, sebagai pengganti bus CAN, menjalankan Python sebagai emulator stasiun dan basis data untuk mengirim \textit{nonce}, memverifikasi respons, serta mencatat hasil autentikasi.
+Pada \textit{proof of concept}, IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun prosesor lunak, sehingga dapat dipindahkan ke FPGA yang disediakan panitia. Kontroler I2C untuk ADC, FSM autentikasi, dan antarmuka UART seluruhnya berupa logika RTL. PC yang terhubung melalui UART, sebagai pengganti bus CAN, menjalankan Python sebagai emulator stasiun dan basis data untuk mengirim \textit{nonce}, memverifikasi respons, serta mencatat hasil autentikasi.
 
 \begin{figure}[H]
   \centering
@@ -134,26 +134,26 @@ Pada \textit{proof of concept}, IP ditulis dalam Verilog/SystemVerilog standar t
       stage2/.style={ip, dashed}]
     % sensor
     \node[blk=green] (bat) at (-0.9,1.7) {Paket baterai\\tegangan};
-    \node[blk=green] (adc) at (-0.9,0)   {ADC\\(modul SPI)};
+    \node[blk=green] (adc) at (-0.9,0)   {ADC\\(ADS1115, I2C)};
     % IP di FPGA
     \node[stage2] (puf)  at (3.6,3.4) {\texttt{ro\_puf} + \texttt{fuzzy\_ext}\\kunci PUF (tahap 2)};
     \node[ip]     (key)  at (3.6,1.7) {\texttt{key\_vault}\\kunci tetap (tahap 1)};
-    \node[ip]     (spi)  at (3.6,0)   {\texttt{spi\_adc}\\sampel tegangan};
+    \node[ip]     (adcif) at (3.6,0)  {\texttt{ads1115\_ctrl}\\sampel tegangan};
     \node[ip]     (hmac) at (7.0,1.7) {\texttt{hmac\_sha256}\\ID $\|$ no.~urut $\|$ V, \textit{nonce}};
     \node[ip]     (fsm)  at (7.0,0)   {\texttt{auth\_ctrl}\\FSM, penghitung urut};
     \node[ip]     (uart) at (10.4,0)  {\texttt{uart\_if}\\pengganti CAN};
     \node[font=\footnotesize\bfseries, text=orange!60!black] (lbl) at (8.7,3.4) {SeBatt IP (RTL di FPGA)};
     \begin{scope}[on background layer]
       \node[draw=orange!70!black, fill=orange!3, rounded corners=4pt, line width=0.8pt,
-            inner sep=3mm, fit=(puf)(spi)(uart)(lbl)] (fpga) {};
+            inner sep=3mm, fit=(puf)(adcif)(uart)(lbl)] (fpga) {};
     \end{scope}
     % stasiun
     \node[blk=blue, minimum width=30mm, minimum height=16mm] (pc) at (15.3,0)
       {\textbf{PC / Python}\\emulator stasiun\\basis data identitas\\VALID / INVALID};
     % panah
     \draw[->] (bat) -- (adc);
-    \draw[->] (adc) -- node[above, pos=0.35]{SPI} (spi);
-    \draw[->] (spi) -- (fsm);
+    \draw[->] (adc) -- node[above, pos=0.35]{I2C} (adcif);
+    \draw[->] (adcif) -- (fsm);
     \draw[->, dashed] (puf) -- (key);
     \draw[->] (key) -- (hmac);
     \draw[<->] (fsm) -- (hmac);
@@ -176,7 +176,7 @@ Kebaruan SeBatt adalah penandatanganan riwayat pengukuran langsung di titik peng
 
 \subsection{B5. Rencana Proof of Concept (21--23 Oktober 2026)}
 
-Sebelum 21 Oktober, tim memverifikasi RTL SHA-256 dan HMAC terhadap vektor uji FIPS 180-4 \rujuk{ref:fips} dan RFC 4231 \rujuk{ref:rfc} melalui simulasi Verilator dengan \textit{testbench} Python, menguji jalur UART dan ADC pada board Artix-7 dan Cmod S7 milik tim, serta menyintesis rancangan dengan Yosys ke PDK SkyWater SKY130 \rujuk{ref:sky130} sebagai perkiraan awal ASIC. Pada 21 Oktober, rancangan dipindahkan ke FPGA panitia dan dihubungkan ke emulator stasiun. Pada 22 Oktober, tim mengukur metrik pada Tabel~\ref{tab:metrik} dan mengevaluasi RO-PUF. Pada 23 Oktober, tim mendemonstrasikan autentikasi valid serta penolakan respons \textit{replay}, riwayat tegangan yang diubah atau dihapus, serta penguncian chip setelah autentikasi gagal berulang.
+Sebelum 21 Oktober, tim memverifikasi RTL SHA-256 dan HMAC terhadap vektor uji FIPS 180-4 \rujuk{ref:fips} dan RFC 4231 \rujuk{ref:rfc} melalui simulasi Verilator dengan \textit{testbench} Python, menguji jalur UART dan ADC (ADS1115) pada board Cmod S7 dan Artix-7 milik tim, serta menyintesis rancangan dengan Yosys ke PDK SkyWater SKY130 \rujuk{ref:sky130} sebagai perkiraan awal ASIC. Pada 21 Oktober, rancangan dipindahkan ke FPGA panitia dan dihubungkan ke emulator stasiun. Pada 22 Oktober, tim mengukur metrik pada Tabel~\ref{tab:metrik} dan mengevaluasi RO-PUF. Pada 23 Oktober, tim mendemonstrasikan autentikasi valid serta penolakan respons \textit{replay}, riwayat tegangan yang diubah atau dihapus, serta penguncian chip setelah autentikasi gagal berulang.
 
 \begin{table}[H]
   \centering
@@ -197,7 +197,7 @@ Sebelum 21 Oktober, tim memverifikasi RTL SHA-256 dan HMAC terhadap vektor uji F
   \end{tabularx}
 \end{table}
 
-Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA panitia, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. \textit{Proof of concept} ini memiliki tiga batas yang diketahui, yaitu ADC berupa modul eksternal yang pada ASIC akan berada di \textit{die} yang sama, penghitung nomor urut yang masih volatil karena memerlukan NVM, dan kunci simetris yang tersimpan di basis data. Fabrikasi ASIC dan validasi keamanan fisik tingkat produksi berada di luar pengujian tiga hari ini.
+Target minimum adalah IP autentikasi dengan kunci tetap yang berjalan pada FPGA panitia, menandatangani sampel tegangan dari ADC, dan terhubung ke emulator stasiun. Kunci dari PUF didemonstrasikan sesuai hasil pengujian yang benar-benar tercapai. \textit{Proof of concept} ini memiliki tiga batas yang diketahui, yaitu ADC berupa modul ADS1115 eksternal (I2C) yang pada ASIC akan berada di \textit{die} yang sama, penghitung nomor urut yang masih volatil karena memerlukan NVM, dan kunci simetris yang tersimpan di basis data. Fabrikasi ASIC dan validasi keamanan fisik tingkat produksi berada di luar pengujian tiga hari ini.
 
 \subsection{B6. Potensi Bisnis}
 

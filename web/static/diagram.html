@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diagram Use Case · SeBatt</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">Se<span>Batt</span></div>
+      <div class="brand-sub">Stasiun penukaran baterai</div>
+    </div>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/diagram" class="active">Diagram use case</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="mode-pill"><span class="dot"></span> Simulasi</div>
+      <div class="battery-pill">
+        <span class="battery-icon"></span>
+        <span>BAT-0001</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="diagram-hero">
+      <div>
+        <div class="eyebrow">Analisis sistem</div>
+        <h1>Diagram use case</h1>
+        <p>Keaslian identitas dan integritas riwayat tegangan baterai kendaraan listrik, dari provisioning chip sampai pemeriksaan di stasiun penukaran.</p>
+      </div>
+      <div class="diagram-actions">
+        <a class="btn primary" href="/use-case.png" target="_blank" rel="noopener">Buka PNG</a>
+        <a class="btn secondary" href="/use-case.pdf" target="_blank" rel="noopener">Unduh PDF</a>
+      </div>
+    </section>
+
+    <section class="card diagram-card">
+      <div class="diagram-frame">
+        <a href="/use-case.png" target="_blank" rel="noopener">
+          <img src="/use-case.png" alt="Diagram use case SeBatt: produsen, pemilik, server identitas, BMS kendaraan, dan penyerang berinteraksi dengan sistem SeBatt.">
+        </a>
+      </div>
+      <div class="diagram-notes">
+        <span><i class="dashed" style="border-color:#8a8f98"></i> «include» selalu dijalankan</span>
+        <span><i style="background:#c2410c"></i> fungsi chip SeBatt</span>
+        <span><i style="background:#2563eb"></i> stasiun dan server</span>
+        <span><i style="background:#15803d"></i> provisioning</span>
+        <span><i style="background:#b91c1c"></i> ancaman / misuse</span>
+      </div>
+    </section>
+
+    <section class="diagram-grid">
+      <article class="card">
+        <h2>Aktor dan tanggung jawab</h2>
+        <ul class="diagram-list">
+          <li><strong>Produsen baterai</strong>Mendaftarkan ID unik dan kunci K baterai ke server identitas.</li>
+          <li><strong>Pemilik baterai</strong>Memakai baterai, menukarnya di stasiun, dan melihat ringkasan kesehatan.</li>
+          <li><strong>Server identitas</strong>Menyimpan kunci dan seq terakhir, lalu memverifikasi keaslian chip serta integritas riwayat.</li>
+          <li><strong>BMS kendaraan</strong>Mengirim riwayat tegangan bertanda tangan dari jalur data kendaraan.</li>
+          <li><strong>Penyerang / BMS curang</strong>Mencoba mengubah atau menghapus catatan sebelum stasiun memeriksa.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Yang diuji di dashboard</h2>
+        <ul class="diagram-list">
+          <li><span class="step">01</span><strong>Penukaran normal</strong>Riwayat lengkap dan tag HMAC cocok, stasiun menampilkan DITERIMA beserta kesehatan baterai.</li>
+          <li><span class="step">02</span><strong>Catatan dihapus</strong>Urutan seq tidak lengkap, stasiun menolak dengan kode HISTORY_GAP.</li>
+          <li><span class="step">03</span><strong>Angka diubah</strong>Tag HMAC tidak lagi cocok dengan isi catatan, stasiun menolak dengan kode INVALID_HMAC.</li>
+          <li><span class="step">04</span><strong>Daya dicabut</strong>Penghitung chip kembali ke nol, stasiun mendeteksi ROLLBACK.</li>
+          <li><span class="step">05</span><strong>Tiga penolakan</strong>Chip terkunci dan tidak merespons sampai dibuka untuk demo.</li>
+        </ul>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <span>SeBatt · PoC FPGA</span>
+      <span>Diagram lengkap tersedia dalam PNG dan PDF.</span>
+    </footer>
+  </main>
+</body>
+</html>
