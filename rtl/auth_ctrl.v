@@ -1093,7 +1093,6 @@ module auth_ctrl #(
                     end
                     latest_error <= 1'b1;
                     sample_busy  <= 1'b0;
-                    auth_error   <= 1'b1;
                 end
             end
         end
@@ -1113,7 +1112,7 @@ module auth_ctrl #(
             led[0] <= hb_cnt[23];
             led[1] <= (mstate != M_IDLE) || sg_busy || axi_busy || tx_busy;
             led[2] <= auth_ok;
-            led[3] <= locked_r || auth_error;
+            led[3] <= locked_r || auth_error || latest_error;
         end
     end
 

@@ -1,7 +1,8 @@
 # Flow B — Cmod S7-25 demo
 
-Status: **periodic sampling implemented, bitstream built and timing-clean on
-20 Oct 2026**. Hardware execution (T7/T9) still pending.
+Status: **periodic sampling, signed history, READ_HIST, and lock implemented;
+bitstream rebuilt and timing-clean on 21 Oct 2026**. Hardware execution (T7/T9)
+still pending.
 
 **Step-by-step run and demo guide: [RUNBOOK.md](RUNBOOK.md).**
 
@@ -53,8 +54,9 @@ Outputs:
 - `build/timing.rpt`
 - `build/utilization.rpt`
 
-Verified on 20 Oct 2026: WNS **+55.193 ns** (all constraints met), 4 443 LUTs
-(30 %), 5 275 FFs (18 %), 1 BUFG, 0 DSP/BRAM.
+Verified on 21 Oct 2026: WNS **+55.646 ns** (all constraints met), 5 358 LUTs
+(36.7 %), 6 022 FFs (20.6 %), 1 BUFG, 0 DSP, 0 Block RAM. The 64-record
+buffer and tag memory infer as distributed RAM/registers.
 
 ## Program
 
@@ -78,10 +80,11 @@ pip install pyserial          # once, if missing
 python -m model.station --port /dev/ttyUSB1 --demo
 ```
 
-The FPGA samples AIN0 every **100 ms** (default `SAMPLE_INTERVAL_MS`), independently
+The FPGA samples AIN0 every **1 s** (default `SAMPLE_INTERVAL_MS`), independently
 of UART traffic. The station sends `AUTH_REQ` with a 32-byte nonce; the FPGA signs
-the latest sample with `HMAC-SHA256(key, nonce || battery_id || voltage)` and
-returns `AUTH_RESP` (battery id, voltage, HMAC). Expected LEDs:
+the latest sample with `HMAC-SHA256(key, 0x41 || nonce || battery_id || voltage)`
+and returns `AUTH_RESP` (battery id, voltage, HMAC). `READ_HIST_REQ` returns the
+last 64 signed records plus a nonce-bound summary tag. Expected LEDs:
 
 - LED1 (E2): ~0.7 Hz heartbeat
 - LED2 (K1): on while an auth transaction is in progress
@@ -98,5 +101,5 @@ station's default identity matches the FPGA.
    SCL/SDA with a scope; address must be `0x48`.
 3. Confirm the module is powered at 3.3 V and AIN0 is between 0 and 4.096 V.
 4. Re-read the LEDs: no heartbeat means clock/reset/programming, not UART.
-5. The first sample is taken after ~100 ms. An auth request that arrives before
+5. The first sample is taken after ~1 s. An auth request that arrives before
    that waits for the first sample; the station timeout is 2 s.

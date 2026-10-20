@@ -6,7 +6,13 @@
     "battery_id_hex": "42415400",
     "voltage": 3000,
     "msg_hex": "41000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f424154000bb8",
-    "mac_hex": "3dd8b8e01c1dbc530299fbd9d4b68fb5a3810b5a233051fb32e252fb4fbd77cf"
+    "mac_hex": "3dd8b8e01c1dbc530299fbd9d4b68fb5a3810b5a233051fb32e252fb4fbd77cf",
+    "record_seq": 0,
+    "record_msg_hex": "5342415400000000000bb8",
+    "record_mac_hex": "ff5fd1152304d8966228ca7502b657597ac2c312963479a8696744655223b950",
+    "summary_nonce_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "summary_msg_hex": "48000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f424154000000000000000000",
+    "summary_mac_hex": "fb2663a304d216b4c664fb6ef5ff7f1196a6600240d915e93e60eaeb7fb8ab70"
   },
   {
     "id": "SEBATT-001",
@@ -15,7 +21,13 @@
     "battery_id_hex": "42415401",
     "voltage": 3050,
     "msg_hex": "410708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526424154010bea",
-    "mac_hex": "698096c3d05400ad3e46520f5261f98f4ac1b57a095485a2019b02aa4318ab75"
+    "mac_hex": "698096c3d05400ad3e46520f5261f98f4ac1b57a095485a2019b02aa4318ab75",
+    "record_seq": 1,
+    "record_msg_hex": "5342415401000000010bea",
+    "record_mac_hex": "c788f10e912421182e97348f5ded15510de4b597defb5bbe7481da9ebf4d006b",
+    "summary_nonce_hex": "0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a",
+    "summary_msg_hex": "480b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a424154010000000100000001",
+    "summary_mac_hex": "375bc94cbe6afade6e3d58e164f105d77d66c727a1ddefb5283f92e1b5e3df0f"
   },
   {
     "id": "SEBATT-002",
@@ -24,7 +36,13 @@
     "battery_id_hex": "42415402",
     "voltage": 3100,
     "msg_hex": "410e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d424154020c1c",
-    "mac_hex": "6a70ee1cfe54526ece57c95911b6f7ed288303c342ebb1edfaa4aec481742e9b"
+    "mac_hex": "6a70ee1cfe54526ece57c95911b6f7ed288303c342ebb1edfaa4aec481742e9b",
+    "record_seq": 2,
+    "record_msg_hex": "5342415402000000020c1c",
+    "record_mac_hex": "3976143b8c55fde9964dc9cbe864a5c72f6fbb64f6442f1da4311bb5eed4735d",
+    "summary_nonce_hex": "161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435",
+    "summary_msg_hex": "48161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435424154020000000200000002",
+    "summary_mac_hex": "e10f9220c75ea9c59155609efa2b60ad3e383b630bb2d19da0711cf748977b7e"
   },
   {
     "id": "SEBATT-003",
@@ -33,7 +51,13 @@
     "battery_id_hex": "42415403",
     "voltage": 3150,
     "msg_hex": "4115161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334424154030c4e",
-    "mac_hex": "961c0ae3a7d66e6b29ac8d820cbe149499f7f53c454c82b160cb2957c0a2a101"
+    "mac_hex": "961c0ae3a7d66e6b29ac8d820cbe149499f7f53c454c82b160cb2957c0a2a101",
+    "record_seq": 3,
+    "record_msg_hex": "5342415403000000030c4e",
+    "record_mac_hex": "8bda06e0a4af01d7255a405f3f18e4b88f54293bb1ca6d74bdb62012dc570ed0",
+    "summary_nonce_hex": "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+    "summary_msg_hex": "482122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40424154030000000300000003",
+    "summary_mac_hex": "cca140b39f9654defed2834e5041d6db72024c076ea1f7a064201887bbd81113"
   },
   {
     "id": "SEBATT-004",
@@ -42,7 +66,13 @@
     "battery_id_hex": "42415404",
     "voltage": 3200,
     "msg_hex": "411c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b424154040c80",
-    "mac_hex": "3cb7cb596c1ea6ebff9fac20b655c189b741e0f77301492b08fa14da10810126"
+    "mac_hex": "3cb7cb596c1ea6ebff9fac20b655c189b741e0f77301492b08fa14da10810126",
+    "record_seq": 4,
+    "record_msg_hex": "5342415404000000040c80",
+    "record_mac_hex": "fa5e1bfb9d903396ee12f9ff92e954e0d8dc71d39c5bdca45b3a5803b779dfbe",
+    "summary_nonce_hex": "2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b",
+    "summary_msg_hex": "482c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b424154040000000400000004",
+    "summary_mac_hex": "b40f9c305cbd6d5e5973383dd509c107f0c01a12d3d3aeb69ba4fdb363b65d8f"
   },
   {
     "id": "SEBATT-005",
@@ -51,7 +81,13 @@
     "battery_id_hex": "42415405",
     "voltage": 3250,
     "msg_hex": "41232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142424154050cb2",
-    "mac_hex": "2e2c9bc7dc3058c76690838a3236a5b3c263a081003e12a3e2a98204b2e947f9"
+    "mac_hex": "2e2c9bc7dc3058c76690838a3236a5b3c263a081003e12a3e2a98204b2e947f9",
+    "record_seq": 5,
+    "record_msg_hex": "5342415405000000050cb2",
+    "record_mac_hex": "065cf9bb55dac7b00248de3dc5b1f1b291fb74c0e54960a247883d1d1a395c90",
+    "summary_nonce_hex": "3738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f50515253545556",
+    "summary_msg_hex": "483738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f50515253545556424154050000000500000005",
+    "summary_mac_hex": "23f5f2eba6cea96c464fbffc860a78fab56c8f8eda958f57a6bdb4ba858f680d"
   },
   {
     "id": "SEBATT-006",
@@ -60,7 +96,13 @@
     "battery_id_hex": "42415406",
     "voltage": 3300,
     "msg_hex": "412a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40414243444546474849424154060ce4",
-    "mac_hex": "41732c62f3f6a4c623d24253f7edd86e701754866c742806cc81064e153c9582"
+    "mac_hex": "41732c62f3f6a4c623d24253f7edd86e701754866c742806cc81064e153c9582",
+    "record_seq": 6,
+    "record_msg_hex": "5342415406000000060ce4",
+    "record_mac_hex": "4aec6c3807c121442d951ac7519ea05ff00679eead1b5ec14f438a02f0415290",
+    "summary_nonce_hex": "42434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f6061",
+    "summary_msg_hex": "4842434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f6061424154060000000600000006",
+    "summary_mac_hex": "0dbfaa607acdcf77acb8e363ae0f1e1efa08bcc12df199ba8746b11b3a1bb3e4"
   },
   {
     "id": "SEBATT-007",
@@ -69,7 +111,13 @@
     "battery_id_hex": "42415407",
     "voltage": 3350,
     "msg_hex": "413132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f50424154070d16",
-    "mac_hex": "2d382fd1d331337a0f2ac916d6dc8eceb9cac19ebb283f0f202555d4476ee9fb"
+    "mac_hex": "2d382fd1d331337a0f2ac916d6dc8eceb9cac19ebb283f0f202555d4476ee9fb",
+    "record_seq": 7,
+    "record_msg_hex": "5342415407000000070d16",
+    "record_mac_hex": "864a6619c54c9c18c8c066ee15ec606ba58721132ea91c0b909d8b6c04ee7bde",
+    "summary_nonce_hex": "4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c",
+    "summary_msg_hex": "484d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c424154070000000700000007",
+    "summary_mac_hex": "c1e31ec6d655438de6047b5854e29b493ed13c6b35e42fef7a2a5798e6d3033e"
   },
   {
     "id": "SEBATT-008",
@@ -78,7 +126,13 @@
     "battery_id_hex": "42415408",
     "voltage": 3400,
     "msg_hex": "4138393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f5051525354555657424154080d48",
-    "mac_hex": "bbfe10bb1c6e5863751520d4bd28a7b3129acc00339fa6e72fedea4163ed6c55"
+    "mac_hex": "bbfe10bb1c6e5863751520d4bd28a7b3129acc00339fa6e72fedea4163ed6c55",
+    "record_seq": 8,
+    "record_msg_hex": "5342415408000000080d48",
+    "record_mac_hex": "4cd545bf69761b4ee356e90710f76604e25cfe918acc73c99bde52cb8d219f1e",
+    "summary_nonce_hex": "58595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f7071727374757677",
+    "summary_msg_hex": "4858595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f7071727374757677424154080000000800000008",
+    "summary_mac_hex": "62e388d50ecbed51a89370cfbb2ab7f8280e9adc8993713fc886a4ec39007a50"
   },
   {
     "id": "SEBATT-009",
@@ -87,7 +141,13 @@
     "battery_id_hex": "42415409",
     "voltage": 3450,
     "msg_hex": "413f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e424154090d7a",
-    "mac_hex": "f9c1f3ae80aec78cad4b7926d591735c5953eaca05f665fb80153e3f6486ae7e"
+    "mac_hex": "f9c1f3ae80aec78cad4b7926d591735c5953eaca05f665fb80153e3f6486ae7e",
+    "record_seq": 9,
+    "record_msg_hex": "5342415409000000090d7a",
+    "record_mac_hex": "30b0f500f79aa14bf13ea6818a08e6264920c840fa3439821bd19cb79d4af0f9",
+    "summary_nonce_hex": "636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182",
+    "summary_msg_hex": "48636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182424154090000000900000009",
+    "summary_mac_hex": "3bba1795e1ef7099fba69b19804a424ee56affa7a838a71416c1ce3e0197bda5"
   },
   {
     "id": "SEBATT-010",
@@ -96,7 +156,13 @@
     "battery_id_hex": "4241540a",
     "voltage": 3500,
     "msg_hex": "41464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f6061626364654241540a0dac",
-    "mac_hex": "4e33eb3bd9b39d3a37b9e1cb925f40de26edf6bdfdd1b20d4d6837fb84e82be5"
+    "mac_hex": "4e33eb3bd9b39d3a37b9e1cb925f40de26edf6bdfdd1b20d4d6837fb84e82be5",
+    "record_seq": 10,
+    "record_msg_hex": "534241540a0000000a0dac",
+    "record_mac_hex": "e740b50ce1941f2dcacc4551eb1e6a8b23b8378b47bb447a7668db42d78a4486",
+    "summary_nonce_hex": "6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d",
+    "summary_msg_hex": "486e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d4241540a0000000a0000000a",
+    "summary_mac_hex": "9db4ce712decbb989942c0e298ef205c6e03e462c18c4c1b28ae3c1cd2f9fa2a"
   },
   {
     "id": "SEBATT-011",
@@ -105,7 +171,13 @@
     "battery_id_hex": "4241540b",
     "voltage": 3550,
     "msg_hex": "414d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c4241540b0dde",
-    "mac_hex": "b08ba303203c96a854da7f624741f2464808d5e9882aaed91ad1188430525a13"
+    "mac_hex": "b08ba303203c96a854da7f624741f2464808d5e9882aaed91ad1188430525a13",
+    "record_seq": 11,
+    "record_msg_hex": "534241540b0000000b0dde",
+    "record_mac_hex": "b1eb9de7abc44c1bd275cd327e984f911610c2a9a4809aaa6e8a4b2817d8bb97",
+    "summary_nonce_hex": "797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798",
+    "summary_msg_hex": "48797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f9091929394959697984241540b0000000b0000000b",
+    "summary_mac_hex": "9f24c6af8bfa4902bba86ad86978c76bcdbbadfe05cebbc513b08be252cf93c7"
   },
   {
     "id": "SEBATT-012",
@@ -114,7 +186,13 @@
     "battery_id_hex": "4241540c",
     "voltage": 3600,
     "msg_hex": "415455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172734241540c0e10",
-    "mac_hex": "20f06943bd6080fb731c26205f5117576eb4c942ff5b0e0188cd6a47393cb953"
+    "mac_hex": "20f06943bd6080fb731c26205f5117576eb4c942ff5b0e0188cd6a47393cb953",
+    "record_seq": 12,
+    "record_msg_hex": "534241540c0000000c0e10",
+    "record_mac_hex": "22662cc5859ebe7d3b083d8091567cd385dfbd270faef3e5f885402a7ffbfa02",
+    "summary_nonce_hex": "8485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3",
+    "summary_msg_hex": "488485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a34241540c0000000c0000000c",
+    "summary_mac_hex": "b91570dc60d800c0028594707f0ef61d203dc34b851cc86d12d611f49fc2b40d"
   },
   {
     "id": "SEBATT-013",
@@ -123,7 +201,13 @@
     "battery_id_hex": "4241540d",
     "voltage": 3650,
     "msg_hex": "415b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a4241540d0e42",
-    "mac_hex": "e082fa3f6ccd897804a1a4e8e970ca7ea7839fbd3472bb52bf36b2348aeb40c9"
+    "mac_hex": "e082fa3f6ccd897804a1a4e8e970ca7ea7839fbd3472bb52bf36b2348aeb40c9",
+    "record_seq": 13,
+    "record_msg_hex": "534241540d0000000d0e42",
+    "record_mac_hex": "80717a0a9509521941d34f3c7df51243530a488d61609a1f7619c0fab7277979",
+    "summary_nonce_hex": "8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadae",
+    "summary_msg_hex": "488f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadae4241540d0000000d0000000d",
+    "summary_mac_hex": "177cf9be9752d38fbb0ef73a3bc256a30435d0f331675ef712f1285abb1a316d"
   },
   {
     "id": "SEBATT-014",
@@ -132,7 +216,13 @@
     "battery_id_hex": "4241540e",
     "voltage": 3700,
     "msg_hex": "4162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f80814241540e0e74",
-    "mac_hex": "77e8ad78d8eb9046680e83603bb66a62e69e184329b30f0381aa808102c2f5f1"
+    "mac_hex": "77e8ad78d8eb9046680e83603bb66a62e69e184329b30f0381aa808102c2f5f1",
+    "record_seq": 14,
+    "record_msg_hex": "534241540e0000000e0e74",
+    "record_mac_hex": "4e17e037015f7701d4d6f89c68cae64e4b853dab817340a4de5c5759b01e7ae0",
+    "summary_nonce_hex": "9a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9",
+    "summary_msg_hex": "489a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b94241540e0000000e0000000e",
+    "summary_mac_hex": "2d37b2c0ab57201c4dd42cdcee44e41235b83f2aaf479d3013f19bf78b3c4d80"
   },
   {
     "id": "SEBATT-015",
@@ -141,7 +231,13 @@
     "battery_id_hex": "4241540f",
     "voltage": 3750,
     "msg_hex": "41696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f8081828384858687884241540f0ea6",
-    "mac_hex": "54b1c313623cb2d89a556dff1f184ef533e30b5e043d44222330ce56311c866a"
+    "mac_hex": "54b1c313623cb2d89a556dff1f184ef533e30b5e043d44222330ce56311c866a",
+    "record_seq": 15,
+    "record_msg_hex": "534241540f0000000f0ea6",
+    "record_mac_hex": "46a11b6eeda89b90d9cb975275c4a07846f43001356eb01e142ca9b3feea8348",
+    "summary_nonce_hex": "a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4",
+    "summary_msg_hex": "48a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c44241540f0000000f0000000f",
+    "summary_mac_hex": "fe0d199b76cc85e165d8a12bc5c8c7a9cc962b22cbe56c79e1943ee2f583587c"
   },
   {
     "id": "SEBATT-016",
@@ -150,7 +246,13 @@
     "battery_id_hex": "42415410",
     "voltage": 3800,
     "msg_hex": "41707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f424154100ed8",
-    "mac_hex": "c6218f043a929250c29f2d065229c830f63e14539d283a6bd2535c2be0f7f11c"
+    "mac_hex": "c6218f043a929250c29f2d065229c830f63e14539d283a6bd2535c2be0f7f11c",
+    "record_seq": 16,
+    "record_msg_hex": "5342415410000000100ed8",
+    "record_mac_hex": "cbb598e584a42458f4b6920e92c53078251af5709353564e3b2d221a3b599af7",
+    "summary_nonce_hex": "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf",
+    "summary_msg_hex": "48b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf424154100000001000000010",
+    "summary_mac_hex": "2bd7bfb17850b822539f57129e944f4a6248c6bf26d7b9ba3707d17c33668386"
   },
   {
     "id": "SEBATT-017",
@@ -159,7 +261,13 @@
     "battery_id_hex": "42415411",
     "voltage": 3850,
     "msg_hex": "417778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f90919293949596424154110f0a",
-    "mac_hex": "36ab5b60ccce553dd1592c5d30a743c3d81b539a276db085e0cffcda3b14c619"
+    "mac_hex": "36ab5b60ccce553dd1592c5d30a743c3d81b539a276db085e0cffcda3b14c619",
+    "record_seq": 17,
+    "record_msg_hex": "5342415411000000110f0a",
+    "record_mac_hex": "529efcaeed405b041c0b2715933c6247d7a4e96c00964badb7ab1018bbb9191d",
+    "summary_nonce_hex": "bbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9da",
+    "summary_msg_hex": "48bbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9da424154110000001100000011",
+    "summary_mac_hex": "3df975b20266063f867f99ab2e017f3186b93b49146b3f949d3c1fa87cf70ab0"
   },
   {
     "id": "SEBATT-018",
@@ -168,7 +276,13 @@
     "battery_id_hex": "42415412",
     "voltage": 3900,
     "msg_hex": "417e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d424154120f3c",
-    "mac_hex": "ddc63ec291085009f7deafa61ce3c89150d76ff8cc9bb1e76068c737e4cef18a"
+    "mac_hex": "ddc63ec291085009f7deafa61ce3c89150d76ff8cc9bb1e76068c737e4cef18a",
+    "record_seq": 18,
+    "record_msg_hex": "5342415412000000120f3c",
+    "record_mac_hex": "4e2b0f4949089619e4f1eb05d911054551879a8b88f015cf036cd1bc7615a903",
+    "summary_nonce_hex": "c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5",
+    "summary_msg_hex": "48c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5424154120000001200000012",
+    "summary_mac_hex": "88271e4435d4687c2fceba437079cbf0a9d58804e9b2c473ad9b7d1a1882b257"
   },
   {
     "id": "SEBATT-019",
@@ -177,6 +291,12 @@
     "battery_id_hex": "42415413",
     "voltage": 3950,
     "msg_hex": "4185868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4424154130f6e",
-    "mac_hex": "a267b19e248551d12accfe3fd72f16261f678b47ca417df994208f4bf94cde5d"
+    "mac_hex": "a267b19e248551d12accfe3fd72f16261f678b47ca417df994208f4bf94cde5d",
+    "record_seq": 19,
+    "record_msg_hex": "5342415413000000130f6e",
+    "record_mac_hex": "52773079ffebaacc5edaac1c69a2f3bafec4a307d08d0472ee27899b0bea942a",
+    "summary_nonce_hex": "d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0",
+    "summary_msg_hex": "48d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0424154130000001300000013",
+    "summary_mac_hex": "46373a9266df45459e6ca3b4f4078d8d33fe5a8378fc2859c1c8c7e63ed2581c"
   }
 ]

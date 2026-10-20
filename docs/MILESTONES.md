@@ -62,7 +62,7 @@ Jalur kritis: `Python model → vektor uji → RTL → simulasi → Vivado block
 | `model/ro_puf.py` — model behavioral RO-PUF + KeyVault | Muqtada | [x] |
 | `model/protocol.py` — simulasi challenge-response | Muqtada | [x] |
 | `model/gen_vectors.py` — generator vektor uji untuk RTL | Muqtada | [x] |
-| `model/test_model.py` — unit test semua komponen (40/40 lolos) | Muqtada | [x] |
+| `model/test_model.py` + `model/test_history.py` — unit test semua komponen (52/52 lolos) | Muqtada | [x] |
 | Ikuti pembekalan online | Semua | [x] |
 
 ### Hari 2 — Minggu 18 Okt: RTL + simulasi
@@ -91,7 +91,7 @@ Jalur kritis: `Python model → vektor uji → RTL → simulasi → Vivado block
 | Tugas | PIC | Selesai |
 |---|---|---|
 | Demo minimal jalan di board milik sendiri (skrip BD & firmware teruji) | Semua | [x] |
-| Perbaiki edge case, uji skenario: replay, data diubah, baterai lock (40/40 uji lolos) | Semua | [x] |
+| Perbaiki edge case, uji skenario: replay, data diubah, baterai lock (52/52 uji lolos) | Semua | [x] |
 | Kerangka business model (pengguna, pasar, nilai tambah) (`bisnis/business_model.md`) | Dimas | [x] |
 | Kerangka pitch deck (`pitch/pitch_deck.md`) | Dimas | [x] |
 | Video demo cadangan | Guntur | [ ] |

@@ -17,7 +17,7 @@ Seluruh IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun pr
 | Modul | Tugas |
 |---|---|
 | ads1115_ctrl + i2c_master | Membaca sampel tegangan dari modul ADS1115 (I2C) |
-| auth_ctrl | Sampling ADS1115 periodik (100 ms default) + FSM `AUTH_REQ -> HMAC -> AUTH_RESP`; seq counter, buffer riwayat, dan penguncian menyusul |
+| auth_ctrl | Sampling ADS1115 periodik (1 detik default demo) + FSM `AUTH_REQ -> HMAC -> AUTH_RESP`; seq 32 bit, ring buffer 64 catatan bertag HMAC per sampel, `READ_HIST`, dan penguncian setelah 3 kegagalan |
 | hmac_sha256 | Menandatangani nonce, ID, dan sampel tegangan |
 | key_vault | Penyimpan kunci tetap (tahap 1). Belum dipasang, kunci saat ini ditulis oleh auth_ctrl |
 | ro_puf + fuzzy_ext | Kunci dari PUF (tahap 2) |
@@ -31,7 +31,7 @@ Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal
 |---|---|
 | Mini proposal | Lolos seleksi |
 | Persiapan pra-onsite | Berjalan, lihat [milestone](docs/MILESTONES.md) |
-| RTL Flow B | Rantai autentikasi + riwayat bertanda tangan lolos 20/20 uji simulasi cocotb (5 sha256 + 4 hmac + 2 ads1115 + 9 auth; diperbarui 21 Okt). Bitstream Cmod S7 dibuat (dilaporkan Muqtada). Uji di board belum |
+| RTL Flow B | Rantai autentikasi + riwayat bertanda tangan lolos 20/20 uji simulasi cocotb (5 sha256 + 4 hmac + 2 ads1115 + 9 auth; diperbarui 21 Okt). Bitstream Cmod S7 dibangun ulang 21 Okt (WNS +55,646 ns, 5.358 LUT, 6.022 FF); uji board belum |
 | Demo web (web/) | Model protokol Python, belum terhubung ke FPGA |
 | Onsite dan Demo Day | 21–23 Oktober 2026 |
 

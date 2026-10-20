@@ -28,7 +28,7 @@
   \node[blk=green] (div) at (0,0.2) {Pembagi tegangan\\{\footnotesize ke 0--3,3 V}};
   \node[blk=green] (adc) at (3.4,0.2) {ADC\\{\footnotesize ADS1115, 16 bit}};
 
-  \node[ip] (adcif) at (7.4,0.2) {\texttt{ads1115\_ctrl}\\{\footnotesize sampel tiap 100 ms}};
+  \node[ip] (adcif) at (7.4,0.2) {\texttt{ads1115\_ctrl}\\{\footnotesize sampel tiap 1 detik}};
   \node[ip] (ctrl) at (11.6,0.2) {\texttt{auth\_ctrl}\\{\footnotesize nomor urut, buffer, lock}};
   \node[ip] (hmac) at (11.6,2.4) {\texttt{hmac\_sha256}\\{\footnotesize tanda tangan}};
   \node[ip] (key)  at (7.4,2.4) {\texttt{key\_vault}\\{\footnotesize kunci K}};

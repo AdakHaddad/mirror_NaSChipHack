@@ -33,7 +33,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from model.hmac import hmac_sha256
 from model.protocol import (
     AuthStatus, Command, WireProtocol,
-    AuthRequest, AuthResponse,
+    AuthRequest, AuthResponse, HistoryDump,
+    AUTH_MSG_PREFIX, RECORD_MSG_PREFIX, SUMMARY_MSG_PREFIX,
 )
 
 
@@ -46,6 +47,7 @@ class BatteryRecord:
     key: bytes
     locked: bool = False
     auth_count: int = 0
+    seq_anchor: int = 0
 
 
 class IdentityDB:
@@ -80,6 +82,7 @@ class Station:
         self.ser = serial.Serial(port, baudrate, timeout=timeout)
         self.db = IdentityDB()
         self.log = []
+        self.last_battery_id: Optional[bytes] = None
 
         # Register default battery (matches firmware)
         default_key = bytes(range(32))
@@ -159,7 +162,20 @@ class Station:
 
         # Receive AUTH_RESP
         cmd, payload = self._recv_frame()
+        if cmd == Command.CHIP_LOCKED:
+            payload_id = payload[0:4]
+            self.log.append({
+                'status': AuthStatus.BATTERY_LOCKED.name,
+                'battery_id': payload_id.hex(),
+                'voltage': 0,
+                'time': time.time(),
+            })
+            return AuthStatus.BATTERY_LOCKED, 0, payload_id.hex()
+
         if cmd != Command.AUTH_RESP:
+            return AuthStatus.INVALID_HMAC, 0, ""
+
+        if len(payload) < 38:
             return AuthStatus.INVALID_HMAC, 0, ""
 
         # Parse response
@@ -178,7 +194,8 @@ class Station:
         else:
             self.db.mark_nonce_used(nonce)
             # Recompute HMAC
-            msg = nonce + battery_id + struct.pack('>H', voltage)
+            msg = (bytes([AUTH_MSG_PREFIX]) + nonce + battery_id
+                   + struct.pack('>H', voltage))
             expected = hmac_sha256(record.key, msg)
             if hmac_resp == expected:
                 status = AuthStatus.VALID
@@ -186,6 +203,7 @@ class Station:
             else:
                 status = AuthStatus.INVALID_HMAC
 
+        self.last_battery_id = battery_id
         self.log.append({
             'status': status.name,
             'battery_id': battery_id.hex(),
@@ -194,6 +212,97 @@ class Station:
         })
 
         return status, voltage, battery_id.hex()
+
+    def read_history(self, battery_id: Optional[bytes] = None,
+                     nonce: Optional[bytes] = None):
+        """Request and verify a signed history dump."""
+        if battery_id is None:
+            battery_id = self.last_battery_id
+        if battery_id is None:
+            raise ValueError("battery_id required before reading history")
+        if nonce is None:
+            nonce = os.urandom(32)
+
+        self._send_frame(Command.READ_HIST_REQ, nonce)
+        cmd, payload = self._recv_frame()
+
+        if cmd == Command.CHIP_LOCKED:
+            return AuthStatus.BATTERY_LOCKED, None
+        if cmd != Command.READ_HIST_RESP:
+            return AuthStatus.INVALID_HMAC, None
+
+        dump = WireProtocol.decode_history(payload)
+        dump.battery_id = battery_id
+        status = self.verify_history(battery_id, nonce, dump)
+        return status, dump
+
+    def verify_history(self, battery_id: bytes, nonce: bytes,
+                       dump: HistoryDump) -> AuthStatus:
+        """Verify summary, continuity, and per-record HMAC tags."""
+        record = self.db.lookup(battery_id)
+        if record is None:
+            return AuthStatus.UNKNOWN_BATTERY
+        if record.locked:
+            return AuthStatus.BATTERY_LOCKED
+        if self.db.is_nonce_used(nonce):
+            return AuthStatus.REPLAY_DETECTED
+        self.db.mark_nonce_used(nonce)
+
+        seq_oldest = int(dump.seq_oldest) & 0xFFFFFFFF
+        seq_last = int(dump.seq_last) & 0xFFFFFFFF
+        summary = (bytes([SUMMARY_MSG_PREFIX]) + nonce + battery_id
+                   + struct.pack('>II', seq_oldest, seq_last))
+        expected_summary = hmac_sha256(record.key, summary)
+        if dump.summary_tag != expected_summary:
+            self._log_history(battery_id, AuthStatus.INVALID_HMAC, len(dump.records))
+            return AuthStatus.INVALID_HMAC
+
+        n = len(dump.records)
+        if n == 0:
+            empty_last = (seq_oldest - 1) & 0xFFFFFFFF
+            if seq_last != empty_last:
+                self._log_history(battery_id, AuthStatus.HISTORY_GAP, n)
+                return AuthStatus.HISTORY_GAP
+            if record.seq_anchor != 0:
+                self._log_history(battery_id, AuthStatus.HISTORY_ROLLBACK, n)
+                return AuthStatus.HISTORY_ROLLBACK
+            self._log_history(battery_id, AuthStatus.VALID, n)
+            return AuthStatus.VALID
+
+        if seq_last < record.seq_anchor:
+            self._log_history(battery_id, AuthStatus.HISTORY_ROLLBACK, n)
+            return AuthStatus.HISTORY_ROLLBACK
+
+        expected = [(seq_oldest + i) & 0xFFFFFFFF for i in range(n)]
+        if n != ((seq_last - seq_oldest + 1) & 0xFFFFFFFF):
+            self._log_history(battery_id, AuthStatus.HISTORY_GAP, n)
+            return AuthStatus.HISTORY_GAP
+        if [int(r.seq) & 0xFFFFFFFF for r in dump.records] != expected:
+            self._log_history(battery_id, AuthStatus.HISTORY_GAP, n)
+            return AuthStatus.HISTORY_GAP
+
+        for rec in dump.records:
+            message = (bytes([RECORD_MSG_PREFIX]) + battery_id
+                       + struct.pack('>IH', rec.seq, rec.mv))
+            if rec.tag != hmac_sha256(record.key, message):
+                self._log_history(battery_id, AuthStatus.INVALID_HMAC, n)
+                return AuthStatus.INVALID_HMAC
+
+        truncated = seq_oldest > ((record.seq_anchor + 1) & 0xFFFFFFFF)
+        record.seq_anchor = seq_last
+        status = (AuthStatus.HISTORY_TRUNCATED if truncated
+                  else AuthStatus.VALID)
+        self._log_history(battery_id, status, n)
+        return status
+
+    def _log_history(self, battery_id: bytes, status: AuthStatus,
+                     records: int):
+        self.log.append({
+            'status': status.name,
+            'battery_id': battery_id.hex(),
+            'records': records,
+            'time': time.time(),
+        })
 
     def lock_battery(self, battery_id: bytes):
         """Send LOCK command and update DB."""
@@ -234,20 +343,31 @@ def run_demo(station: Station):
         print(f"    Auth {i+1}: {status.name} ({voltage} mV)")
         assert status == AuthStatus.VALID
 
-    # Scenario 3: Lock battery, try auth
-    print("\n[3] Lock battery, attempt authentication...")
+    # Scenario 3: Read and verify the signed history buffer
+    print("\n[3] Read signed history...")
+    status, dump = station.read_history(b'BAT\x01')
+    if dump is None:
+        print(f"    Result:  {status.name}")
+    else:
+        print(f"    Records: {len(dump.records)}")
+        print(f"    Range:   seq {dump.seq_oldest}..{dump.seq_last}")
+        print(f"    Result:  {status.name}")
+    assert status in (AuthStatus.VALID, AuthStatus.HISTORY_TRUNCATED)
+
+    # Scenario 4: Lock battery, try auth
+    print("\n[4] Lock battery, attempt authentication...")
     station.lock_battery(b'BAT\x01')
     status, voltage, bid = station.authenticate()
     print(f"    Result: {status.name} (expected: BATTERY_LOCKED)")
 
-    # Scenario 4: Unlock and retry
-    print("\n[4] Unlock battery, re-authenticate...")
+    # Scenario 5: Unlock and retry
+    print("\n[5] Unlock battery, re-authenticate...")
     station.unlock_battery(b'BAT\x01')
     status, voltage, bid = station.authenticate()
     print(f"    Result: {status.name}")
 
     print("\n" + "=" * 60)
-    print(f"Demo complete. {len(station.log)} auth attempts logged.")
+    print(f"Demo complete. {len(station.log)} station transactions logged.")
     print("=" * 60)
 
 
@@ -340,7 +460,18 @@ def run_offline_test(demo_mode: bool = False):
     # Unlock
     station.unlock_battery(b'BAT\x01')
 
-    # 5. Benchmark
+    # 5. Signed history
+    print("\n[Scenario 5] Signed History Dump")
+    for mv in (3550, 3300, 2950):
+        chip.set_voltage(mv)
+        chip.sample_tick()
+    status, dump = station.read_history(chip, b'BAT\x01')
+    print(f"  Records       : {len(dump.records)}")
+    print(f"  Seq range     : {dump.seq_oldest}..{dump.seq_last}")
+    print(f"  Verification  : {status.name} -> HISTORY ACCEPTED")
+    assert status == AuthStatus.VALID
+
+    # 6. Benchmark
     print("\n[Benchmark] Running 1,000 simulated authentications...")
     t0 = time.time()
     for _ in range(1000):
@@ -387,6 +518,7 @@ def main():
     parser.add_argument('--baud', type=int, default=115200, help='Baud rate')
     parser.add_argument('--demo', action='store_true', help='Run demo sequence')
     parser.add_argument('--benchmark', action='store_true', help='Run throughput benchmark')
+    parser.add_argument('--history', action='store_true', help='Read and verify signed history')
     parser.add_argument('--count', type=int, default=100, help='Benchmark count')
     parser.add_argument('--offline', action='store_true', help='Run offline test (no hardware)')
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
@@ -411,6 +543,13 @@ def main():
     try:
         if args.demo:
             run_demo(station)
+        elif args.history:
+            status, dump = station.read_history(b'BAT\x01')
+            if dump is None:
+                print(f"History: {status.name}")
+            else:
+                print(f"History: {len(dump.records)} records, "
+                      f"seq {dump.seq_oldest}..{dump.seq_last} -> {status.name}")
         elif args.benchmark:
             run_benchmark(station, args.count)
         elif args.interactive:
@@ -428,7 +567,7 @@ def main():
 def interactive_mode(station: Station):
     """Interactive CLI for demo."""
     print("SeBatt Interactive Station")
-    print("Commands: auth, lock, unlock, bench, quit")
+    print("Commands: auth, history, lock, unlock, bench, quit")
 
     while True:
         try:
@@ -447,6 +586,13 @@ def interactive_mode(station: Station):
         elif cmd == 'unlock':
             station.unlock_battery(b'BAT\x01')
             print("  Battery unlocked")
+        elif cmd in ('h', 'history'):
+            status, dump = station.read_history(b'BAT\x01')
+            if dump is None:
+                print(f"  History: {status.name}")
+            else:
+                print(f"  History: {len(dump.records)} records, "
+                      f"seq {dump.seq_oldest}..{dump.seq_last} -> {status.name}")
         elif cmd in ('b', 'bench'):
             run_benchmark(station, 50)
         elif cmd == 'log':

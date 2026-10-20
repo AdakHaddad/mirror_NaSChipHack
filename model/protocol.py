@@ -335,8 +335,19 @@ class Station:
         summary = (bytes([SUMMARY_MSG_PREFIX]) + nonce + battery_id
                    + struct.pack('>II', seq_oldest, seq_last))
         if dump.summary_tag != hmac_sha256(battery.key, summary):
-            self._log(battery_id, AuthStatus.REPLAY_DETECTED, nonce)
-            return AuthStatus.REPLAY_DETECTED
+            self._log(battery_id, AuthStatus.INVALID_HMAC, nonce)
+            return AuthStatus.INVALID_HMAC
+
+        n_records = len(dump.records)
+        if n_records == 0:
+            if seq_last != ((seq_oldest - 1) & 0xFFFFFFFF):
+                self._log(battery_id, AuthStatus.HISTORY_GAP, nonce)
+                return AuthStatus.HISTORY_GAP
+            if battery.seq_anchor != 0:
+                self._log(battery_id, AuthStatus.HISTORY_ROLLBACK, nonce)
+                return AuthStatus.HISTORY_ROLLBACK
+            self._log(battery_id, AuthStatus.VALID, nonce)
+            return AuthStatus.VALID
 
         if seq_last < battery.seq_anchor:
             self._log(battery_id, AuthStatus.HISTORY_ROLLBACK, nonce)
@@ -379,6 +390,17 @@ class Station:
             return AuthStatus.BATTERY_LOCKED
         return self.verify_response(req, resp)
 
+    def read_history(self, chip: SeBattChip, battery_id: bytes,
+                     nonce: Optional[bytes] = None):
+        """Read and verify one history dump from the chip model."""
+        if nonce is None:
+            nonce = os.urandom(32)
+        dump = chip.handle_read_hist_request(nonce)
+        if dump is None:
+            return AuthStatus.BATTERY_LOCKED, None
+        request = AuthRequest(nonce=nonce)
+        return self.verify_history(request, battery_id, dump), dump
+
 
 # ---------------------------------------------------------------------------
 # Wire protocol (maps to UART frames in firmware)
@@ -395,11 +417,6 @@ class WireProtocol:
     READ_HIST_RESP payload: HistoryDump.encode()
     CHIP_LOCKED payload: battery_id (4 bytes)
     """
-
-    @staticmethod
-    def encode_auth_req(request: AuthRequest) -> bytes:
-        payload = request.nonce
-        return WireProtocol._frame(Command.AUTH_REQ, payload)
 
     @staticmethod
     def encode_auth_req(request) -> bytes:
@@ -422,6 +439,10 @@ class WireProtocol:
     @staticmethod
     def encode_read_hist_req(nonce: bytes) -> bytes:
         return WireProtocol._frame(Command.READ_HIST_REQ, nonce)
+
+    @staticmethod
+    def encode_read_hist_resp(dump: HistoryDump) -> bytes:
+        return WireProtocol._frame(Command.READ_HIST_RESP, dump.encode())
 
     @staticmethod
     def decode(frame: bytes) -> tuple:

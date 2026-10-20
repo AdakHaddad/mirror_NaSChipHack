@@ -228,7 +228,7 @@ usecase(580, 270, 150, 44, ["Mendaftarkan baterai", "dan kunci"], GREEN, GREEN_F
 note(580, 337, "ID unik + kunci K dicatat di server")
 
 usecase(580, 470, 145, 44, ["Mencatat riwayat", "tegangan"], ORANGE, ORANGE_FILL)
-note(580, 536, "otomatis tiap 100 ms, tanpa perangkat lunak")
+note(580, 536, "otomatis tiap 1 detik, tanpa perangkat lunak")
 
 usecase(580, 680, 135, 42, ["Menukar baterai"], BLUE, BLUE_FILL)
 usecase(580, 860, 150, 44, ["Menampilkan kesehatan", "baterai"], BLUE, BLUE_FILL)

@@ -2,9 +2,10 @@
 
 > Concept, code, protocol, hardware, and demo in one document.
 >
-> Written 19 October 2026. Verified against the repository at that date:
-> Python model 40/40 tests pass, RTL simulation 20/20 tests pass (sha256 + hmac +
-> ads1115 + auth/history, 21 Oct; see Section 6.3), offline station demo passes.
+> Written 19 October 2026; updated 21 October 2026 after the signed-history
+> implementation. Python model 52/52 tests pass, RTL simulation 20/20 tests pass
+> (sha256 + hmac + ads1115 + auth/history; see Section 6.3), offline station demo
+> passes.
 > Hardware results are marked separately.
 >
 > **Revision 19 Oct 2026 (hardware session):** the demo ADC changed from an
@@ -306,7 +307,7 @@ AUTH_RESP payload = battery_id(4) ‖ voltage_mv(2, big-endian) ‖ HMAC(32)
 
 - `battery_id` is 4 bytes, e.g. `BAT\x01` = `42 41 54 01`.
 - `voltage_mv` is a 16-bit big-endian integer in millivolts, taken from the
-  latest periodic ADS1115 sample (`SAMPLE_INTERVAL_MS`, default 100 ms), not
+  latest periodic ADS1115 sample (`SAMPLE_INTERVAL_MS`, default 1000 ms), not
   from a conversion started by `AUTH_REQ`.
 - Nonce is 32 random bytes from `os.urandom`.
 - Tags are compared with `==` in Python. In production, use a constant-time
@@ -399,8 +400,8 @@ and duplicated in C in [`fpga/fw/sebatt_fw.c`](fpga/fw/sebatt_fw.c).
 | `0x04` | `LOCK` | station → chip | none |
 | `0x05` | `UNLOCK` | station → chip | none |
 | `0x06` | `STATUS` | station → chip | none |
-| `0x07` | `READ_HIST_REQ` | station → chip | nonce(32) (planned) |
-| `0x08` | `READ_HIST_RESP` | chip → station | count(1) + records (planned) |
+| `0x07` | `READ_HIST_REQ` | station → chip | nonce(32) |
+| `0x08` | `READ_HIST_RESP` | chip → station | count(1) + range + records + summary tag |
 
 ### 4.3 Status codes
 
@@ -729,7 +730,7 @@ Known sharp edges:
 - `test_auth_ctrl.py`: 9 tests against `model.hmac`/`model.protocol` — normal
   AUTH_RESP, second nonce, bad CRC ignored, unknown command ignored, lock
   state, LOCK/UNLOCK/CHIP_LOCKED, lock after three failed RESULTs, the periodic
-  `adc_start` interval (12 000 cycles in the TB, 100 ms in hardware), and a
+  `adc_start` interval (12 000 cycles in the TB, 1 s in hardware), and a
   full 64-record READ_HIST dump checked byte-for-byte.
 - Drivers model AXI4-Lite transactions manually (`axi_write`, `axi_read`,
   `start_and_wait`, `read_hash`).
@@ -876,7 +877,7 @@ Consequences:
 | Compute | MicroBlaze + C firmware | pure RTL |
 | Voltage | fixed 3700 mV | ADS1115 (I2C) / switch / scripted ramp |
 | History | none | 64-record signed ring buffer |
-| Status | fallback; Basys 3 reset bug open | auth chain + periodic sampling built, Cmod S7 bitstream built; history/seq pending |
+| Status | fallback; Basys 3 reset bug open | auth chain + periodic sampling + signed history + lock built; Cmod S7 bitstream rebuilt; board run pending |
 | KV260 | not portable (soft CPU) | portable |
 | Purpose | fallback, video, hardware smoke test | real demo |
 
@@ -1022,8 +1023,8 @@ The station trusts only the value inside the signed frame.
    REPLAY_DETECTED, INVALID_HMAC, BATTERY_LOCKED.
 5. **T4**: record 60–90 s fallback video. Back it up in two places. This is
    mandatory.
-6. **T5**: ~~build the RTL bitstream.~~ Done 20 Oct for the Cmod S7
-   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +55.193 ns.
+6. **T5**: ~~build the RTL bitstream.~~ Rebuilt 21 Oct for the Cmod S7
+   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +55.646 ns.
 7. **T6**: program `fpga/cmod_s7/build/cmod_s7_top.bit`; heartbeat LED blinks.
 8. **T7**: station `--interactive` → `auth` → VALID; turn the ADS1115 pot
    (or flip switches) → `auth` → VALID with the new voltage. **T7 PASS is the
@@ -1143,11 +1144,11 @@ sees that the attacker is between the battery and the station.
 | Station emulator | Auth, replay, lock, benchmark, offline demo |
 | Flow A FPGA | Artifacts built; 19 Oct session found Basys 3 reset-polarity / debug-reset blockers |
 | ADS1115 I2C RTL | Done 20 Oct: `i2c_master.v` + `ads1115_ctrl.v` + cocotb model, 2/2 tests pass |
-| Flow B auth RTL | Done 20–21 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; periodic sampling (100 ms), signed 64-record history, READ_HIST, RESULT/LOCK/UNLOCK/STATUS, lock; cocotb `make auth` 9/9 pass |
-| Cmod S7 bitstream | Built 20 Oct: `xc7s25csga225-1`, WNS +55.193 ns, 4 443 LUT / 5 275 FF; hardware run pending |
-| KV260 timing check | 20 Oct: `xck26-sfvc784-2LV-c` at 100 MHz, WNS +2.626 ns, 4 476 LUT / 5 256 FF; pins/bit.bin pending |
+| Flow B auth RTL | Done 20–21 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; periodic sampling (1 s default), signed 64-record history, READ_HIST, RESULT/LOCK/UNLOCK/STATUS, lock; cocotb `make auth` 9/9 pass |
+| Cmod S7 bitstream | Rebuilt 21 Oct: `xc7s25csga225-1`, WNS +55.646 ns, 5 358 LUT / 6 022 FF, 0 BRAM/DSP; hardware run pending |
+| KV260 timing check | 21 Oct: `xck26-sfvc784-2LV-c` at 100 MHz, WNS +1.028 ns, 5 220 LUT / 6 011 FF, 0 BRAM/DSP; pins/bit.bin pending |
 | Test plan | Written; preflight passes, Flow A blocked by reset bug |
-| Periodic ADS1115 sampling | Done 20 Oct: 100 ms default (`SAMPLE_INTERVAL_MS`), latest sample signed on AUTH_REQ; every sample stored and tagged |
+| Periodic ADS1115 sampling | Done: 1 s default demo (`SAMPLE_INTERVAL_MS`), every sample stored and tagged; AUTH_REQ signs the latest sample |
 | Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 9/9 auth suite |
 | Business/pitch | Drafts exist |
 
@@ -1229,12 +1230,12 @@ Ordered by critical path.
 
 1. **~~Freeze the history contract.~~** Done 21 Oct: `READ_HIST_REQ/RESP`,
    record layout, prefixes, and verification order are in `model/protocol.py`;
-   vectors regenerated and model tests pass 40/40.
+   vectors regenerated and model tests pass 52/52.
 2. **~~Add station history verification.~~** Done 21 Oct:
    `Station.verify_history` loads the anchor, checks tags, and detects gaps,
    rollback, and truncation; the web demo renders the health card.
 3. **~~Write `rtl/auth_ctrl.v`.~~** Done 21 Oct: frame parser + CRC-8 +
-   periodic ADS1115 sampling (100 ms) + HMAC + seq counter + signed ring
+   periodic ADS1115 sampling (1 s) + HMAC + seq counter + signed ring
    buffer + READ_HIST + lock.
 4. **~~Write `rtl/uart_if.v`.~~** Done 20 Oct: 115200 8N1, mid-bit sampling.
 5. **~~Write `rtl/i2c_master.v` + `rtl/ads1115_ctrl.v`.~~** Done 20 Oct;
@@ -1245,7 +1246,7 @@ Ordered by critical path.
    passes 9/9 against `model.hmac`/`model.protocol` (auth, lock, STATUS,
    READ_HIST, periodic sampling interval).
 8. **KV260 prep.** Cmod S7 bitstream built; `xck26` 100 MHz timing/fit check
-   passes (WNS +2.626 ns). Next: real PMOD/carrier pins, `.bit` → `.bit.bin`,
+   passes (WNS +1.028 ns). Next: real PMOD/carrier pins, `.bit` → `.bit.bin`,
    Ubuntu SD/BOOT.BIN.
 
 ### When a board is available
@@ -1306,7 +1307,7 @@ Ordered by critical path.
 | Nonce length | 32 bytes |
 | HMAC length | 32 bytes |
 | Auth message length | 38 bytes (`nonce + ID + V`) |
-| History record length | 38 bytes (`seq + V + tag`) planned |
+| History record length | 38 bytes (`seq + V + tag`) |
 | History buffer | 64 records |
 | UART | 115200, 8N1 |
 | Frame overhead | 4 bytes (`CMD + LEN2 + CRC1`) |
@@ -1314,7 +1315,7 @@ Ordered by critical path.
 | SHA rounds | 64 |
 | SHA block latency | ~113 cycles |
 | HMAC blocks | 4 |
-| BRAM history size | 384 bytes (64 × 6) + counter/key/ID ≈ 420 bytes |
+| History storage | 64 × 38 = 2 432 bytes in distributed RAM/registers; 0 Block RAM |
 
 ### A.2 Frame examples
 
@@ -1360,8 +1361,8 @@ UNKNOWN_BATTERY  0x04
 0x04 LOCK
 0x05 UNLOCK
 0x06 STATUS
-0x07 READ_HIST_REQ   (planned)
-0x08 READ_HIST_RESP  (planned)
+0x07 READ_HIST_REQ
+0x08 READ_HIST_RESP
 ```
 
 ### A.6 The five things to memorize

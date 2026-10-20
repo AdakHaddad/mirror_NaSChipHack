@@ -1,7 +1,8 @@
 # KV260 — Flow B port
 
-Status: **internal 100 MHz timing/fit check passes (20 Oct 2026)**. Carrier pin
-map, PS clock setup, and `.bit.bin` boot are still TODO.
+Status: **internal 100 MHz timing/fit check passes (21 Oct 2026), including the
+signed history/lock RTL**. Carrier pin map, PS clock setup, and `.bit.bin` boot
+are still TODO.
 
 ## What was checked
 
@@ -13,14 +14,14 @@ Result:
 
 | Metric | Value |
 |---|---|
-| WNS | **+2.626 ns** |
+| WNS | **+1.028 ns** |
 | TNS / failing endpoints | 0 / 0 |
-| CLB LUTs | 4 476 (3.82 %) |
-| CLB registers | 5 256 (2.24 %) |
+| CLB LUTs | 5 220 (4.46 %) |
+| CLB registers | 6 011 (2.57 %) |
 | BRAM / DSP | 0 / 0 |
 
 The critical path is the SHA-256 `w` expansion (`cnt_reg[0] -> w_reg[*]`), the
-same path that limits the Cmod S7 run. At 100 MHz on the KV260 it has 2.6 ns of
+same path that limits the Cmod S7 run. At 100 MHz on the KV260 it has 1.0 ns of
 margin, so **do not raise `pl_clk0` above 100 MHz** without re-timing.
 
 ## Run the check

@@ -15,8 +15,8 @@ make all        # semua target: 5 sha256 + 4 hmac + 2 ads1115 + 9 auth
 Tes auth juga memverifikasi sampling periodik (`adc_start` setiap `SAMPLE_CYCLES`),
 isi READ_HIST_RESP terhadap HMAC Python (64 catatan + tag ringkasan), lock setelah
 tiga RESULT gagal, serta LOCK/UNLOCK/STATUS/CHIP_LOCKED. TB memakai
-`SAMPLE_CYCLES = 3000` (250 us) agar tiap sampel selesai ditandatangani; hardware
-memakai default 100 ms.
+`BAUD=1_000_000` dan `SAMPLE_CYCLES=12000` (1 ms) hanya untuk mempercepat
+simulasi; hardware memakai 115200 baud dan default 1000 ms (1 detik).
 
 Icarus memakai `sim_build/sim.vvp` yang sama untuk semua target, jadi `make all`
 menjalankan `make clean` di antara target. Untuk target tunggal setelah target

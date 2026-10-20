@@ -3,13 +3,15 @@
 Panduan operasional Flow B di **Digilent Cmod S7-25**. Semua perintah dijalankan
 dari root repo (`/home/muqtada/Documents/sebatt`) kecuali disebut lain.
 
-Status 20 Okt 2026: sampling periodik 100 ms dan bitstream sudah dibangun,
-timing bersih. Yang belum dilakukan adalah uji fisik T6/T7/T9.
+Status 21 Okt 2026: sampling periodik 1 detik, riwayat 64 record bertanda
+tangan, `READ_HIST`, dan lock sudah ada di RTL; regresi cocotb 20/20 dan
+bitstream dibangun ulang dengan timing bersih. Yang belum dilakukan adalah uji
+fisik T6/T7/T9.
 
 - Bitstream: `fpga/cmod_s7/build/cmod_s7_top.bit`
 - Part: `xc7s25csga225-1`
 - Clock: 12 MHz, UART 115 200 8N1
-- Sampling ADS1115: periodik 100 ms (`SAMPLE_INTERVAL_MS`), independen dari UART
+- Sampling ADS1115: periodik 1 detik (`SAMPLE_INTERVAL_MS=1000`), independen dari UART
 - Pin map: `fpga/cmod_s7/cmod_s7.xdc`
 - Rujukan pin resmi: `Cmod-S7-25-Master.xdc` dari Digilent
 
@@ -61,7 +63,7 @@ Output:
 - `build/timing.rpt`
 - `build/utilization.rpt`
 
-Hasil 20 Okt: WNS **+55,193 ns**, 4 443 LUT, 5 275 FF, semua constraint met.
+Hasil 21 Okt: WNS **+55,646 ns**, 5 358 LUT, 6 022 FF, 0 BRAM/DSP, semua constraint met.
 Build ulang hanya perlu kalau RTL berubah.
 
 ---
@@ -129,8 +131,8 @@ Result:  VALID
 ```
 
 `42415401` adalah `BAT\x01`. Tegangan mengikuti posisi pot (0–3300 mV).
-FPGA mengambil sampel baru setiap **100 ms**; setelah memutar pot, tunggu
-sedikit (≥100 ms) sebelum `auth` agar nilai terbaru sudah masuk.
+FPGA mengambil sampel baru setiap **1 detik**; setelah memutar pot, tunggu
+sedikit (≥1 detik) sebelum `auth` agar nilai terbaru sudah masuk.
 
 **Penting:** `Result: VALID` dengan `Voltage: 0 mV` berarti HMAC benar tetapi
 ADS1115 tidak terbaca. Periksa wiring I2C dan LED4; itu bukan auth yang sehat.
@@ -148,15 +150,14 @@ Urutan yang diharapkan:
 ```
 [1] Valid authentication...                       -> VALID
 [2] Multiple valid authentications (5x)...        -> VALID x5
-[3] Lock battery, attempt authentication...       -> BATTERY_LOCKED
-[4] Unlock battery, re-authenticate...            -> VALID
-Demo complete. 8 auth attempts logged.
+[3] Read signed history...                        -> VALID / HISTORY_TRUNCATED
+[4] Lock battery, attempt authentication...       -> BATTERY_LOCKED
+[5] Unlock battery, re-authenticate...            -> VALID
+Demo complete. 8 station transactions logged.
 ```
 
-Catatan: LOCK/UNLOCK belum diimplementasikan di RTL. Station mengunci di
-database-nya sendiri; FPGA tetap membalas AUTH_RESP. LED4 bisa menyala setelah
-perintah LOCK karena FPGA menganggap command itu tidak dikenal. Itu normal
-untuk demo ini.
+LOCK/UNLOCK/STATUS/READ_HIST sudah diimplementasikan di RTL. Setelah LOCK,
+chip membalas AUTH_REQ dan READ_HIST_REQ dengan CHIP_LOCKED.
 
 ---
 
@@ -179,7 +180,7 @@ Alur di panggung:
 station> auth
   Battery: 42415401  Voltage: 1500mV  -> VALID
 
-# putar pot ke posisi lain, tunggu >=100 ms
+# putar pot ke posisi lain, tunggu >=1 detik
 
 station> auth
   Battery: 42415401  Voltage: 2750mV  -> VALID
@@ -199,13 +200,14 @@ station> auth
 
 Kalimat inti yang perlu disampaikan:
 
-- Tegangan dibaca ADS1115 lewat I2C setiap 100 ms dan masuk langsung ke RTL;
+- Tegangan dibaca ADS1115 lewat I2C setiap 1 detik dan masuk langsung ke RTL;
   tidak ada software di jalur sampel.
-- RTL menghitung HMAC-SHA-256 atas `nonce || battery_id || voltage`.
+- RTL menghitung HMAC-SHA-256 atas `0x41 || nonce || battery_id || voltage`.
 - Station hanya percaya nilai yang ada di dalam frame yang ditandatangani.
 - Memutar pot mengubah nilai yang ditandatangani; station memverifikasi ulang.
-- Lock di demo ini adalah lock di sisi station/database; lock di dalam chip
-  belum diimplementasikan.
+- `READ_HIST_REQ` mengembalikan 64 record `seq || V || HMAC` dan satu tag
+  ringkasan ber-nonce; station memeriksa urutan dan setiap tag.
+- LOCK sekarang mengunci chip; setelah tiga RESULT gagal chip juga terkunci.
 
 Kalau ditanya soal serangan:
 
@@ -224,8 +226,9 @@ hardware. Gunakan sebagai jawaban kalau juri minta melihat penolakan.
 |---|---|---|
 | T6 Program | `vivado -mode batch -source program.tcl` | LED1 berkedip |
 | T7 Auth | `python -m model.station --port /dev/ttyUSB1` | `VALID`, voltage wajar |
-| T7 Variasi | putar pot, tunggu ≥100 ms, lalu auth lagi | voltage berubah, tetap `VALID` |
-| T9 ADS1115 | putar pot, tunggu ≥100 ms, lalu auth | voltage mengikuti pot, LED4 padam |
+| T7 Variasi | putar pot, tunggu ≥1 detik, lalu auth lagi | voltage berubah, tetap `VALID` |
+| T9 ADS1115 | putar pot, tunggu ≥1 detik, lalu auth | voltage mengikuti pot, LED4 padam |
+| T10 Riwayat | `python -m model.station --port /dev/ttyUSB1 --history` | `VALID` atau `HISTORY_TRUNCATED`, jumlah record dan rentang seq wajar |
 | T8 LED | lihat LED2/3/4 saat auth | busy/valid/error sesuai |
 
 Tidak ada perintah "I2C scan" di RTL. Pembacaan ADS1115 diverifikasi lewat
@@ -253,8 +256,9 @@ kalau I2C gagal setelah sampel baik, sampel terakhir dipertahankan dan LED4 meny
 ## 11. Batasan demo (jangan diklaim lebih)
 
 - Kunci masih fixed `bytes(range(32))`; PUF belum di jalur demo.
-- LOCK/UNLOCK/STATUS belum ada di RTL; lock hanya di station.
-- Belum ada seq counter, riwayat 64 record, atau `READ_HIST`.
+- UNLOCK belum diautentikasi; siapa pun yang bisa mengirim frame dapat membuka lock.
+- Seq counter, riwayat, dan lock bersifat volatil; daya putus menghapus semuanya.
+- Dump riwayat maksimal ~215 ms pada 115200 baud; station memakai timeout 2 detik.
 - ADS1115 masih modul terpisah; tegangan bisa dipalsukan sebelum FPGA. Ini
   batasan PoC yang sudah didokumentasikan.
 - Bitstream khusus Cmod S7-25 (`xc7s25csga225-1`). Board varian lain perlu build

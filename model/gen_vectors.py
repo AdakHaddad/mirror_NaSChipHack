@@ -8,6 +8,7 @@ Vectors include:
   1. FIPS 180-4 SHA-256 known-answer tests
   2. RFC 4231 HMAC-SHA-256 known-answer tests
   3. SeBatt protocol vectors (nonce + id + voltage → HMAC)
+  4. History vectors (0x53 record tag and 0x48 summary tag)
 """
 
 import json
@@ -17,7 +18,9 @@ from pathlib import Path
 
 from .sha256 import sha256_hex
 from .hmac import hmac_sha256, hmac_sha256_hex
-from .protocol import AUTH_MSG_PREFIX
+from .protocol import (
+    AUTH_MSG_PREFIX, RECORD_MSG_PREFIX, SUMMARY_MSG_PREFIX,
+)
 
 
 def fips_sha256_vectors() -> list[dict]:
@@ -130,8 +133,8 @@ def sebatt_protocol_vectors(count: int = 20) -> list[dict]:
     """
     SeBatt-specific test vectors for full protocol verification.
     message = 0x41 || nonce(32) || battery_id(4) || voltage(2)  (prefix: spec
-    section 6). Records (0x53) and summary (0x48) messages are verified by the
-    Python model; the RTL signs them with the same MAC core.
+    section 6). Each entry also carries one 0x53 record and one 0x48 summary
+    vector so the same MAC core can be checked against the stored-tag path.
     """
     vectors = []
 
@@ -149,6 +152,16 @@ def sebatt_protocol_vectors(count: int = 20) -> list[dict]:
                    + voltage_bytes)
         mac = hmac_sha256(key, message)
 
+        seq = i
+        record_msg = (bytes([RECORD_MSG_PREFIX]) + battery_id
+                      + struct.pack('>IH', seq, voltage))
+        record_mac = hmac_sha256(key, record_msg)
+
+        summary_nonce = bytes([(i * 11 + j) & 0xFF for j in range(32)])
+        summary_msg = (bytes([SUMMARY_MSG_PREFIX]) + summary_nonce
+                       + battery_id + struct.pack('>II', seq, seq))
+        summary_mac = hmac_sha256(key, summary_msg)
+
         vectors.append({
             'id': f'SEBATT-{i:03d}',
             'key_hex': key.hex(),
@@ -157,6 +170,12 @@ def sebatt_protocol_vectors(count: int = 20) -> list[dict]:
             'voltage': voltage,
             'msg_hex': message.hex(),
             'mac_hex': mac.hex(),
+            'record_seq': seq,
+            'record_msg_hex': record_msg.hex(),
+            'record_mac_hex': record_mac.hex(),
+            'summary_nonce_hex': summary_nonce.hex(),
+            'summary_msg_hex': summary_msg.hex(),
+            'summary_mac_hex': summary_mac.hex(),
         })
 
     return vectors

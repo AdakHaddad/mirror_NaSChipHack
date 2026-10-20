@@ -2,8 +2,8 @@
 
 Kontrak teknis antara RTL (Muqtada), program stasiun (Budi), dan perangkat keras (Guntur) untuk demo di Kria KV260. Dokumen ini memuat keputusan protokol riwayat. Peta lengkap kode dan cara menjalankannya ada di [context.md](../../context.md), prosedur board di [cara-jalan-board.md](cara-jalan-board.md) dan [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md). Apabila ada perbedaan soal protokol, dokumen ini yang dipakai.
 
-Penanda status (keadaan repo per commit 200c754, 20 Oktober):
-- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (20/20 pada 21 Okt: 5 sha256, 4 hmac, 2 ads1115, 9 auth). Uji di board disebut terpisah.
+Penanda status (keadaan repo per 21 Oktober 2026):
+- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (20/20 pada 21 Okt: 5 sha256, 4 hmac, 2 ads1115, 9 auth). Model Python 52/52. Uji di board disebut terpisah.
 - **[Disepakati]** sudah disetujui, belum diimplementasikan.
 - **[Usulan]** menunggu persetujuan Muqtada dan Budi.
 
@@ -29,7 +29,7 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
 
-Hasil sintesis yang dilaporkan di context.md: Cmod S7 (xc7s25, clock 12 MHz) WNS +52,7 ns, sekitar 4.400 LUT. KV260 (xck26, 100 MHz) WNS +2,7 ns. Bitstream Cmod S7 belum diuji di board.
+Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,646 ns, 5.358 LUT, 6.022 FF. KV260 (xck26, 100 MHz) WNS +1,028 ns, 5.220 LUT, 6.011 FF. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 sudah dibangun ulang; uji di board belum.
 
 Di KV260, blok Zynq UltraScale+ MPSoC hanya dipakai sebagai sumber clock PL (pl_clk0). Prosesor tidak membaca maupun menulis sampel.
 
@@ -47,19 +47,19 @@ Field tegangan (V) berisi **milivolt 16 bit di masukan sumber**. Untuk ADS1115, 
 - **ROM** diisi dari dataset pengosongan baterai (bagian Budi) dan diputar ulang oleh RTL. Sumber ini menjadi cadangan apabila ADS1115 bermasalah di KV260. Input ini sah menurut aturan panitia, asalkan disebutkan di README dan saat pitch.
 - Sumber dipilih dengan parameter sintesis atau satu pin Pmod.
 
-## 4. Pengambilan Sampel dan Buffer [Disepakati]
+## 4. Pengambilan Sampel dan Buffer [Sudah ada]
 
 | Parameter | Nilai |
 |---|---|
-| Periode sampel | 100 ms (`SAMPLE_INTERVAL_MS`; siklus diturunkan ke `SAMPLE_CYCLES` dari clock, karena Cmod S7 12 MHz dan KV260 100 MHz) |
+| Periode sampel | 1 detik untuk demo (`SAMPLE_INTERVAL_MS=1000`; 100 ms tetap tersedia sebagai mode uji beban). Siklus diturunkan ke `SAMPLE_CYCLES` dari clock, karena Cmod S7 12 MHz dan KV260 100 MHz |
 | Arti satu sampel di cerita demo | 3 jam pemakaian |
 | Nomor urut (seq) | 32 bit, mulai 0 saat reset, bertambah satu per sampel |
-| Buffer | 64 catatan × (seq 4 byte + V 2 byte) = 384 byte, berbentuk ring |
+| Buffer | 64 catatan × (seq 4 byte + V 2 byte + tag 32 byte) = 2.432 byte, berbentuk ring |
 | Saat buffer penuh | Catatan tertua ditimpa, seq tetap bertambah |
 
-Saat ini ads1115_ctrl dipicu satu kali setiap AUTH_REQ. Pada Flow B lengkap, pemicunya adalah pewaktu di auth_ctrl setiap 100 ms. Satu pembacaan single-shot memerlukan sekitar 10 ms ditambah transaksi I2C, sehingga masih muat dalam periode tersebut.
+`auth_ctrl` memicu `ads1115_ctrl` setiap `SAMPLE_INTERVAL_MS`; `AUTH_REQ` dan `READ_HIST_REQ` memakai sampel terbaru dan tidak memulai konversi baru. Satu pembacaan single-shot memerlukan sekitar 10 ms ditambah transaksi I2C, sehingga muat dalam periode 1 detik maupun 100 ms.
 
-Buffer hanya menyimpan seq dan V. Tanda tangan dihitung saat riwayat diminta, karena isi buffer berada di dalam IP dan tidak dapat diubah dari luar.
+Setiap sampel langsung ditandatangani saat diambil dengan pesan catatan (bagian 6), lalu `seq`, `V`, dan tag disimpan bersama di buffer. `READ_HIST_RESP` cukup membaca isi buffer ditambah satu tanda tangan ringkasan. Satu HMAC per detik jauh di bawah kemampuan `hmac_sha256`, dan 2,4 KB muat di RAM internal.
 
 ## 5. Kunci dan Identitas
 
@@ -71,7 +71,7 @@ Buffer hanya menyimpan seq dan V. Tanda tangan dihitung saat riwayat diminta, ka
 
 Pada produk, setiap chip memiliki kunci unik (diisi saat produksi atau diturunkan dari PUF).
 
-## 6. Pesan yang Ditandatangani [Usulan]
+## 6. Pesan yang Ditandatangani [Sudah ada]
 
 Byte pertama membedakan jenis pesan, sehingga tanda tangan untuk satu keperluan tidak dapat dipakai untuk keperluan lain. Semua pesan muat dalam batas 55 byte hmac_sha256.
 
@@ -132,25 +132,25 @@ catatan = seq(4) ‖ V(2) ‖ tag(32)
 | 0x06 | HISTORY_ROLLBACK | seq_terakhir lebih kecil dari catatan basis data | Ditolak | [Sudah ada] di model Python |
 | 0x07 | HISTORY_TRUNCATED | seq_tertua lebih besar dari jangkar + 1, berarti catatan lama tertimpa karena buffer penuh | Diterima dengan peringatan | [Sudah ada] di model Python |
 
-## 10. Urutan Verifikasi di Stasiun [Usulan]
+## 10. Urutan Verifikasi di Stasiun [Sudah ada]
 
-Sudah diimplementasikan di `Station.verify_history` (`model/protocol.py`, 40/40 uji model). RTL hanya menyediakan dump bertanda tangan; penetapan status dilakukan di stasiun.
+Diimplementasikan di `Station.verify_history` (`model/protocol.py` dan `model/station.py`; 52/52 uji model). RTL hanya menyediakan dump bertanda tangan; penetapan status dilakukan di stasiun.
 
 Basis data menyimpan jangkar per baterai: {kunci, seq_jangkar, terkunci}.
 
 1. Frame dengan CRC salah dibuang.
 2. ID tidak terdaftar: UNKNOWN_BATTERY.
 3. Baterai terkunci di basis data, atau chip membalas CHIP_LOCKED: BATTERY_LOCKED.
-4. Hitung ulang tag ringkasan dengan nonce yang baru dikirim. Tidak cocok: REPLAY_DETECTED.
+4. Hitung ulang tag ringkasan dengan nonce yang baru dikirim. Tidak cocok: INVALID_HMAC.
 5. seq_terakhir < seq_jangkar: HISTORY_ROLLBACK.
 6. N ≠ seq_terakhir − seq_tertua + 1, atau seq catatan tidak berurutan dari seq_tertua sampai seq_terakhir: HISTORY_GAP.
 7. Hitung ulang tag setiap catatan. Ada yang tidak cocok: INVALID_HMAC.
 8. seq_tertua > seq_jangkar + 1: HISTORY_TRUNCATED, catatan di antara keduanya tidak tersedia.
-9. Lolos semua: VALID. Simpan seq_jangkar = seq_terakhir, lalu kirim RESULT ke chip.
+9. Lolos semua: VALID. Simpan seq_jangkar = seq_terakhir, lalu kirim RESULT ke chip. Dump kosong pada baterai baru juga VALID, tetapi tidak menaikkan jangkar; dump kosong setelah jangkar pernah terisi dianggap HISTORY_ROLLBACK.
 
 Nonce dibuat baru untuk setiap permintaan dan hanya berlaku untuk satu jawaban.
 
-## 11. Penguncian Chip [Usulan]
+## 11. Penguncian Chip [Sudah ada]
 
 Sudah ada di `rtl/auth_ctrl.v` dan diuji 9/9 cocotb (STATUS, LOCK, UNLOCK, CHIP_LOCKED, lock setelah tiga RESULT gagal).
 
@@ -207,6 +207,8 @@ RTL diuji dengan cocotb terhadap vektor yang sama, seperti test_auth_ctrl.py saa
 - Kunci simetris juga tersimpan di basis data, dan stasiun harus terhubung ke server.
 - Kunci uji sama untuk semua chip.
 - Apabila sumber ROM dipakai, input berupa data rekaman, bukan sensor live.
+- Chip tidak memiliki sumber waktu tepercaya. `seq` membuktikan urutan catatan yang dikirim, tetapi tidak membuktikan bahwa sampel benar-benar diambil setiap interval.
+- Jangkar stasiun hanya mendeteksi rollback apabila stasiun pernah melihat `seq` yang lebih tinggi.
 
 ## 16. Keputusan yang Perlu Disetujui
 
@@ -221,3 +223,6 @@ RTL diuji dengan cocotb terhadap vektor yang sama, seperti test_auth_ctrl.py saa
 | 7 | Dashboard meminta dump penuh setiap 0,5 detik (bagian 12) | Tanpa perintah tambahan | Budi |
 | 8 | key_vault tanpa port baca dan sekali tulis, dipakai di Flow B (bagian 5) | auth_ctrl tidak lagi menulis kunci | Muqtada |
 | 9 | Pin Pmod KV260 dengan SCL dan SDA di pin 1–2 (bagian 13) | Kabel sama dengan Cmod S7 | Muqtada, Guntur |
+| 10 | Periode sampel demo 1 detik, 100 ms sebagai mode uji beban (bagian 4) | Catatan kejadian tidak tertimpa sebelum adegan demo selesai | Muqtada, Budi |
+| 11 | Tanda tangan dibuat saat sampel diambil dan disimpan di buffer, 2.432 byte (bagian 4) | READ_HIST_RESP cukup membaca buffer. Sesuai Opsi A di desain-sampling-riwayat.md | Muqtada |
+| 12 | Hash chain, ECDSA, penghapusan catatan setelah ACK, dan field tambahan tidak dikerjakan untuk demo | Masuk roadmap di slide | Semua |

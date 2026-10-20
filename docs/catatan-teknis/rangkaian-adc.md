@@ -149,7 +149,7 @@ Contoh: kenop di tengah memberi sekitar 1,24 V pada rangkaian casing, sehingga m
 | mv[15:0] | Keluar | Tegangan A0 dalam milivolt |
 | scl, sda | Dua arah | Ke Pmod pin 1 dan 2 |
 
-Saat ini auth_ctrl memicu start satu kali setiap AUTH_REQ. Pada Flow B lengkap, pemicunya adalah pewaktu sampel setiap 100 ms di auth_ctrl.
+`auth_ctrl` memicu `ads1115_ctrl` dari pewaktu sampel setiap 1 detik (default demo); `AUTH_REQ` dan `READ_HIST_REQ` memakai sampel terbaru tanpa memulai konversi baru.
 
 ## Urutan Pengujian
 

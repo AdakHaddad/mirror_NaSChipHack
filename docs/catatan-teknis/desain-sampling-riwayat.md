@@ -1,6 +1,8 @@
 # Catatan brainstorm — sampling, riwayat, hash chain, dan ECDSA
 
-Status: **catatan desain, belum menjadi spesifikasi final.**  
+Status: **dasar Opsi A; keputusan utamanya sudah diimplementasikan.** Kontrak
+final ada di [spesifikasi.md](spesifikasi.md).
+
 Tanggal: 21 Oktober 2026  
 Konteks: Flow B pure RTL, Cmod S7 untuk latihan dan KV260 untuk demo.
 
@@ -8,8 +10,9 @@ Konteks: Flow B pure RTL, Cmod S7 untuk latihan dan KV260 untuk demo.
 
 Sudah ada (per 21 Oktober, setelah implementasi Flow B):
 
-- `rtl/auth_ctrl.v`: sampling ADS1115 periodik (`SAMPLE_INTERVAL_MS = 100`
-  default), `seq` 32 bit, ring buffer 64 record dengan tag HMAC per sampel.
+- `rtl/auth_ctrl.v`: sampling ADS1115 periodik (`SAMPLE_INTERVAL_MS = 1000`
+  default demo; 100 ms tersedia sebagai uji beban), `seq` 32 bit, ring buffer
+  64 record dengan tag HMAC per sampel.
 - Pesan bertanda tangan berprefiks: 0x41 AUTH, 0x53 RECORD, 0x48 SUMMARY.
 - `READ_HIST_REQ` / `READ_HIST_RESP` (N, rentang seq, tag per catatan, tag
   ringkasan ber-nonce), plus `RESULT`, `LOCK`, `UNLOCK`, `STATUS`, dan
@@ -17,16 +20,18 @@ Sudah ada (per 21 Oktober, setelah implementasi Flow B):
 - Model Python di `model/protocol.py` memverifikasi riwayat dan anchor
   (HISTORY_GAP / HISTORY_ROLLBACK / HISTORY_TRUNCATED).
 - `SAMPLE_CYCLES` dapat di-override; testbench memakai 12 000 siklus (1 ms)
-  agar tiap sampel selesai ditandatangani.
+  dan BAUD 1 Mbaud hanya untuk mempercepat simulasi.
 - Regresi cocotb: 20/20 PASS (5 sha256, 4 hmac, 2 ads1115, 9 auth); model
-  Python 40/40. Bitstream Cmod S7 sudah dibangun dan timing-clean.
+  Python 52/52, termasuk verifikasi riwayat di `model/protocol.py` dan
+  `model/station.py`.
+- Bitstream Cmod S7 dibangun ulang 21 Okt dengan timing bersih.
 
 Belum ada:
 
-- verifikasi anchor riwayat versi RTL di station (model Python sudah);
 - `seq` di dalam `AUTH_RESP` (tetap di READ_HIST_RESP);
 - penyimpanan `seq`/checkpoint di NVM aman;
-- ECDSA.
+- ECDSA;
+- uji fisik board T6/T7/T9/T10.
 
 Spesifikasi final ada di [spesifikasi.md](spesifikasi.md); catatan ini
 menjelaskan alasan desainnya.
@@ -303,29 +308,36 @@ menghapus data, dan mudah dijelaskan ke juri.
 
 ---
 
-## 8. Keputusan yang masih terbuka
+## 8. Keputusan
 
-1. Interval demo final: 1 detik atau 10 detik?
-2. Kapasitas buffer: 64 atau 128 record?
-3. Format record: HMAC per record atau chain head + station archive?
-4. Apakah chip boleh menghapus record setelah ACK station?
-5. Apakah ECDSA masuk roadmap, atau tetap HMAC untuk seluruh hackathon?
-6. Apakah perlu field tambahan: flags, suhu, arus, atau min/max per interval?
-7. Bagaimana menyimpan `seq`/checkpoint di NVM aman pada FPGA demo?
+Sudah diputuskan dan diimplementasikan:
+
+1. Interval demo: **1 detik**; 100 ms sebagai mode uji beban.
+2. Kapasitas buffer: **64 record**.
+3. Format record: **HMAC per record**, bukan chain head.
+4. ECDSA: **tidak** untuk hackathon; HMAC tetap dipakai.
+
+Masih terbuka:
+
+1. Apakah chip boleh menghapus record setelah ACK station?
+2. Apakah perlu field tambahan: flags, suhu, arus, atau min/max per interval?
+3. Bagaimana menyimpan `seq`/checkpoint di NVM aman pada FPGA demo?
 
 ---
 
-## 9. Langkah implementasi berikutnya
+## 9. Status langkah implementasi
 
-1. Bekukan kontrak record dan `READ_HIST_REQ/RESP`.
-2. Tambahkan `seq` counter dan ring buffer ke `auth_ctrl`.
-3. Simpan `seq` di record; pastikan `seq` masuk ke HMAC.
-4. Tambahkan dump riwayat dengan nonce.
-5. Tambahkan verifikasi station: urutan, HMAC, gap, rollback, replay.
-6. Ubah interval demo default menjadi 1 detik; pertahankan 100 ms sebagai
-   opsi stress test.
-7. Tambahkan tes untuk delete, edit, reorder, rollback, dan replay.
-8. Baru pertimbangkan ECDSA checkpoint setelah alur HMAC stabil.
+1. Kontrak record dan `READ_HIST_REQ/RESP`: **selesai**.
+2. `seq` counter dan ring buffer di `auth_ctrl`: **selesai**.
+3. `seq` masuk ke HMAC record: **selesai**.
+4. Dump riwayat dengan nonce: **selesai**.
+5. Verifikasi station untuk urutan, HMAC, gap, rollback, replay: **selesai**
+   di `model/protocol.py` dan `model/station.py`.
+6. Interval demo default 1 detik: **selesai**; 100 ms tetap tersedia.
+7. Tes delete, edit, reorder, rollback, replay: **selesai** di
+   `sim/test_auth_ctrl.py` dan `model/test_history.py`.
+8. ECDSA checkpoint: **ditunda** sampai alur HMAC stabil dan ada kebutuhan
+   multi-operator.
 
 ## 10. Referensi
 

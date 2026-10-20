@@ -45,11 +45,11 @@ Masalah serupa sudah terjadi di HP. iPhone menampilkan jumlah siklus dan kesehat
 
 ## Langkah 1. Selama Baterai Dipakai (Berulang Terus)
 
-Langkah ini berjalan sendiri di dalam chip setiap selang waktu tertentu (100 ms pada demo, yang mewakili 3 jam pemakaian). Tidak ada perangkat lunak yang ikut campur.
+Langkah ini berjalan sendiri di dalam chip setiap selang waktu tertentu (1 detik pada demo, yang mewakili 3 jam pemakaian). Tidak ada perangkat lunak yang ikut campur.
 
 1. **Ukur.** ads1115_ctrl meminta modul ADS1115 (lewat I2C) membaca tegangan paket. Contohnya, hasilnya 3,7 V.
 2. **Beri nomor.** auth_ctrl menaikkan penghitung, misalnya dari 120 menjadi 121.
-3. **Simpan.** auth_ctrl menulis pasangan (121, 3,7 V) ke buffer riwayat di dalam chip.
+3. **Tandatangani dan simpan.** auth_ctrl menghitung tag HMAC atas `0x53 || ID || 121 || 3,7 V`, lalu menulis (121, 3,7 V, tag) ke buffer riwayat di dalam chip.
 
 Setelah beberapa hari, isi buffer kira-kira seperti ini:
 
@@ -64,36 +64,40 @@ Setelah beberapa hari, isi buffer kira-kira seperti ini:
 
 Buffer menampung 64 catatan terakhir. Saat penuh, catatan paling lama ditimpa.
 
-Pada langkah ini catatan **belum ditandatangani**. Catatan cukup disimpan, karena buffer berada di dalam chip dan tidak dapat diubah oleh BMS atau program apa pun.
+Catatan **sudah ditandatangani saat diambil**. Buffer berada di dalam chip dan tidak dapat diubah oleh BMS atau program apa pun.
 
-> **Status implementasi 20 Oktober:** sampling periodik 100 ms sudah ada di
-> `auth_ctrl` dan `SAMPLE_INTERVAL_MS` dapat diubah. Penomoran `seq` dan buffer
-> 64 catatan pada langkah 2–3 **belum** diimplementasikan; itu tugas berikutnya.
+> **Status implementasi 21 Oktober:** sampling periodik 1 detik, penomoran `seq`,
+> buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`;
+> regresi cocotb 20/20. Bitstream Cmod S7 dibangun ulang; uji board belum.
 
 ## Langkah 2. Baterai Masuk Stasiun
 
 1. Stasiun membuat angka acak baru (nonce), misalnya 7f3a…, lalu mengirimnya ke chip. Nonce yang selalu baru mencegah jawaban lama dipakai ulang.
-2. Chip membalas dengan ID, seq terakhir (184), tegangan saat ini (3,8 V), dan tanda tangan atas semua data tersebut beserta nonce.
-3. Stasiun bertanya ke basis data: seq terakhir yang diketahui untuk BAT-0001 adalah 120. Karena itu stasiun meminta catatan mulai dari seq 121.
+2. Chip membalas dengan ID, tegangan sampel terbaru (3,8 V), dan tanda tangan HMAC atas `0x41 || nonce || ID || tegangan`.
+3. Stasiun memverifikasi tanda tangan itu, lalu mengirim `READ_HIST_REQ` dengan nonce baru. Basis data tahu seq terakhir yang pernah diverifikasi, misalnya 120, dan akan memakai angka itu sebagai jangkar.
 
-## Langkah 3. Chip Mengirim Riwayat dan Menandatanganinya
+## Langkah 3. Chip Mengirim Riwayat yang Sudah Ditandatangani
 
-Untuk setiap catatan di buffer, dimulai dari seq 121, chip melakukan:
+Buffer sudah berisi catatan bertag. Saat menerima `READ_HIST_REQ`, chip mengirim:
 
-1. Mengambil catatan, misalnya (121, 3,7 V).
-2. Menghitung tanda tangan dari ID + seq + tegangan dengan kunci K. Hasilnya misalnya a91f….
-3. Mengirim (121, 3,7 V, a91f…) ke stasiun.
+1. Jumlah catatan, misalnya 64.
+2. Rentang seq, misalnya 121–184.
+3. Setiap catatan `(seq, tegangan, tag)` dari yang tertua ke terbaru.
+4. Satu tag ringkasan atas `0x48 || nonce || ID || seq_tertua || seq_terakhir`.
 
-Langkah ini diulang sampai seq 184, lalu chip mengirim pesan selesai berisi jumlah catatan (64).
+Tag per catatan dibuat saat sampel diambil, bukan saat dump. Tag ringkasan mengikat nonce ke rentang yang benar-benar ada, sehingga BMS tidak bisa membuang catatan terbaru lalu mengirim rentang yang tampak utuh.
 
-Inilah saat catatan ditandatangani. Tanda tangan dibuat di dalam chip, tepat sebelum catatan keluar. Setelah keluar, catatan dan tanda tangannya melewati jalur yang dapat disadap BMS, tetapi perubahan apa pun akan terlihat di langkah berikutnya.
+Setelah keluar dari chip, catatan dan tag melewati jalur yang dapat disadap BMS, tetapi perubahan apa pun akan terlihat di langkah berikutnya.
 
 ## Langkah 4. Basis Data Memeriksa
 
-Untuk setiap catatan yang diterima, basis data melakukan:
+Basis data melakukan:
 
-1. **Hitung ulang tanda tangan** dari ID + seq + tegangan dengan K miliknya, lalu bandingkan dengan tanda tangan dari chip. Hasilnya harus sama.
-2. **Periksa urutan.** seq harus 121, 122, 123, dan seterusnya tanpa lompatan sampai 184.
+1. **Periksa tag ringkasan** dengan nonce yang baru dikirim. Tag yang tidak cocok ditolak.
+2. **Periksa rollback.** `seq_terakhir` tidak boleh lebih kecil dari jangkar basis data.
+3. **Periksa urutan.** seq harus 121, 122, 123, dan seterusnya tanpa lompatan sampai 184. Lompatan di tengah ditolak; lompatan di awal berarti catatan lama tertimpa buffer dan dilaporkan sebagai riwayat terpotong.
+4. **Hitung ulang setiap tag catatan** dari `0x53 || ID || seq || tegangan` dengan K miliknya, lalu bandingkan dengan tag dari chip.
+5. **Perbarui jangkar** ke `seq_terakhir` hanya setelah semua pemeriksaan lolos.
 
 Selain itu, tanda tangan jawaban pada langkah 2 juga diperiksa dengan nonce yang tadi dikirim.
 
@@ -144,19 +148,19 @@ BMS yang curang berada di antara chip dan stasiun. BMS dapat mengubah atau membu
 | hmac_sha256 | Langkah 2.2 dan 3.2: menghitung tanda tangan |
 | uart_if | Jalur pesan ke dan dari stasiun |
 
-Byte awal pesan yang ditandatangani membedakan dua jenis tanda tangan: 0x53 untuk catatan (ID, seq, tegangan) dan 0x41 untuk jawaban nonce (nonce, ID, seq terakhir, tegangan). Dengan pembeda ini, tanda tangan catatan tidak dapat dipakai sebagai jawaban nonce.
+Byte awal pesan yang ditandatangani membedakan tiga jenis tanda tangan: 0x53 untuk catatan (ID, seq, tegangan), 0x41 untuk jawaban autentikasi (nonce, ID, tegangan), dan 0x48 untuk ringkasan riwayat (nonce, ID, rentang seq). Dengan pembeda ini, tanda tangan catatan tidak dapat dipakai sebagai jawaban nonce.
 
 ## Memori di Chip
 
 | Data | Ukuran |
 |---|---|
-| Buffer riwayat, 64 catatan × (seq 4 byte + tegangan 2 byte) | 384 byte |
+| Buffer riwayat, 64 catatan × (seq 4 byte + tegangan 2 byte + tag 32 byte) | 2.432 byte |
 | Penghitung nomor urut | 4 byte |
 | Kunci K | 32 byte |
 | ID | 4 byte |
-| Total | sekitar 420 byte |
+| Total | sekitar 2,5 KB + penghitung/kunci/ID |
 
-Ukuran ini kecil. Di FPGA hanya memakai sebagian kecil satu blok RAM.
+Ukuran ini kecil. Pada build Cmod S7, buffer dan tag tersimpan di distributed RAM/register; penggunaan Block RAM tetap 0.
 
 **Daya putus.** Buffer dan penghitung disimpan di memori yang isinya hilang saat daya putus. Chip mendapat daya dari paket baterai, sehingga saat baterai terkuras sangat dalam, chip dapat ikut mati dan catatan kejadian itu hilang. Produk membutuhkan memori permanen (flash, EEPROM, atau FRAM) atau cadangan daya kecil untuk chip.
 
@@ -201,18 +205,18 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 - K juga tersimpan di basis data, sehingga basis data yang bocor berarti kunci bocor, dan stasiun harus terhubung ke server.
 - Kunci uji di demo sama untuk semua chip. Pada produk, setiap chip memiliki kunci sendiri.
 
-## Status Pengerjaan per 20 Oktober (revisi ADC: ADS1115/I2C)
+## Status Pengerjaan per 21 Oktober (revisi ADC: ADS1115/I2C)
 
 | Bagian | Status |
 |---|---|
 | hmac_sha256 dan inti SHA-256 | Ada, lolos 9/9 vektor uji |
 | key_vault | Ada, versi uji (kunci masih dapat dibaca dan ditulis ulang) |
-| Emulator stasiun Python | Ada untuk autentikasi (nonce + HMAC); riwayat/seq belum |
+| Emulator stasiun Python | Ada untuk autentikasi, pembacaan riwayat, verifikasi tag, jangkar, dan lock |
 | ads1115_ctrl + i2c_master | Ada, lolos 2/2 uji cocotb (20 Okt); lihat `sim/test_ads1115.py` |
-| uart_if versi RTL | Ada, lolos 5/5 uji rantai auth (20 Okt) |
-| auth_ctrl + axil_master + sebatt_top | Ada; sampling periodik 100 ms, lolos 5/5 uji `make auth` (20 Okt) |
-| Bitstream Cmod S7 | Ada (20 Okt), timing WNS +55,193 ns; sampling periodik 100 ms; uji board T6/T7/T9 belum |
-| Nomor urut, buffer riwayat, penguncian di chip | Belum |
-| Permintaan riwayat dan pemeriksaan urutan di stasiun | Belum |
-| Kartu kesehatan baterai di dashboard | Belum |
-| Port ke KV260 | Timing 100 MHz PASS (WNS +2,626 ns); pin PMOD/bit.bin belum |
+| uart_if versi RTL | Ada, termasuk dalam 9/9 uji auth (21 Okt) |
+| auth_ctrl + axil_master + sebatt_top | Ada; sampling periodik 1 detik, riwayat 64 record, READ_HIST, dan lock; lolos 9/9 uji `make auth` (21 Okt) |
+| Bitstream Cmod S7 | Dibangun ulang 21 Okt, timing WNS +55,646 ns, 5.358 LUT / 6.022 FF; uji board T6/T7/T9 belum |
+| Nomor urut, buffer riwayat, penguncian di chip | Ada, 9/9 uji auth (21 Okt) |
+| Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 52/52 uji model |
+| Kartu kesehatan baterai di dashboard | Model web ada; belum terhubung ke FPGA |
+| Port ke KV260 | Timing 100 MHz PASS (WNS +1,028 ns); pin PMOD/bit.bin belum |
