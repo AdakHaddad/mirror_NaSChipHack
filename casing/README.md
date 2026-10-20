@@ -1,6 +1,6 @@
 # Casing SeBatt
 
-Casing "Smart Battery Module" yang ditempel ke baterai 12 V untuk demo. Isinya perfboard 3×4 cm dengan pembagi tegangan dan MCP3202, potensiometer, saklar LIVE/DEMO, dan dua LED 10 mm.
+Casing "Smart Battery Module" yang ditempel ke baterai 12 V untuk demo. Isinya perfboard 3×4 cm dengan pembagi tegangan dan modul ADS1115, potensiometer, saklar LIVE/DEMO, dan dua LED 10 mm.
 
 ![Pratinjau casing](pratinjau.png)
 
