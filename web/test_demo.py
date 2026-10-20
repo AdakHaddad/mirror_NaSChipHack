@@ -37,6 +37,15 @@ class DemoStateTests(unittest.TestCase):
         self.assertEqual(state["health"]["min_mv"], 2000)
         self.assertEqual(state["health"]["samples"], 17)
 
+    def test_charge_cycle_is_counted(self):
+        self.demo.swap()
+        self.demo.record(2000)
+        self.demo.swap()
+        self.demo.record(4160)
+        state = self.demo.swap()
+        self.assertEqual(state["last_result"]["status"], "accepted")
+        self.assertEqual(state["health"]["cycles"], 1)
+
     def test_deleted_record_is_rejected(self):
         self.demo.swap()
         self.demo.record(3700)

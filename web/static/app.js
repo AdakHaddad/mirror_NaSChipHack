@@ -55,6 +55,7 @@
     autoTimer: null,
     offline: false,
     toastTimer: null,
+    signature: null,
   };
 
   const fmtInt = new Intl.NumberFormat("id-ID");
@@ -166,6 +167,9 @@
   function apply(data) {
     if (!data || typeof data !== "object") return;
     app.data = data;
+    const signature = JSON.stringify(data);
+    if (signature === app.signature) return;
+    app.signature = signature;
     render();
   }
 
@@ -385,6 +389,8 @@
       el.healthNote.textContent = `Dihitung dari riwayat terverifikasi hingga seq ${health.verified_seq}; catatan baru belum masuk.`;
     } else if (trusted) {
       el.healthNote.textContent = `Dihitung dari ${fmtInt.format(health.samples)} catatan terverifikasi hingga seq ${health.verified_seq}.`;
+    } else if (status === "trusted") {
+      el.healthNote.textContent = "Tidak ada catatan pada chip.";
     } else if (data.power_cycled) {
       el.healthNote.textContent = "Daya dicabut: riwayat hilang dan penghitung kembali ke awal.";
     } else {
@@ -465,8 +471,8 @@
 
     el.btnSwap.disabled = app.busy;
     el.btnRecord.disabled = app.busy;
-    el.btnDelete.disabled = app.busy || !hasNew;
-    el.btnTamper.disabled = app.busy || !hasTamperable;
+    el.btnDelete.disabled = app.busy || locked || !hasNew;
+    el.btnTamper.disabled = app.busy || locked || !hasTamperable;
     el.btnRestore.disabled = app.busy || !hasDamage;
     el.btnUnlock.hidden = !locked;
     el.btnUnlock.disabled = app.busy;

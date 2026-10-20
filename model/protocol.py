@@ -1,23 +1,29 @@
 """
-SeBatt challenge-response authentication protocol.
+SeBatt challenge-response authentication and history protocol.
 
-Models the full auth flow between station (verifier) and chip (prover):
+Models the full flow between station (verifier) and chip (prover):
 
-  Station                          Chip (FPGA)
-    │                                │
-    │──── AUTH_REQ + nonce ──────────>│
-    │                                │ read ADC voltage
-    │                                │ msg = nonce || battery_id || voltage
-    │                                │ resp = HMAC-SHA256(key, msg)
-    │<─── AUTH_RESP + voltage + resp ─│
-    │                                │
-    │ recompute HMAC, compare        │
-    │ check replay (nonce reuse)     │
-    │ check lock status              │
-    │──── RESULT (VALID/INVALID) ───>│
-    │                                │
+  Station                                    Chip (FPGA)
+    |                                            |
+    |---- AUTH_REQ + nonce --------------------->| periodic sampling
+    |                                            | msg = 0x41|nonce|ID|V
+    |<--- AUTH_RESP + voltage + tag (0x41) ------| tag = HMAC(key, msg)
+    |                                            |
+    | recompute tag, compare                     |
+    | check replay (nonce reuse)                 |
+    |---- RESULT (VALID/INVALID) ---------------->| fail counter, lock at 3
+    |                                            |
+    |---- READ_HIST_REQ + nonce (0x07) ---------->| per-record 0x53 tags, stored
+    |<--- READ_HIST_RESP dump + 0x48 summary ----| summary binds nonce->range
+    |                                            |
 
-Protocol matches what RTL auth_ctrl FSM + C firmware will do.
+Wire format (spec section 7): [CMD:1][LEN:2 BE][PAYLOAD:LEN][CRC8:1]
+
+Signed message prefixes (spec section 6):
+  0x41 AUTH     nonce(32) || battery_id(4) || voltage(2)     = 39 bytes
+  0x53 RECORD   battery_id(4) || seq(4) || voltage(2)        = 11 bytes
+  0x48 SUMMARY  nonce(32) || battery_id(4) ||
+                seq_oldest(4) || seq_last(4)                 = 45 bytes
 """
 
 import os
@@ -30,6 +36,10 @@ from typing import Optional
 from .hmac import hmac_sha256
 from .ro_puf import KeyVault, ROPUFModel, PUFInstance
 
+AUTH_MSG_PREFIX = 0x41
+RECORD_MSG_PREFIX = 0x53
+SUMMARY_MSG_PREFIX = 0x48
+
 
 class AuthStatus(IntEnum):
     VALID = 0x00
@@ -37,6 +47,9 @@ class AuthStatus(IntEnum):
     REPLAY_DETECTED = 0x02
     BATTERY_LOCKED = 0x03
     UNKNOWN_BATTERY = 0x04
+    HISTORY_GAP = 0x05
+    HISTORY_ROLLBACK = 0x06
+    HISTORY_TRUNCATED = 0x07
 
 
 class Command(IntEnum):
@@ -46,6 +59,13 @@ class Command(IntEnum):
     LOCK = 0x04
     UNLOCK = 0x05
     STATUS = 0x06
+    READ_HIST_REQ = 0x07
+    READ_HIST_RESP = 0x08
+    CHIP_LOCKED = 0x09
+
+
+# RESULT statuses that reset the chip fail counter (spec section 11)
+ACCEPTING_STATUSES = (AuthStatus.VALID, AuthStatus.HISTORY_TRUNCATED)
 
 
 @dataclass
@@ -55,20 +75,47 @@ class Battery:
     key: bytes                 # 32 bytes (from KeyVault or PUF enrollment)
     locked: bool = False
     auth_count: int = 0
+    seq_anchor: int = 0        # last verified seq in the database
 
 
 @dataclass
 class AuthRequest:
-    """Station → Chip."""
+    """Station -> Chip."""
     nonce: bytes               # 32 bytes random
 
 
 @dataclass
 class AuthResponse:
-    """Chip → Station."""
+    """Chip -> Station."""
     battery_id: bytes          # 4 bytes
     voltage: int               # 16-bit ADC reading (millivolts)
     hmac_resp: bytes           # 32 bytes
+
+
+@dataclass
+class HistoryRecord:
+    """One signed sample inside the chip history buffer."""
+    seq: int
+    mv: int
+    tag: bytes
+
+
+@dataclass
+class HistoryDump:
+    """Chip -> Station, READ_HIST_RESP payload (spec section 8)."""
+    battery_id: bytes          # 4 bytes
+    seq_oldest: int
+    seq_last: int
+    records: list              # list of HistoryRecord
+    summary_tag: bytes         # 32 bytes
+
+    def encode(self) -> bytes:
+        payload = struct.pack('B', len(self.records))
+        payload += struct.pack('>II', self.seq_oldest, self.seq_last)
+        for rec in self.records:
+            payload += (struct.pack('>IH', rec.seq, rec.mv) + rec.tag)
+        payload += self.summary_tag
+        return payload
 
 
 # ---------------------------------------------------------------------------
@@ -77,38 +124,105 @@ class AuthResponse:
 
 class SeBattChip:
     """
-    Models the chip/FPGA side of authentication.
+    Models the chip/FPGA side: authentication plus the signed history
+    buffer with the lock behavior of spec section 11.
     In real HW: auth_ctrl FSM + HMAC IP + key_vault/ro_puf.
     """
 
     def __init__(self, battery_id: bytes, key: bytes,
-                 voltage_mv: int = 3700):
+                 voltage_mv: int = 3700, buffer_size: int = 64):
         assert len(battery_id) == 4
         assert len(key) == 32
         self.battery_id = battery_id
         self.key = key
         self.voltage_mv = voltage_mv  # Simulated ADC reading
+        self.buffer_size = buffer_size
+        self.records: list[HistoryRecord] = []
+        self.next_seq = 0             # seq assigned to the next sample
+        self.locked = False
+        self.fail_count = 0
 
     def set_voltage(self, mv: int):
-        """Simulate ADC reading change."""
+        """Simulate one periodic sample."""
         self.voltage_mv = mv
 
-    def handle_auth_request(self, request: AuthRequest) -> AuthResponse:
+    def sample_tick(self):
+        """One periodic sample: store a signed record (0x53 message)."""
+        seq = self.next_seq
+        self.next_seq += 1
+        message = (bytes([RECORD_MSG_PREFIX]) + self.battery_id
+                   + struct.pack('>IH', seq, self.voltage_mv))
+        rec = HistoryRecord(seq=seq, mv=self.voltage_mv,
+                            tag=hmac_sha256(self.key, message))
+        self.records.append(rec)
+        if len(self.records) > self.buffer_size:
+            self.records.pop(0)
+
+    def history_snapshot(self) -> tuple:
+        """(records, seq_oldest, seq_last) currently in the chip buffer.
+
+        Seq numbers are unsigned 32-bit and wrap; an empty buffer reports
+        seq_last = seq_oldest - 1 (N = 0 modulo 2**32), matching the RTL.
         """
-        Process authentication challenge:
-          1. Read voltage (ADC)
-          2. Build message = nonce || battery_id || voltage
-          3. Compute HMAC-SHA-256(key, message)
-          4. Return response
+        seq_last = (self.next_seq - 1) & 0xFFFFFFFF
+        n = min(len(self.records), self.buffer_size)
+        seq_oldest = (seq_last - n + 1) & 0xFFFFFFFF
+        return self.records, seq_oldest, seq_last
+
+    def handle_auth_request(self, request: AuthRequest):
         """
+        Process authentication challenge, or CHIP_LOCKED when locked.
+        Message: 0x41 || nonce || battery_id || voltage.
+        """
+        if self.locked:
+            return None
         voltage_bytes = struct.pack('>H', self.voltage_mv)
-        message = request.nonce + self.battery_id + voltage_bytes
+        message = (bytes([AUTH_MSG_PREFIX]) + request.nonce
+                   + self.battery_id + voltage_bytes)
         resp = hmac_sha256(self.key, message)
         return AuthResponse(
             battery_id=self.battery_id,
             voltage=self.voltage_mv,
             hmac_resp=resp,
         )
+
+    def chip_locked(self) -> bytes:
+        """CHIP_LOCKED payload: battery ID (4 bytes)."""
+        return self.battery_id
+
+    def handle_read_hist_request(self, nonce: bytes):
+        """
+        Dump the history buffer. Summary message (0x48):
+        nonce(32) || battery_id(4) || seq_oldest(4) || seq_last(4).
+        """
+        if self.locked:
+            return None
+        records, seq_oldest, seq_last = self.history_snapshot()
+        summary = (bytes([SUMMARY_MSG_PREFIX]) + nonce + self.battery_id
+                   + struct.pack('>II', seq_oldest, seq_last))
+        return HistoryDump(
+            battery_id=self.battery_id,
+            seq_oldest=seq_oldest,
+            seq_last=seq_last,
+            records=list(records),
+            summary_tag=hmac_sha256(self.key, summary),
+        )
+
+    def handle_result(self, status: AuthStatus):
+        """RESULT: reset the fail counter on acceptance, else bump/lock."""
+        if status in ACCEPTING_STATUSES:
+            self.fail_count = 0
+        else:
+            self.fail_count += 1
+            if self.fail_count >= 3:
+                self.locked = True
+
+    def lock(self):
+        self.locked = True
+
+    def unlock(self):
+        self.locked = False
+        self.fail_count = 0
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +232,7 @@ class SeBattChip:
 class Station:
     """
     Models the station + identity database.
-    Verifies battery authenticity, detects replay and tampering.
+    Verifies battery authenticity, history integrity, replay and tampering.
     """
 
     def __init__(self):
@@ -177,9 +291,10 @@ class Station:
             return AuthStatus.REPLAY_DETECTED
         self.used_nonces.add(request.nonce)
 
-        # Recompute HMAC
+        # Recompute HMAC (0x41-prefixed message)
         voltage_bytes = struct.pack('>H', response.voltage)
-        message = request.nonce + bid + voltage_bytes
+        message = (bytes([AUTH_MSG_PREFIX]) + request.nonce + bid
+                   + voltage_bytes)
         expected = hmac_sha256(battery.key, message)
 
         if response.hmac_resp != expected:
@@ -190,6 +305,64 @@ class Station:
         self._log(bid, AuthStatus.VALID, request.nonce)
         return AuthStatus.VALID
 
+    def verify_history(self, request, battery_id: bytes,
+                       dump: HistoryDump) -> AuthStatus:
+        """
+        Verify a READ_HIST_RESP (spec section 10):
+          1. battery registered / not locked
+          2. recompute summary tag with the fresh nonce (replay)
+          3. HISTORY_ROLLBACK: seq_last below the database anchor
+          4. HISTORY_GAP: records not contiguous N..seq_last
+          5. recompute every record tag
+          6. HISTORY_TRUNCATED: seq_oldest left a gap behind the anchor
+          7. VALID: anchor moves to seq_last
+        """
+        if battery_id not in self.batteries:
+            return AuthStatus.UNKNOWN_BATTERY
+        battery = self.batteries[battery_id]
+        if battery.locked:
+            return AuthStatus.BATTERY_LOCKED
+
+        nonce = request.nonce
+        if nonce in self.used_nonces:
+            self._log(battery_id, AuthStatus.REPLAY_DETECTED, nonce)
+            return AuthStatus.REPLAY_DETECTED
+        self.used_nonces.add(nonce)
+
+        seq_oldest = int(dump.seq_oldest)
+        seq_last = int(dump.seq_last)
+
+        summary = (bytes([SUMMARY_MSG_PREFIX]) + nonce + battery_id
+                   + struct.pack('>II', seq_oldest, seq_last))
+        if dump.summary_tag != hmac_sha256(battery.key, summary):
+            self._log(battery_id, AuthStatus.REPLAY_DETECTED, nonce)
+            return AuthStatus.REPLAY_DETECTED
+
+        if seq_last < battery.seq_anchor:
+            self._log(battery_id, AuthStatus.HISTORY_ROLLBACK, nonce)
+            return AuthStatus.HISTORY_ROLLBACK
+
+        seqs = [int(r.seq) & 0xFFFFFFFF for r in dump.records]
+        n = len(seqs)
+        expected = [(seq_oldest + i) & 0xFFFFFFFF for i in range(n)]
+        if n != (seq_last - seq_oldest + 1) & 0xFFFFFFFF or seqs != expected:
+            self._log(battery_id, AuthStatus.HISTORY_GAP, nonce)
+            return AuthStatus.HISTORY_GAP
+
+        for rec in dump.records:
+            message = (bytes([RECORD_MSG_PREFIX]) + battery_id
+                       + struct.pack('>IH', rec.seq, rec.mv))
+            if rec.tag != hmac_sha256(battery.key, message):
+                self._log(battery_id, AuthStatus.INVALID_HMAC, nonce)
+                return AuthStatus.INVALID_HMAC
+
+        truncated = seq_oldest > battery.seq_anchor + 1
+        battery.seq_anchor = seq_last
+        status = (AuthStatus.HISTORY_TRUNCATED if truncated
+                  else AuthStatus.VALID)
+        self._log(battery_id, status, nonce)
+        return status
+
     def _log(self, battery_id: bytes, status: AuthStatus, nonce: bytes):
         self.log.append({
             'battery_id': battery_id.hex(),
@@ -199,9 +372,11 @@ class Station:
         })
 
     def authenticate(self, chip: SeBattChip) -> AuthStatus:
-        """Full auth flow: generate challenge → get response → verify."""
+        """Full auth flow: generate challenge -> get response -> verify."""
         req = self.generate_challenge()
         resp = chip.handle_auth_request(req)
+        if resp is None:
+            return AuthStatus.BATTERY_LOCKED
         return self.verify_response(req, resp)
 
 
@@ -211,20 +386,27 @@ class Station:
 
 class WireProtocol:
     """
-    Packet format for UART communication.
-    Simple framing for PoC — not production quality.
-
-    Frame: [CMD:1][LEN:2][PAYLOAD:LEN][CRC8:1]
+    Packet format for UART communication (spec section 7).
 
     AUTH_REQ  payload: nonce (32 bytes)
     AUTH_RESP payload: battery_id (4) + voltage (2) + hmac (32) = 38 bytes
     RESULT    payload: status (1 byte)
+    READ_HIST_REQ payload: nonce (32 bytes)
+    READ_HIST_RESP payload: HistoryDump.encode()
+    CHIP_LOCKED payload: battery_id (4 bytes)
     """
 
     @staticmethod
     def encode_auth_req(request: AuthRequest) -> bytes:
         payload = request.nonce
         return WireProtocol._frame(Command.AUTH_REQ, payload)
+
+    @staticmethod
+    def encode_auth_req(request) -> bytes:
+        """Accepts a 32-byte nonce or an AuthRequest."""
+        nonce = request if isinstance(request, (bytes, bytearray)) \
+            else request.nonce
+        return WireProtocol._frame(Command.AUTH_REQ, bytes(nonce))
 
     @staticmethod
     def encode_auth_resp(response: AuthResponse) -> bytes:
@@ -236,6 +418,10 @@ class WireProtocol:
     @staticmethod
     def encode_result(status: AuthStatus) -> bytes:
         return WireProtocol._frame(Command.RESULT, bytes([status]))
+
+    @staticmethod
+    def encode_read_hist_req(nonce: bytes) -> bytes:
+        return WireProtocol._frame(Command.READ_HIST_REQ, nonce)
 
     @staticmethod
     def decode(frame: bytes) -> tuple:
@@ -267,14 +453,34 @@ class WireProtocol:
         return AuthStatus(payload[0])
 
     @staticmethod
-    def _frame(cmd: Command, payload: bytes) -> bytes:
+    def decode_history(payload: bytes) -> HistoryDump:
+        n = payload[0]
+        seq_oldest, seq_last = struct.unpack('>II', payload[1:9])
+        records = []
+        off = 9
+        for _ in range(n):
+            seq, mv = struct.unpack('>IH', payload[off:off + 6])
+            tag = payload[off + 6:off + 38]
+            records.append(HistoryRecord(seq=seq, mv=mv, tag=tag))
+            off += 38
+        summary_tag = payload[off:off + 32]
+        return HistoryDump(
+            battery_id=b'',
+            seq_oldest=seq_oldest,
+            seq_last=seq_last,
+            records=records,
+            summary_tag=summary_tag,
+        )
+
+    @staticmethod
+    def _frame(cmd, payload: bytes) -> bytes:
         header = bytes([cmd]) + struct.pack('>H', len(payload))
         data = header + payload
         return data + bytes([WireProtocol._crc8(data)])
 
     @staticmethod
     def _crc8(data: bytes) -> int:
-        """CRC-8/MAXIM for error detection. Simple, maps to small LUT in RTL."""
+        """CRC-8 for error detection. Simple, maps to small LUT in RTL."""
         crc = 0x00
         for byte in data:
             crc ^= byte

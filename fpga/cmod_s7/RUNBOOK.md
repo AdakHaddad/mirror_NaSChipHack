@@ -3,12 +3,13 @@
 Panduan operasional Flow B di **Digilent Cmod S7-25**. Semua perintah dijalankan
 dari root repo (`/home/muqtada/Documents/sebatt`) kecuali disebut lain.
 
-Status 20 Okt 2026: bitstream sudah dibangun dan timing bersih. Yang belum
-dilakukan adalah uji fisik T6/T7/T9.
+Status 20 Okt 2026: sampling periodik 100 ms dan bitstream sudah dibangun,
+timing bersih. Yang belum dilakukan adalah uji fisik T6/T7/T9.
 
 - Bitstream: `fpga/cmod_s7/build/cmod_s7_top.bit`
 - Part: `xc7s25csga225-1`
 - Clock: 12 MHz, UART 115 200 8N1
+- Sampling ADS1115: periodik 100 ms (`SAMPLE_INTERVAL_MS`), independen dari UART
 - Pin map: `fpga/cmod_s7/cmod_s7.xdc`
 - Rujukan pin resmi: `Cmod-S7-25-Master.xdc` dari Digilent
 
@@ -60,7 +61,7 @@ Output:
 - `build/timing.rpt`
 - `build/utilization.rpt`
 
-Hasil 20 Okt: WNS **+52,746 ns**, 4 417 LUT, 5 233 FF, semua constraint met.
+Hasil 20 Okt: WNS **+55,193 ns**, 4 443 LUT, 5 275 FF, semua constraint met.
 Build ulang hanya perlu kalau RTL berubah.
 
 ---
@@ -128,6 +129,8 @@ Result:  VALID
 ```
 
 `42415401` adalah `BAT\x01`. Tegangan mengikuti posisi pot (0–3300 mV).
+FPGA mengambil sampel baru setiap **100 ms**; setelah memutar pot, tunggu
+sedikit (≥100 ms) sebelum `auth` agar nilai terbaru sudah masuk.
 
 **Penting:** `Result: VALID` dengan `Voltage: 0 mV` berarti HMAC benar tetapi
 ADS1115 tidak terbaca. Periksa wiring I2C dan LED4; itu bukan auth yang sehat.
@@ -176,7 +179,7 @@ Alur di panggung:
 station> auth
   Battery: 42415401  Voltage: 1500mV  -> VALID
 
-# putar pot ke posisi lain
+# putar pot ke posisi lain, tunggu >=100 ms
 
 station> auth
   Battery: 42415401  Voltage: 2750mV  -> VALID
@@ -196,8 +199,8 @@ station> auth
 
 Kalimat inti yang perlu disampaikan:
 
-- Tegangan dibaca ADS1115 lewat I2C dan masuk langsung ke RTL; tidak ada
-  software di jalur sampel.
+- Tegangan dibaca ADS1115 lewat I2C setiap 100 ms dan masuk langsung ke RTL;
+  tidak ada software di jalur sampel.
 - RTL menghitung HMAC-SHA-256 atas `nonce || battery_id || voltage`.
 - Station hanya percaya nilai yang ada di dalam frame yang ditandatangani.
 - Memutar pot mengubah nilai yang ditandatangani; station memverifikasi ulang.
@@ -221,12 +224,13 @@ hardware. Gunakan sebagai jawaban kalau juri minta melihat penolakan.
 |---|---|---|
 | T6 Program | `vivado -mode batch -source program.tcl` | LED1 berkedip |
 | T7 Auth | `python -m model.station --port /dev/ttyUSB1` | `VALID`, voltage wajar |
-| T7 Variasi | putar pot lalu auth lagi | voltage berubah, tetap `VALID` |
-| T9 ADS1115 | auth sambil putar pot | voltage mengikuti pot, LED4 padam |
+| T7 Variasi | putar pot, tunggu ≥100 ms, lalu auth lagi | voltage berubah, tetap `VALID` |
+| T9 ADS1115 | putar pot, tunggu ≥100 ms, lalu auth | voltage mengikuti pot, LED4 padam |
 | T8 LED | lihat LED2/3/4 saat auth | busy/valid/error sesuai |
 
 Tidak ada perintah "I2C scan" di RTL. Pembacaan ADS1115 diverifikasi lewat
-nilai tegangan pada respons auth; kalau I2C gagal, LED4 menyala dan voltage 0.
+nilai tegangan pada respons auth; kalau belum pernah ada sampel sukses, voltage 0;
+kalau I2C gagal setelah sampel baik, sampel terakhir dipertahankan dan LED4 menyala.
 
 ---
 

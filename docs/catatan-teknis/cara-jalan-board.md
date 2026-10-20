@@ -85,7 +85,7 @@ Pin penting:
 | ADS1115 SCL / SDA | JA1 = J2 / JA2 = H2 | JA1 = J1 / JA2 = L2 | PMOD (ambil dari master XDC) |
 | LED | E2, K1, J1, E1 | U16, E19, U19, V19 | cek master XDC |
 
-Cmod S7 dan kedua board lama punya USB-UART FTDI bawaan — tidak perlu CP2102 untuk latihan. Cek port: `ls /dev/ttyUSB*` (FT2232 punya kanal JTAG + UART; UART biasanya `ttyUSB1`). Pin Cmod S7 sudah diekstrak ke `fpga/cmod_s7/cmod_s7.xdc`; bitstream 20 Okt: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl` (WNS +52,746 ns), program dengan `program.tcl`.
+Cmod S7 dan kedua board lama punya USB-UART FTDI bawaan — tidak perlu CP2102 untuk latihan. Cek port: `ls /dev/ttyUSB*` (FT2232 punya kanal JTAG + UART; UART biasanya `ttyUSB1`). Pin Cmod S7 sudah diekstrak ke `fpga/cmod_s7/cmod_s7.xdc`; bitstream 20 Okt: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl` (WNS +55,193 ns), program dengan `program.tcl`.
 
 Prioritas uji (urut):
 

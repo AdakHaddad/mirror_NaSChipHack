@@ -1244,32 +1244,18 @@ tr.tampered td {
   background: #fff;
 }
 
-.diagram-notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 22px;
-  padding: 15px 6px 2px;
+.diagram-swipe {
+  display: none;
+  margin: 2px 4px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.diagram-help {
+  margin: 13px 6px 2px;
   color: var(--faint);
-  font-size: 11.5px;
-}
-
-.diagram-notes span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.diagram-notes i {
-  display: inline-block;
-  width: 18px;
-  height: 3px;
-  border-radius: 999px;
-}
-
-.diagram-notes i.dashed {
-  height: 0;
-  border-top: 2px dashed var(--faint);
-  border-radius: 0;
+  font-size: 11px;
 }
 
 .diagram-grid {
@@ -1452,6 +1438,29 @@ tr.tampered td {
   .diagram-hero {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .diagram-swipe {
+    display: block;
+  }
+
+  .diagram-frame {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  }
+
+  .diagram-frame a {
+    display: block;
+    width: 980px;
+  }
+
+  .diagram-frame img {
+    width: 100%;
+    min-width: 0;
   }
 }
 

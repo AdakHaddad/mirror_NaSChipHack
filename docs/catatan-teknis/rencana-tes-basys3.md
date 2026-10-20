@@ -103,17 +103,17 @@ Blok Fase 2 (status per 20 Okt):
 | File | Isi |
 |---|---|
 | `rtl/uart_if.v` | **Sudah ada (20 Okt).** UART 8N1, sampling tengah bit, `BIT_CYCLES = CLK_HZ/BAUD` |
-| `rtl/auth_ctrl.v` | **Sudah ada (20 Okt).** Parse frame `[CMD][LEN:2][PAYLOAD][CRC8]`, `AUTH_REQ` → ADC → HMAC → `AUTH_RESP` |
+| `rtl/auth_ctrl.v` | **Sudah ada (20 Okt).** Sampling ADS1115 periodik 100 ms; parse frame `[CMD][LEN:2][PAYLOAD][CRC8]`; `AUTH_REQ` memakai sampel terakhir → HMAC → `AUTH_RESP` |
 | `rtl/axil_master.v` | **Sudah ada (20 Okt).** Master AXI4-Lite untuk KEY/MSG/CTRL ke `hmac_sha256` |
 | `rtl/i2c_master.v` + `rtl/ads1115_ctrl.v` | **Sudah ada (20 Okt).** ADS1115 I2C: tulis config `0xC383`, baca AIN0 single-ended, `V_mV = code / 8`; sim `make ads1115` PASS 2/2 |
 | `rtl/sebatt_top.v` | **Sudah ada (20 Okt).** clk/reset/uart + ADS1115 + `auth_ctrl` + LED heartbeat |
-| `fpga/cmod_s7/` | **Sudah ada (20 Okt).** `cmod_s7_top.v`, `cmod_s7.xdc`, `build.tcl`, `program.tcl`; bitstream WNS +52,746 ns |
+| `fpga/cmod_s7/` | **Sudah ada (20 Okt).** `cmod_s7_top.v`, `cmod_s7.xdc`, `build.tcl`, `program.tcl`; bitstream WNS +55,193 ns |
 
 **Aturan pagi: SIM DULU, board belakangan.**
 - Regresi lama: `source .venv/bin/activate && cd sim && make hmac` (cocotb 2.1.0 di `.venv`; python3 sistem tidak punya).
 - ADS1115: `make ads1115` → 2/2 PASS (config `0xC383`, 26400→3300 mV, 16000→2000 mV, 0x8000→0 mV).
-- Auth chain: `make auth` → 4/4 PASS (`sim/test_auth_ctrl.py`); responsive, nonce kedua, CRC salah diabaikan, command tak dikenal diabaikan. Bandingkan byte `AUTH_RESP` dengan `model.hmac`/`model.protocol` (Python = referensi emas). **Merah = jangan ke board.**
-- Regresi total: `make all` → 5 sha256 + 4 hmac + 2 ads1115 + 4 auth = 15/15 PASS.
+- Auth chain: `make auth` → 5/5 PASS (`sim/test_auth_ctrl.py`); responsive, nonce kedua, CRC salah diabaikan, command tak dikenal diabaikan, dan interval sampling periodik. Bandingkan byte `AUTH_RESP` dengan `model.hmac`/`model.protocol` (Python = referensi emas). **Merah = jangan ke board.**
+- Regresi total: `make all` → 5 sha256 + 4 hmac + 2 ads1115 + 5 auth = 16/16 PASS.
 
 **Mapping tegangan (beku untuk tes ini):** switch `V_mV = 3000 + sw[7:0] * 5` → 3000–4275 mV (fallback). ADS1115 `V_mV = code / 8` (LSB 0,125 mV), AIN0 0–3,3 V dari potensiometer. RTL membaca pin switch/I2C langsung; station hanya mempercayai nilai dari dalam frame.
 
@@ -126,9 +126,9 @@ Tabel pin (verified dari Digilent Basys-3-Master.xdc; W5/U18/B18/A18 sudah ada d
 
 | # | Tes | Perintah | Ekspektasi |
 |---|---|---|---|
-| T5 | Build bitstream RTL | Cmod S7: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl`; part `xc7s25csga225-1`, top `cmod_s7_top` | **PASS 20 Okt:** bitstream jadi, WNS +52,746 ns (semua constraint met), 4 417 LUT / 5 233 FF |
+| T5 | Build bitstream RTL | Cmod S7: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl`; part `xc7s25csga225-1`, top `cmod_s7_top` | **PASS 20 Okt:** bitstream jadi, WNS +55,193 ns (semua constraint met), 4 443 LUT / 5 275 FF |
 | T6 | Program | `cd fpga/cmod_s7 && vivado -mode batch -source program.tcl` (atau Hardware Manager) | LED heartbeat berkedip |
-| T7 | Auth RTL | `python3 -m model.station --port /dev/ttyUSB1 --interactive` → AUTH | VALID; putar pot ADS1115 / switch → AUTH → VALID dengan V baru |
+| T7 | Auth RTL | `python3 -m model.station --port /dev/ttyUSB1 --interactive` → AUTH | VALID; putar pot ADS1115, tunggu ≥100 ms → AUTH → VALID dengan V baru |
 | T8 | LED status (opsional) | – | LED valid/reject saat T7 |
 | T9 | ADS1115 I2C | Scan `0x48`, baca AIN0 sambil pot diputar | `V_mV` berubah mengikuti pot; tidak ada NACK |
 
@@ -147,7 +147,7 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 
 ## 5. Fase 4 — Tanpa Board (sore / sambil menunggu)
 
-- [x] Sim/synth `xck26` (port KV260): **20 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +2,749 ns, 4 444 LUT / 5 216 FF; lihat `fpga/kv260/`
+- [x] Sim/synth `xck26` (port KV260): **20 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +2,626 ns, 4 476 LUT / 5 256 FF; lihat `fpga/kv260/`
 - [ ] SD image Ubuntu untuk KV260 + kenalan update BOOT.BIN
 - [ ] Loopback CP2102: jumper TX–RX, kirim/terima via pyserial
 - [ ] `fpga/kv260/`: constraint PMOD asli (nama pin dari carrier KV260), `shell.json`, `.bif` + `bootgen` untuk `.bit → .bit.bin`; timing-only check sudah ada
@@ -165,7 +165,7 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 | | T2 | | |
 | | T3 | | |
 | | T4 | | |
-| 20 Okt | T5 | PASS | `cmod_s7_top.bit`; WNS +52,746 ns; 4 417 LUT / 5 233 FF |
+| 20 Okt | T5 | PASS | `cmod_s7_top.bit`; WNS +55,193 ns; 4 443 LUT / 5 275 FF |
 | | T6 | | |
 | | T7 | | |
 | | T8 | | |

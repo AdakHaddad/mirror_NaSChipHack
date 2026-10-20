@@ -31,18 +31,27 @@ module cmod_s7_top (
 
     wire resetn = &por_cnt;
 
+    // The sources beyond ADS1115, the source pin, and the green/red pair are
+    // for the KV260 Pmod build; on Cmod S7 they stay unconnected (the ADS1115
+    // sample source remains selected by SAMPLE_SOURCE=0).
     sebatt_top #(
-        .CLK_HZ     (12_000_000),
-        .BAUD       (115200),
-        .BATTERY_ID (32'h42415401)
+        .CLK_HZ            (12_000_000),
+        .BAUD              (115200),
+        .BATTERY_ID        (32'h42415401),
+        .SAMPLE_INTERVAL_MS(100),
+        .SAMPLE_SOURCE     (2'd0)
     ) u_top (
-        .clk     (clk),
-        .resetn  (resetn),
-        .uart_rx (uart_rx),
-        .uart_tx (uart_tx),
-        .scl     (scl),
-        .sda     (sda),
-        .led     (led)
+        .clk       (clk),
+        .resetn    (resetn),
+        .uart_rx   (uart_rx),
+        .uart_tx   (uart_tx),
+        .scl       (scl),
+        .sda       (sda),
+        .sw        (8'd0),
+        .src_sel   (1'b0),
+        .led       (led),
+        .led_green (),
+        .led_red   ()
     );
 
 endmodule

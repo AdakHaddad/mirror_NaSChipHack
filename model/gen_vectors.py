@@ -17,6 +17,7 @@ from pathlib import Path
 
 from .sha256 import sha256_hex
 from .hmac import hmac_sha256, hmac_sha256_hex
+from .protocol import AUTH_MSG_PREFIX
 
 
 def fips_sha256_vectors() -> list[dict]:
@@ -128,7 +129,9 @@ def rfc4231_hmac_vectors() -> list[dict]:
 def sebatt_protocol_vectors(count: int = 20) -> list[dict]:
     """
     SeBatt-specific test vectors for full protocol verification.
-    message = nonce(32) || battery_id(4) || voltage(2)
+    message = 0x41 || nonce(32) || battery_id(4) || voltage(2)  (prefix: spec
+    section 6). Records (0x53) and summary (0x48) messages are verified by the
+    Python model; the RTL signs them with the same MAC core.
     """
     vectors = []
 
@@ -142,7 +145,8 @@ def sebatt_protocol_vectors(count: int = 20) -> list[dict]:
         voltage = 3000 + i * 50  # 3000–3950 mV range
         voltage_bytes = struct.pack('>H', voltage)
 
-        message = nonce + battery_id + voltage_bytes
+        message = (bytes([AUTH_MSG_PREFIX]) + nonce + battery_id
+                   + voltage_bytes)
         mac = hmac_sha256(key, message)
 
         vectors.append({

@@ -3,8 +3,9 @@
 > Concept, code, protocol, hardware, and demo in one document.
 >
 > Written 19 October 2026. Verified against the repository at that date:
-> Python model 40/40 tests pass, RTL simulation 9/9 tests pass (sha256 + hmac; on 20 Oct the list grew to 15/15 with ads1115 and auth, see Section 6.3), offline station
-> demo passes. Hardware results are marked separately.
+> Python model 40/40 tests pass, RTL simulation 20/20 tests pass (sha256 + hmac +
+> ads1115 + auth/history, 21 Oct; see Section 6.3), offline station demo passes.
+> Hardware results are marked separately.
 >
 > **Revision 19 Oct 2026 (hardware session):** the demo ADC changed from an
 > SPI MCP3202 to an **ADS1115 over I2C** (no SPI ADC available). Practice board
@@ -196,16 +197,18 @@ This is what the demo must become.
                  └─────────────────────────────────────────────────────────────┘
 ```
 
-Planned history exchange:
+Implemented history exchange:
 
 1. Station sends `READ_HIST_REQ` with a fresh 32-byte nonce.
-2. Chip returns `count`, then for each record `seq(4) ‖ voltage(2) ‖ tag(32)`.
-3. Station recomputes `tag_i` and checks `seq` is contiguous from its anchor.
-4. Station updates `last_seq` only after full verification.
+2. Chip returns `N`, the seq range, each record `seq(4) ‖ voltage(2) ‖ tag(32)`,
+   and a summary tag over nonce + range.
+3. Station recomputes the summary/record tags and checks `seq` is contiguous
+   from its anchor.
+4. Station updates `last_seq` only after full verification, and sends `RESULT`.
 
-The target message layout, sequence semantics, and verification order are
-described in Sections 3 and 4. They are **not implemented yet** in
-`model/protocol.py`; that is the next major task.
+The message layout, sequence semantics, and verification order are described in
+Sections 3 and 4 and implemented in `model/protocol.py` and `rtl/auth_ctrl.v`;
+the cocotb suite checks a full 64-record dump byte-for-byte.
 
 ### 2.3 Attack → detection table
 
@@ -297,31 +300,35 @@ Authentication (`AUTH_REQ` / `AUTH_RESP`):
 ```
 AUTH_REQ payload  = nonce(32)
 
-signed message    = nonce(32) ‖ battery_id(4) ‖ voltage_mv(2, big-endian)
+signed message    = 0x41 ‖ nonce(32) ‖ battery_id(4) ‖ voltage_mv(2, big-endian)
 AUTH_RESP payload = battery_id(4) ‖ voltage_mv(2, big-endian) ‖ HMAC(32)
 ```
 
 - `battery_id` is 4 bytes, e.g. `BAT\x01` = `42 41 54 01`.
-- `voltage_mv` is a 16-bit big-endian integer in millivolts.
+- `voltage_mv` is a 16-bit big-endian integer in millivolts, taken from the
+  latest periodic ADS1115 sample (`SAMPLE_INTERVAL_MS`, default 100 ms), not
+  from a conversion started by `AUTH_REQ`.
 - Nonce is 32 random bytes from `os.urandom`.
 - Tags are compared with `==` in Python. In production, use a constant-time
   comparison to avoid timing side channels. This is not a concern for the
   hackathon demo but is worth knowing.
 
-### 3.4 Planned history record (target, not yet implemented)
-
-From the test plan and the technical narrative:
+### 3.4 History record (implemented in Python and RTL)
 
 ```
 READ_HIST_REQ  = 0x07   payload: nonce(32)
-READ_HIST_RESP = 0x08   payload: count(1) ‖ N × record(38)
+READ_HIST_RESP = 0x08   payload: N(1) ‖ seq_oldest(4) ‖ seq_last(4)
+                                  ‖ N × record(38) ‖ summary_tag(32)
 record         = seq(4, big-endian) ‖ voltage(2, big-endian) ‖ tag(32)
 
-tag_i = HMAC(K, ID ‖ seq_i ‖ V_i)
+record_tag_i = HMAC(K, 0x53 ‖ ID ‖ seq_i ‖ V_i)
+summary_tag  = HMAC(K, 0x48 ‖ nonce ‖ ID ‖ seq_oldest ‖ seq_last)
 ```
 
-- Each record is 38 bytes; 64 records = 2433 bytes including the count byte.
-  At 115200 baud that is about 211 ms, which is acceptable.
+- The chip signs each record when it is stored, so a dump costs one summary
+  HMAC plus the UART transfer.
+- Each record is 38 bytes. A full dump payload is 2473 bytes (about 215 ms at
+  115200 baud), which is acceptable for a 0.5 s dashboard poll.
 - The station's per-battery anchor is `{last_seq, last_seen_time}`.
 - A gap at the **start** of the buffer means old records were overwritten
   (ring-buffer truncation, not fraud). A gap in the **middle** means records
@@ -358,10 +365,9 @@ The technical narrative specifies a one-byte prefix in the signed message:
 - `0x41` for a nonce response (`nonce ‖ ID ‖ last_seq ‖ V`).
 
 This prevents a signature produced for one purpose from being reused for the
-other. The current code does **not** implement this prefix yet; the current
-message is `nonce ‖ ID ‖ V` with no prefix. When the history protocol is added,
-introduce the prefix in both Python and RTL at the same time and regenerate all
-test vectors.
+other. The history prefix also has a 0x48 summary variant. Python and RTL use
+all three prefixes as of 21 Oct, and the test vectors were regenerated; the
+Flow A firmware still needs the 0x41 prefix so its vectors match.
 
 ---
 
@@ -472,7 +478,7 @@ sebatt/
 │   ├── test_hmac.py          4 tests
 │   ├── test_ads1115.py       ADS1115 I2C model + controller tests
 │   ├── tb_auth.v             12 MHz wrapper for the auth tests
-│   └── test_auth_ctrl.py     4 auth-chain tests (UART -> ADC -> HMAC -> UART)
+│   └── test_auth_ctrl.py     9 auth/history tests (UART, lock, READ_HIST)
 ├── fpga/
 │   ├── README.md             Flow A build/run guide
 │   ├── create_bd.tcl         MicroBlaze + AXI UART Lite + HMAC BD
@@ -491,7 +497,8 @@ sebatt/
 Important: the repo contains **Flow A** artifacts, the **core crypto RTL**,
 and the Flow B chain (`ads1115_ctrl`/`i2c_master`, `uart_if`, `axil_master`,
 `auth_ctrl`, `sebatt_top`). The history protocol (READ_HIST, seq counter,
-64-record log) is still not implemented.
+64-record signed log, lock) is implemented in `auth_ctrl` and the Python
+model.
 
 ---
 
@@ -719,8 +726,11 @@ Known sharp edges:
   - SeBatt protocol vector (`nonce=bytes(range(32))`, `BAT\x00`, 3000 mV).
 - `test_ads1115.py`: behavioral ADS1115 model; 2 tests (3300 mV and 2000 mV /
   0 mV raw values).
-- `test_auth_ctrl.py`: 4 tests against `model.hmac`/`model.protocol` — normal
-  AUTH_RESP, second nonce, bad CRC ignored, unknown command ignored.
+- `test_auth_ctrl.py`: 9 tests against `model.hmac`/`model.protocol` — normal
+  AUTH_RESP, second nonce, bad CRC ignored, unknown command ignored, lock
+  state, LOCK/UNLOCK/CHIP_LOCKED, lock after three failed RESULTs, the periodic
+  `adc_start` interval (12 000 cycles in the TB, 100 ms in hardware), and a
+  full 64-record READ_HIST dump checked byte-for-byte.
 - Drivers model AXI4-Lite transactions manually (`axi_write`, `axi_read`,
   `start_and_wait`, `read_hash`).
 
@@ -739,10 +749,10 @@ make hmac     # TESTS=4 PASS=4
 make clean
 make ads1115  # TESTS=2 PASS=2
 make clean
-make auth     # TESTS=4 PASS=4
+make auth     # TESTS=9 PASS=9
 ```
 
-Total: 15/15.
+Total: 20/20.
 
 ### 6.4 FPGA Flow A (`fpga/`)
 
@@ -866,7 +876,7 @@ Consequences:
 | Compute | MicroBlaze + C firmware | pure RTL |
 | Voltage | fixed 3700 mV | ADS1115 (I2C) / switch / scripted ramp |
 | History | none | 64-record signed ring buffer |
-| Status | fallback; Basys 3 reset bug open | auth chain built, Cmod S7 bitstream built; history/seq pending |
+| Status | fallback; Basys 3 reset bug open | auth chain + periodic sampling built, Cmod S7 bitstream built; history/seq pending |
 | KV260 | not portable (soft CPU) | portable |
 | Purpose | fallback, video, hardware smoke test | real demo |
 
@@ -1013,7 +1023,7 @@ The station trusts only the value inside the signed frame.
 5. **T4**: record 60–90 s fallback video. Back it up in two places. This is
    mandatory.
 6. **T5**: ~~build the RTL bitstream.~~ Done 20 Oct for the Cmod S7
-   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +52.746 ns.
+   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +55.193 ns.
 7. **T6**: program `fpga/cmod_s7/build/cmod_s7_top.bit`; heartbeat LED blinks.
 8. **T7**: station `--interactive` → `auth` → VALID; turn the ADS1115 pot
    (or flip switches) → `auth` → VALID with the new voltage. **T7 PASS is the
@@ -1129,24 +1139,24 @@ sees that the attacker is between the battery and the station.
 | HMAC RTL + AXI | Complete, 4/4 cocotb tests |
 | Key vault RTL | Fixed-key stage 1 |
 | RO-PUF model + RTL | Behavioral/stage 2, not integrated |
-| Protocol model + wire framing | Auth only |
+| Protocol model + wire framing | Auth, history, lock, prefixes |
 | Station emulator | Auth, replay, lock, benchmark, offline demo |
 | Flow A FPGA | Artifacts built; 19 Oct session found Basys 3 reset-polarity / debug-reset blockers |
 | ADS1115 I2C RTL | Done 20 Oct: `i2c_master.v` + `ads1115_ctrl.v` + cocotb model, 2/2 tests pass |
-| Flow B auth RTL | Done 20 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; cocotb `make auth` 4/4 pass |
-| Cmod S7 bitstream | Built 20 Oct: `xc7s25csga225-1`, WNS +52.746 ns, 4 417 LUT / 5 233 FF; hardware run pending |
-| KV260 timing check | 20 Oct: `xck26-sfvc784-2LV-c` at 100 MHz, WNS +2.749 ns, 4 444 LUT / 5 216 FF; pins/bit.bin pending |
+| Flow B auth RTL | Done 20–21 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; periodic sampling (100 ms), signed 64-record history, READ_HIST, RESULT/LOCK/UNLOCK/STATUS, lock; cocotb `make auth` 9/9 pass |
+| Cmod S7 bitstream | Built 20 Oct: `xc7s25csga225-1`, WNS +55.193 ns, 4 443 LUT / 5 275 FF; hardware run pending |
+| KV260 timing check | 20 Oct: `xck26-sfvc784-2LV-c` at 100 MHz, WNS +2.626 ns, 4 476 LUT / 5 256 FF; pins/bit.bin pending |
 | Test plan | Written; preflight passes, Flow A blocked by reset bug |
+| Periodic ADS1115 sampling | Done 20 Oct: 100 ms default (`SAMPLE_INTERVAL_MS`), latest sample signed on AUTH_REQ; every sample stored and tagged |
+| Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 9/9 auth suite |
 | Business/pitch | Drafts exist |
 
 ### 11.2 What is missing (Flow B)
 
 | Missing piece | Why it matters |
 |---|---|
-| Seq counter + 64-record log | History and rollback detection inside `auth_ctrl` |
-| `READ_HIST` in Python | History request/response contract |
-| History verification in station | Delete/edit detection |
-| Dashboard / health card | Demo visuals |
+| Firmware Flow A prefix sync | Flow A `HMAC(nonce‖ID‖V)` must add 0x41 to match Python/RTL vectors |
+| key_vault integration | `auth_ctrl` still writes the key through `axil_master` |
 | BMS attacker proxy | Demo scenes 2–3 |
 | Cmod S7 hardware run | Program the built bitstream, run T7/T9 on the board |
 | KV260 port | Real carrier/PMOD XDC, `.bit.bin`, boot (100 MHz timing check already passes) |
@@ -1154,11 +1164,11 @@ sees that the attacker is between the battery and the station.
 
 ### 11.3 Known discrepancies and risks
 
-1. **Docs describe the target, code implements the auth subset.**
-   The Flow B chain now performs a real AUTH_REQ -> ADC -> HMAC -> AUTH_RESP
-   round trip in simulation and synthesizes for the Cmod S7. Seq, 64-record
-   history, lock after 3 failures, and domain separation are **not** in the
-   current code. Do not claim they are implemented.
+1. **Docs and code now cover the Flow B feature set, but only in simulation.**
+   The RTL performs AUTH_REQ -> HMAC -> AUTH_RESP, periodic signed history,
+   READ_HIST, lock after three failed RESULTs, and prefixes 0x41/0x53/0x48; the
+   Python model verifies the history (gaps/rollback/truncation). The cocotb
+   suite passes 20/20. Do not claim board verification (T6/T7/T9) yet.
 
 2. **MILESTONES says M3 demo is done.**
    That refers to Flow A (MicroBlaze). After the 18 October pivot, Flow A is only
@@ -1217,22 +1227,25 @@ Ordered by critical path.
 
 ### Without hardware (can start now)
 
-1. **Freeze the history contract.** Add `READ_HIST_REQ/RESP`, record layout,
-   domain-separation prefixes, and verification order to `model/protocol.py`.
-   Regenerate vectors and add unit tests.
-2. **Add station history verification.** Load anchor `last_seq`, verify each
-   tag, detect gaps/rollback, render a text health card.
-3. **~~Write `rtl/auth_ctrl.v`.~~** Done 20 Oct: frame parser + CRC-8 + ADC
-   + HMAC + response. Seq counter and 64-record buffer still missing.
+1. **~~Freeze the history contract.~~** Done 21 Oct: `READ_HIST_REQ/RESP`,
+   record layout, prefixes, and verification order are in `model/protocol.py`;
+   vectors regenerated and model tests pass 40/40.
+2. **~~Add station history verification.~~** Done 21 Oct:
+   `Station.verify_history` loads the anchor, checks tags, and detects gaps,
+   rollback, and truncation; the web demo renders the health card.
+3. **~~Write `rtl/auth_ctrl.v`.~~** Done 21 Oct: frame parser + CRC-8 +
+   periodic ADS1115 sampling (100 ms) + HMAC + seq counter + signed ring
+   buffer + READ_HIST + lock.
 4. **~~Write `rtl/uart_if.v`.~~** Done 20 Oct: 115200 8N1, mid-bit sampling.
 5. **~~Write `rtl/i2c_master.v` + `rtl/ads1115_ctrl.v`.~~** Done 20 Oct;
    cocotb `make ads1115` passes 2/2. Integrated in `sebatt_top`; Cmod S7
    hardware T9 still pending.
 6. **~~Write `rtl/sebatt_top.v`.~~** Done 20 Oct: clk/reset/UART/I2C/LED.
-7. **~~Write the cocotb TB for `auth_ctrl`.~~** Done 20 Oct: `make auth`
-   passes 4/4 against `model.hmac`/`model.protocol`.
+7. **~~Write the cocotb TB for `auth_ctrl`.~~** Done 21 Oct: `make auth`
+   passes 9/9 against `model.hmac`/`model.protocol` (auth, lock, STATUS,
+   READ_HIST, periodic sampling interval).
 8. **KV260 prep.** Cmod S7 bitstream built; `xck26` 100 MHz timing/fit check
-   passes (WNS +2.749 ns). Next: real PMOD/carrier pins, `.bit` → `.bit.bin`,
+   passes (WNS +2.626 ns). Next: real PMOD/carrier pins, `.bit` → `.bit.bin`,
    Ubuntu SD/BOOT.BIN.
 
 ### When a board is available

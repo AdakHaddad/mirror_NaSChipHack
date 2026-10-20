@@ -6,30 +6,30 @@ Konteks: Flow B pure RTL, Cmod S7 untuk latihan dan KV260 untuk demo.
 
 ## 1. Status kode saat ini
 
-Sudah ada:
+Sudah ada (per 21 Oktober, setelah implementasi Flow B):
 
-- `rtl/auth_ctrl.v` melakukan sampling ADS1115 periodik, default
-  `SAMPLE_INTERVAL_MS = 100` (100 ms).
-- Hasil terbaru disimpan di `latest_mv`; `AUTH_REQ` menandatangani sampel
-  terakhir, bukan memulai konversi baru.
-- `SAMPLE_CYCLES` dapat di-override; testbench memakai 500 siklus agar simulasi
-  cepat.
-- `sim/test_auth_ctrl.py` memverifikasi interval sampling; total regresi
-  16/16 PASS.
-- Bitstream Cmod S7 sudah dibangun ulang dan timing-clean.
+- `rtl/auth_ctrl.v`: sampling ADS1115 periodik (`SAMPLE_INTERVAL_MS = 100`
+  default), `seq` 32 bit, ring buffer 64 record dengan tag HMAC per sampel.
+- Pesan bertanda tangan berprefiks: 0x41 AUTH, 0x53 RECORD, 0x48 SUMMARY.
+- `READ_HIST_REQ` / `READ_HIST_RESP` (N, rentang seq, tag per catatan, tag
+  ringkasan ber-nonce), plus `RESULT`, `LOCK`, `UNLOCK`, `STATUS`, dan
+  `CHIP_LOCKED`; lock setelah 3 RESULT gagal.
+- Model Python di `model/protocol.py` memverifikasi riwayat dan anchor
+  (HISTORY_GAP / HISTORY_ROLLBACK / HISTORY_TRUNCATED).
+- `SAMPLE_CYCLES` dapat di-override; testbench memakai 12 000 siklus (1 ms)
+  agar tiap sampel selesai ditandatangani.
+- Regresi cocotb: 20/20 PASS (5 sha256, 4 hmac, 2 ads1115, 9 auth); model
+  Python 40/40. Bitstream Cmod S7 sudah dibangun dan timing-clean.
 
 Belum ada:
 
-- `seq` counter yang tersimpan;
-- ring buffer 64 record;
-- `READ_HIST_REQ` / `READ_HIST_RESP`;
-- verifikasi riwayat dan anchor di station;
-- `seq` di dalam `AUTH_RESP` (saat ini pesan masih `nonce || ID || V`);
+- verifikasi anchor riwayat versi RTL di station (model Python sudah);
+- `seq` di dalam `AUTH_RESP` (tetap di READ_HIST_RESP);
 - penyimpanan `seq`/checkpoint di NVM aman;
 - ECDSA.
 
-Jadi catatan ini menjawab pertanyaan desain, bukan mengklaim bahwa histori
-sudah diimplementasikan.
+Spesifikasi final ada di [spesifikasi.md](spesifikasi.md); catatan ini
+menjelaskan alasan desainnya.
 
 ---
 

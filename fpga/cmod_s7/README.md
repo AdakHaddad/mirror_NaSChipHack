@@ -1,7 +1,7 @@
 # Flow B — Cmod S7-25 demo
 
-Status: **bitstream built and timing-clean on 20 Oct 2026**. Hardware execution
-(T7/T9) still pending.
+Status: **periodic sampling implemented, bitstream built and timing-clean on
+20 Oct 2026**. Hardware execution (T7/T9) still pending.
 
 **Step-by-step run and demo guide: [RUNBOOK.md](RUNBOOK.md).**
 
@@ -53,8 +53,8 @@ Outputs:
 - `build/timing.rpt`
 - `build/utilization.rpt`
 
-Verified on 20 Oct 2026: WNS **+52.746 ns** (all constraints met), 4 417 LUTs
-(30 %), 5 233 FFs (18 %), 1 BUFG, 0 DSP/BRAM.
+Verified on 20 Oct 2026: WNS **+55.193 ns** (all constraints met), 4 443 LUTs
+(30 %), 5 275 FFs (18 %), 1 BUFG, 0 DSP/BRAM.
 
 ## Program
 
@@ -78,11 +78,12 @@ pip install pyserial          # once, if missing
 python -m model.station --port /dev/ttyUSB1 --demo
 ```
 
-The station sends `AUTH_REQ` with a 32-byte nonce. The FPGA reads AIN0,
-computes `HMAC-SHA256(key, nonce || battery_id || voltage)` and returns
-`AUTH_RESP` (battery id, voltage, HMAC). Expected LEDs:
+The FPGA samples AIN0 every **100 ms** (default `SAMPLE_INTERVAL_MS`), independently
+of UART traffic. The station sends `AUTH_REQ` with a 32-byte nonce; the FPGA signs
+the latest sample with `HMAC-SHA256(key, nonce || battery_id || voltage)` and
+returns `AUTH_RESP` (battery id, voltage, HMAC). Expected LEDs:
 
-- LED1 (E2): 1 Hz heartbeat
+- LED1 (E2): ~0.7 Hz heartbeat
 - LED2 (K1): on while an auth transaction is in progress
 - LED3 (J1): on after a valid response
 - LED4 (E1): on frame/CRC, ADC, or AXI error
@@ -97,3 +98,5 @@ station's default identity matches the FPGA.
    SCL/SDA with a scope; address must be `0x48`.
 3. Confirm the module is powered at 3.3 V and AIN0 is between 0 and 4.096 V.
 4. Re-read the LEDs: no heartbeat means clock/reset/programming, not UART.
+5. The first sample is taken after ~100 ms. An auth request that arrives before
+   that waits for the first sample; the station timeout is 2 s.

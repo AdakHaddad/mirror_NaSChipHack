@@ -66,6 +66,10 @@ Buffer menampung 64 catatan terakhir. Saat penuh, catatan paling lama ditimpa.
 
 Pada langkah ini catatan **belum ditandatangani**. Catatan cukup disimpan, karena buffer berada di dalam chip dan tidak dapat diubah oleh BMS atau program apa pun.
 
+> **Status implementasi 20 Oktober:** sampling periodik 100 ms sudah ada di
+> `auth_ctrl` dan `SAMPLE_INTERVAL_MS` dapat diubah. Penomoran `seq` dan buffer
+> 64 catatan pada langkah 2–3 **belum** diimplementasikan; itu tugas berikutnya.
+
 ## Langkah 2. Baterai Masuk Stasiun
 
 1. Stasiun membuat angka acak baru (nonce), misalnya 7f3a…, lalu mengirimnya ke chip. Nonce yang selalu baru mencegah jawaban lama dipakai ulang.
@@ -205,10 +209,10 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | key_vault | Ada, versi uji (kunci masih dapat dibaca dan ditulis ulang) |
 | Emulator stasiun Python | Ada untuk autentikasi (nonce + HMAC); riwayat/seq belum |
 | ads1115_ctrl + i2c_master | Ada, lolos 2/2 uji cocotb (20 Okt); lihat `sim/test_ads1115.py` |
-| uart_if versi RTL | Ada, lolos 4/4 uji rantai auth (20 Okt) |
-| auth_ctrl + axil_master + sebatt_top | Ada, lolos 4/4 uji `make auth` (20 Okt) |
-| Bitstream Cmod S7 | Ada (20 Okt), timing WNS +52,746 ns; uji board T6/T7/T9 belum |
+| uart_if versi RTL | Ada, lolos 5/5 uji rantai auth (20 Okt) |
+| auth_ctrl + axil_master + sebatt_top | Ada; sampling periodik 100 ms, lolos 5/5 uji `make auth` (20 Okt) |
+| Bitstream Cmod S7 | Ada (20 Okt), timing WNS +55,193 ns; sampling periodik 100 ms; uji board T6/T7/T9 belum |
 | Nomor urut, buffer riwayat, penguncian di chip | Belum |
 | Permintaan riwayat dan pemeriksaan urutan di stasiun | Belum |
 | Kartu kesehatan baterai di dashboard | Belum |
-| Port ke KV260 | Timing 100 MHz PASS (WNS +2,749 ns); pin PMOD/bit.bin belum |
+| Port ke KV260 | Timing 100 MHz PASS (WNS +2,626 ns); pin PMOD/bit.bin belum |

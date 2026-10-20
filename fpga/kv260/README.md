@@ -13,14 +13,14 @@ Result:
 
 | Metric | Value |
 |---|---|
-| WNS | **+2.749 ns** |
+| WNS | **+2.626 ns** |
 | TNS / failing endpoints | 0 / 0 |
-| CLB LUTs | 4 444 (3.79 %) |
-| CLB registers | 5 216 (2.23 %) |
+| CLB LUTs | 4 476 (3.82 %) |
+| CLB registers | 5 256 (2.24 %) |
 | BRAM / DSP | 0 / 0 |
 
 The critical path is the SHA-256 `w` expansion (`cnt_reg[0] -> w_reg[*]`), the
-same path that limits the Cmod S7 run. At 100 MHz on the KV260 it has 2.7 ns of
+same path that limits the Cmod S7 run. At 100 MHz on the KV260 it has 2.6 ns of
 margin, so **do not raise `pl_clk0` above 100 MHz** without re-timing.
 
 ## Run the check
