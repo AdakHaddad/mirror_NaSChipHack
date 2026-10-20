@@ -8,7 +8,7 @@ Hackathon Deeptech 2026: Designing Chips for Real-World Impact · Tema Internet 
 
 Stasiun penukaran baterai hanya dapat mengukur tegangan sesaat ketika baterai ditukar. Riwayat selama pemakaian dilaporkan oleh firmware BMS, sehingga dapat diubah sebelum sampai ke stasiun, termasuk pada baterai yang identitasnya asli.
 
-SeBatt mengambil sampel tegangan paket secara berkala melalui ADC. Setiap sampel diberi nomor urut dari penghitung yang hanya dapat bertambah, lalu ditandatangani dengan HMAC-SHA-256 di dalam IP yang sama. Kunci diturunkan dari Ring-Oscillator PUF. Saat penukaran, basis data identitas menghitung ulang setiap tanda tangan, sehingga sampel yang diubah, dihapus, atau disisipkan akan ditolak.
+SeBatt mengambil sampel tegangan paket secara berkala melalui ADC. Setiap sampel diberi nomor urut dari penghitung yang hanya dapat bertambah, lalu ditandatangani dengan HMAC-SHA-256 di dalam IP yang sama. Tahap pertama memakai kunci tetap, dan tahap kedua menurunkan kunci dari Ring-Oscillator PUF. Saat penukaran, basis data identitas menghitung ulang setiap tanda tangan, sehingga sampel yang diubah, dihapus, atau disisipkan akan ditolak.
 
 ## Arsitektur
 
@@ -17,9 +17,9 @@ Seluruh IP ditulis dalam Verilog/SystemVerilog standar tanpa IP vendor maupun pr
 | Modul | Tugas |
 |---|---|
 | ads1115_ctrl + i2c_master | Membaca sampel tegangan dari modul ADS1115 (I2C) |
-| auth_ctrl | FSM autentikasi `AUTH_REQ -> ADC -> HMAC -> AUTH_RESP`; seq counter dan penguncian menyusul |
+| auth_ctrl | FSM autentikasi AUTH_REQ, ADC, HMAC, lalu AUTH_RESP. Nomor urut, riwayat, dan penguncian belum ada |
 | hmac_sha256 | Menandatangani nonce, ID, dan sampel tegangan |
-| key_vault | Kunci tetap (tahap 1) |
+| key_vault | Penyimpan kunci tetap (tahap 1). Belum dipasang, kunci saat ini ditulis oleh auth_ctrl |
 | ro_puf + fuzzy_ext | Kunci dari PUF (tahap 2) |
 | uart_if | Komunikasi dengan emulator stasiun |
 
@@ -31,7 +31,8 @@ Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal
 |---|---|
 | Mini proposal | Lolos seleksi |
 | Persiapan pra-onsite | Berjalan, lihat [milestone](docs/MILESTONES.md) |
-| RTL Flow B + bitstream Cmod S7 | Selesai 20 Okt; uji board T6/T7/T9 menyusul |
+| RTL Flow B | Rantai autentikasi lolos simulasi cocotb dan bitstream Cmod S7 dibuat (20 Okt, dilaporkan Muqtada). Uji di board belum |
+| Demo web (web/) | Model protokol Python, belum terhubung ke FPGA |
 | Onsite dan Demo Day | 21–23 Oktober 2026 |
 
 ## Struktur Repositori
@@ -53,5 +54,5 @@ Tim NaS, Universitas Gadjah Mada.
 | Nama | Program studi |
 |---|---|
 | Guntur Sulistyo (ketua) | Teknik Elektro |
-| Dimas Eryan Ahnaf Fahrezi | Teknik Elektro |
 | Muhammad Muqtada Alhaddad | Teknologi Informasi |
+| Muhammad Budi Setiawan | Teknologi Informasi |

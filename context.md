@@ -3,7 +3,7 @@
 > Concept, code, protocol, hardware, and demo in one document.
 >
 > Written 19 October 2026. Verified against the repository at that date:
-> Python model 40/40 tests pass, RTL simulation 9/9 tests pass, offline station
+> Python model 40/40 tests pass, RTL simulation 9/9 tests pass (sha256 + hmac; on 20 Oct the list grew to 15/15 with ads1115 and auth, see Section 6.3), offline station
 > demo passes. Hardware results are marked separately.
 >
 > **Revision 19 Oct 2026 (hardware session):** the demo ADC changed from an

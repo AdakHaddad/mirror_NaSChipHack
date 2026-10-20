@@ -11,7 +11,7 @@
 - **Tagline**: Perancangan IP Keamanan Berbasis PUF dan HMAC-SHA-256 untuk Autentikasi Baterai Kendaraan Listrik
 - **Poin Presenter**:
   > "Baterai adalah 40% dari biaya motor listrik. Di stasiun penukaran baterai (*battery swap*), bagaimana stasiun tahu bahwa baterai yang dimasukkan benar-benar baterai asli operator, dan bukan baterai tiruan atau baterai yang data voltasenya dimanipulasi oleh firmware BMS yang sudah di-hack?"
-  > "Kami menghadirkan **SeBatt**: *silicon root of trust* yang menandatangani identitas dan voltase baterai langsung di titik sensor, tanpa menyimpan kunci permanen di memori."
+  > "Kami menghadirkan **SeBatt**: *silicon root of trust* yang menandatangani identitas dan voltase baterai langsung di titik sensor. Demo hari ini memakai kunci tetap (tahap 1). Tahap 2 menurunkan kunci dari RO-PUF sehingga kunci tidak perlu disimpan permanen."
 
 ---
 
@@ -26,20 +26,20 @@
 ## Slide 3: Solusi Kami: SeBatt IP Core (1:15 - 2:00)
 
 - **Arsitektur**:
-  1. **RO-PUF (Physical Unclonable Function)**: Sidik jari mikroskopis dari variasi pabrikasi silikon. Kunci kriptografis tidak disimpan di flash/NVM, melainkan direkonstruksi secara *on-the-fly*.
-  2. **In-situ Signing**: ADC membaca voltase analog paket baterai, langsung dialirkan ke core HMAC-SHA-256 di silikon yang sama.
+  1. **RO-PUF (Physical Unclonable Function), tahap 2**: Sidik jari mikroskopis dari variasi pabrikasi silikon. Kunci kriptografis tidak disimpan di flash/NVM, melainkan direkonstruksi secara *on-the-fly*. RTL dan model RO-PUF ada, tetapi belum terpasang di rangkaian demo. Demo memakai kunci tetap.
+  2. **In-situ Signing**: ADC membaca voltase analog paket baterai, langsung dialirkan ke core HMAC-SHA-256 di silikon yang sama. Pada PoC, ADC berupa modul ADS1115 eksternal (I2C).
   3. **Zero-Trust Handshake**: Stasiun mengirimkan *nonce* unik setiap swap. Respons HMAC memvalidasi `nonce || Battery_ID || Voltage`.
 
 ---
 
 ## Slide 4: Demo Langsung (Live Demo) (2:00 - 3:15)
 
-*Beralih ke layar monitor emulator stasiun Python + board FPGA Nexys A7-100T.*
+*Beralih ke layar monitor emulator stasiun Python + board FPGA Kria KV260 (latihan di Cmod S7).*
 
 - **Skenario 1: Autentikasi Sah (Valid)**
   - Stasiun kirim Nonce acak 256-bit.
-  - Chip FPGA menghitung HMAC dalam 113 siklus clock.
-  - Output: `VALID` (Voltase terverifikasi 3700 mV). Latensi total < 10 ms via UART.
+  - Chip FPGA membaca ADS1115, lalu menghitung HMAC (4 blok SHA-256, masing-masing 113 siklus clock).
+  - Output: `VALID` dengan tegangan dari ADS1115. Latensi ujung ke ujung diukur onsite (target < 20 ms).
 - **Skenario 2: Serangan Replay (Replay Attack)**
   - Penyerang merekam respons sebelumnya dan mengirimkannya kembali.
   - Hasil: `REPLAY_DETECTED` (Stasiun menolak karena nonce sudah pernah dipakai).
@@ -54,14 +54,17 @@
 
 ## Slide 5: Metrik Kinerja & Hasil Pengujian (3:15 - 4:00)
 
-| Parameter Target | Target Proposal | Hasil Capaian Tim | Status |
+Kondisi per 20 Oktober. Setiap angka diberi sumbernya. Kolom ini diisi ulang setelah pengukuran di KV260.
+
+| Metrik | Target proposal | Kondisi sekarang | Sumber |
 |---|---|---|---|
-| **Latensi Core HMAC** | $\le 300$ siklus clock | **113 siklus** / blok | **Terlampaui (2.6x lebih cepat)** |
-| **Latensi Ujung-ke-Ujung** | $< 20$ ms (UART 115200) | **~9.5 ms** | **Lolos target** |
-| **Akurasi Deteksi Fraud** | 100% penolakan spoofing | **100% (40/40 test suite lolos)** | **Sempurna** |
-| **Kepatuhan Kripto** | FIPS 180-4 & RFC 4231 | **100% Vektor Uji Lolos** | **Terverifikasi** |
-| **Sumber Daya FPGA** | $< 5.000$ LUT | **~1.850 LUT** (Artix-7) | **Efisien (<37% budget)** |
-| **Perkiraan Die ASIC** | Laporan sel SKY130 | Synthesizable RTL, target Open-PDK | **Siap MPW tapeout** |
+| Latensi HMAC | ≤ 300 siklus clock | SHA-256 113 siklus per blok. HMAC memakai 4 blok, sekitar 452 siklus ditambah overhead, di atas target | Simulasi cocotb (dilaporkan Muqtada), perhitungan |
+| Latensi ujung ke ujung | < 20 ms (UART 115200) | Belum diukur di board | – |
+| *Throughput* | ≥ 50 autentikasi per detik | Belum diukur di board | – |
+| Uji fungsi | 100% serangan ditolak, 1.000 percobaan per skenario | Uji 1.000 percobaan belum dijalankan. Model Python lolos 40 uji unit | Uji unit Python (dijalankan ulang 20 Okt) |
+| Kepatuhan kripto | FIPS 180-4 dan RFC 4231 | RTL lolos vektor FIPS 180-4 dan RFC 4231 | Simulasi cocotb (dilaporkan Muqtada) |
+| Sumber daya FPGA | < 5.000 LUT, Fmax ≥ 50 MHz | Cmod S7 sekitar 4.400 LUT. KV260 lolos *timing* 100 MHz (WNS +2,7 ns, tanpa pin) | Sintesis Vivado (dilaporkan Muqtada) |
+| Perkiraan ASIC | Jumlah sel, luas, daya SKY130 | Belum dijalankan | – |
 
 ---
 
@@ -69,9 +72,9 @@
 
 - **Pasar Sasaran**: Operator swap (Swap Energy, Oyika, Electrum, Pertamina) & produsen BMS nasional (IBC).
 - **Model Monetisasi**:
-  - Lisensi IP RTL Core ($50k–100k upfront) + Royalti ($0.25–0.50/chip)
+  - Lisensi IP RTL Core ($50k–100k upfront) + Royalti ($0.25–0.50/chip) *(perkiraan, belum bersumber)*
   - Penyediaan modul secure element terprogram untuk retrofit armada
-- **Dampak Ekonomi**: Mencegah kerugian fraud baterai senilai Rp 8–10 juta per paket baterai.
+- **Dampak Ekonomi**: Mencegah kerugian fraud baterai senilai Rp 8–10 juta per paket baterai *(perkiraan, belum bersumber)*.
 
 ---
 
@@ -79,7 +82,7 @@
 
 - **Tim NaS (Universitas Gadjah Mada)**:
   - **Guntur Sulistyo** (Ketua / Hardware-in-the-Loop & Power Electronics)
-  - **Dimas Eryan Ahnaf Fahrezi** (Sensing & Embedded ADC Interface)
   - **Muhammad Muqtada Alhaddad** (Digital IC Design & AXI Hardware Accelerator)
+  - **Muhammad Budi Setiawan** (Program Stasiun, Dashboard & Data Baterai)
 - **Closing Statement**:
-  > "SeBatt memberikan kepastian mutlak pada integritas baterai EV Indonesia — dari level atom silikon hingga stasiun penukaran. Terima kasih."
+  > "SeBatt membuat riwayat baterai EV dapat diperiksa, dari titik ukur di dalam paket sampai stasiun penukaran. Terima kasih."
