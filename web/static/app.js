@@ -101,7 +101,7 @@
   function setOffline(offline) {
     app.offline = offline;
     el.modePill.classList.toggle("offline", offline);
-    el.modeLabel.textContent = offline ? "Server offline" : "Simulasi";
+    el.modeLabel.textContent = offline ? "Server offline" : "Model Python, bukan FPGA";
   }
 
   function setBusy(busy) {

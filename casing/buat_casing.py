@@ -1,7 +1,7 @@
 """Generator casing "Smart Battery Module" SeBatt (badan dan tutup) dalam format STL.
 
 Casing ditempel ke baterai 12 V dengan strap/velcro 25 mm, berisi perfboard 3x4 cm
-(pembagi tegangan dan MCP3202), potensiometer, saklar LIVE/DEMO, dan dua LED 10 mm.
+(pembagi tegangan dan modul ADS1115), potensiometer, saklar LIVE/DEMO, dan dua LED 10 mm.
 
 Menjalankan (butuh manifold3d, trimesh, numpy; matplotlib untuk pratinjau):
     python buat_casing.py

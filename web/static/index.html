@@ -17,7 +17,7 @@
       <a href="/diagram">Diagram use case</a>
     </nav>
     <div class="topbar-right">
-      <div class="mode-pill" id="mode-pill"><span class="dot"></span> <span id="mode-label">Simulasi</span></div>
+      <div class="mode-pill" id="mode-pill"><span class="dot"></span> <span id="mode-label">Model Python, bukan FPGA</span></div>
       <div class="battery-pill">
         <span class="battery-icon"></span>
         <span id="battery-id">BAT-0001</span>
@@ -176,7 +176,7 @@
             <p class="attack-hint" id="attack-hint">Serangan berlaku pada catatan baru setelah verifikasi terakhir.</p>
             <div class="utility-row">
               <button type="button" class="link-btn" id="btn-unlock" hidden>Buka kunci chip</button>
-              <button type="button" class="link-btn" id="btn-power-cycle">Cabut daya chip</button>
+              <button type="button" class="link-btn" id="btn-power-cycle">Cabut daya chip (emulasi)</button>
               <button type="button" class="link-btn danger-text" id="btn-reset">Reset demo</button>
             </div>
           </div>
@@ -208,7 +208,7 @@
     </section>
 
     <footer class="footer">
-      <span>SeBatt · PoC FPGA · input simulasi</span>
+      <span>SeBatt · chip diemulasikan oleh model protokol Python, belum terhubung ke FPGA</span>
       <span id="footer-hint">Alur demo: tukar normal → catat 2,0 V dan hapus → tukar → pulihkan dan ubah angka → tukar.</span>
     </footer>
   </main>
