@@ -31,7 +31,7 @@ Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal
 |---|---|
 | Mini proposal | Lolos seleksi |
 | Persiapan pra-onsite | Berjalan, lihat [milestone](docs/MILESTONES.md) |
-| RTL Flow B | Rantai autentikasi lolos simulasi cocotb dan bitstream Cmod S7 dibuat (20 Okt, dilaporkan Muqtada). Uji di board belum |
+| RTL Flow B | Rantai autentikasi lolos 15/15 uji simulasi cocotb (dijalankan ulang 20 Okt). Bitstream Cmod S7 dibuat (dilaporkan Muqtada). Uji di board belum |
 | Demo web (web/) | Model protokol Python, belum terhubung ke FPGA |
 | Onsite dan Demo Day | 21–23 Oktober 2026 |
 

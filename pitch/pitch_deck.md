@@ -58,11 +58,11 @@ Kondisi per 20 Oktober. Setiap angka diberi sumbernya. Kolom ini diisi ulang set
 
 | Metrik | Target proposal | Kondisi sekarang | Sumber |
 |---|---|---|---|
-| Latensi HMAC | ≤ 300 siklus clock | SHA-256 113 siklus per blok. HMAC memakai 4 blok, sekitar 452 siklus ditambah overhead, di atas target | Simulasi cocotb (dilaporkan Muqtada), perhitungan |
+| Latensi HMAC | ≤ 300 siklus clock | SHA-256 113 siklus per blok. HMAC memakai 4 blok, sekitar 452 siklus ditambah overhead, di atas target | Simulasi cocotb (dijalankan ulang 20 Okt), perhitungan |
 | Latensi ujung ke ujung | < 20 ms (UART 115200) | Belum diukur di board | – |
 | *Throughput* | ≥ 50 autentikasi per detik | Belum diukur di board | – |
 | Uji fungsi | 100% serangan ditolak, 1.000 percobaan per skenario | Uji 1.000 percobaan belum dijalankan. Model Python lolos 40 uji unit | Uji unit Python (dijalankan ulang 20 Okt) |
-| Kepatuhan kripto | FIPS 180-4 dan RFC 4231 | RTL lolos vektor FIPS 180-4 dan RFC 4231 | Simulasi cocotb (dilaporkan Muqtada) |
+| Kepatuhan kripto | FIPS 180-4 dan RFC 4231 | RTL lolos vektor FIPS 180-4 dan RFC 4231 | Simulasi cocotb (dijalankan ulang 20 Okt) |
 | Sumber daya FPGA | < 5.000 LUT, Fmax ≥ 50 MHz | Cmod S7 sekitar 4.400 LUT. KV260 lolos *timing* 100 MHz (WNS +2,7 ns, tanpa pin) | Sintesis Vivado (dilaporkan Muqtada) |
 | Perkiraan ASIC | Jumlah sel, luas, daya SKY130 | Belum dijalankan | – |
 

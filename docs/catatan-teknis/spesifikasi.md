@@ -3,7 +3,7 @@
 Kontrak teknis antara RTL (Muqtada), program stasiun (Budi), dan perangkat keras (Guntur) untuk demo di Kria KV260. Dokumen ini memuat keputusan protokol riwayat. Peta lengkap kode dan cara menjalankannya ada di [context.md](../../context.md), prosedur board di [cara-jalan-board.md](cara-jalan-board.md) dan [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md). Apabila ada perbedaan soal protokol, dokumen ini yang dipakai.
 
 Penanda status (keadaan repo per commit 200c754, 20 Oktober):
-- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi. Uji di board disebut terpisah.
+- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (15/15, dijalankan ulang 20 Okt di laptop Guntur). Uji di board disebut terpisah.
 - **[Disepakati]** sudah disetujui, belum diimplementasikan.
 - **[Usulan]** menunggu persetujuan Muqtada dan Budi.
 

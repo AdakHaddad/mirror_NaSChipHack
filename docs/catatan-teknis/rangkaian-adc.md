@@ -155,7 +155,7 @@ Saat ini auth_ctrl memicu start satu kali setiap AUTH_REQ. Pada Flow B lengkap, 
 
 1. **Tanpa FPGA.** Rakit di breadboard, beri 3,3 V dari power supply, lalu ukur A0 dengan multimeter sambil memutar kenop. Tegangan harus bergerak sesuai tabel di atas.
 2. **Uji I2C dengan mikrokontroler (opsional, paling cepat).** Baca ADS1115 dengan STM32 atau Arduino untuk memastikan modul hidup di alamat 0x48.
-3. **Simulasi.** Jalankan uji cocotb ads1115 di folder sim. Uji ini sudah lolos 2/2 menurut catatan Muqtada.
+3. **Simulasi.** Jalankan uji cocotb ads1115 di folder sim. Uji ini lolos 2/2 (dijalankan ulang 20 Okt).
 4. **Cmod S7 (T9).** Sambungkan modul ke Pmod JA, kirim AUTH_REQ dari stasiun sambil memutar kenop, lalu bandingkan nilai V dengan multimeter. Tidak boleh ada NACK. Prosedur lengkap ada di [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md).
 5. **KV260.** Pindahkan sambungan ke Pmod J2 dengan urutan pin yang sama dan ganti file constraint ke pin KV260.
 
