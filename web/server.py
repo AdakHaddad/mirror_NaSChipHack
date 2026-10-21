@@ -14,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from model.station import Station, find_uart_port
 from web.demo import DemoState
+from web.hardware import HardwareState
 
 STATIC = Path(__file__).resolve().parent / "static"
 DIAGRAM_PNG = ROOT / "docs" / "gambar" / "use-case.png"
@@ -110,6 +112,10 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/swap":
                 self._json({"ok": True, "state": STATE.swap()})
                 return
+            if path == "/api/refresh":
+                refresh = getattr(STATE, "refresh_live", None)
+                self._json({"ok": True, "state": refresh() if refresh else STATE.state()})
+                return
             if path == "/api/attack/delete":
                 result = STATE.attack_delete()
                 self._json(result, 200 if result.get("ok") else 400)
@@ -128,7 +134,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": True, "state": STATE.unlock()})
                 return
             if path == "/api/power-cycle":
-                self._json({"ok": True, "state": STATE.power_cycle()})
+                result = STATE.power_cycle()
+                if isinstance(result, dict) and result.get("ok") is False:
+                    self._json(result, 400)
+                else:
+                    self._json({"ok": True, "state": result})
                 return
         except (TypeError, ValueError) as exc:
             self._json({"ok": False, "message": str(exc)}, 400)
@@ -145,7 +155,35 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="Alamat bind (default 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="Port HTTP (default 8000)")
     parser.add_argument("--open", action="store_true", help="Buka browser otomatis")
+    parser.add_argument(
+        "--fpga", nargs="?", const="auto", metavar="PORT",
+        help="Hubungkan ke FPGA lewat UART (auto-deteksi bila PORT kosong)",
+    )
+    parser.add_argument("--baud", type=int, default=115200,
+                        help="Baud UART FPGA (default 115200)")
     args = parser.parse_args()
+
+    global STATE
+    if args.fpga:
+        port = args.fpga
+        if port == "auto":
+            port = find_uart_port()
+        if not port:
+            print("Tidak ada USB-UART terdeteksi. Pasang adapter atau beri --fpga PORT.")
+            sys.exit(2)
+        try:
+            station = Station(port, args.baud)
+            STATE = HardwareState(station, port, args.baud)
+        except Exception as exc:
+            print(f"Gagal membuka FPGA di {port}: {exc}")
+            sys.exit(1)
+        error = STATE.state().get("hardware", {}).get("error")
+        print(f"Mode FPGA: {port} @ {args.baud} baud")
+        if error:
+            print(f"  Peringatan: {error}")
+    else:
+        STATE = DemoState()
+        print("Mode simulasi (tanpa FPGA).")
 
     url = f"http://{args.host}:{args.port}"
     server = ThreadingHTTPServer((args.host, args.port), Handler)
@@ -153,7 +191,7 @@ def main() -> None:
 
     print("SeBatt Station Dashboard")
     print(f"  {url}")
-    print("  Mode simulasi. Tekan Ctrl+C untuk berhenti.")
+    print("  Tekan Ctrl+C untuk berhenti.")
 
     if args.open:
         webbrowser.open(url)

@@ -68,7 +68,7 @@ Catatan **sudah ditandatangani saat diambil**. Buffer berada di dalam chip dan t
 
 > **Status implementasi 21 Oktober:** sampling periodik 1 detik, penomoran `seq`,
 > buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`.
-> Regresi cocotb 26/26. Bitstream KV260 dibangun ulang (WNS +1,466 ns), dan di
+> Regresi cocotb 26/26. Bitstream KV260 dibangun ulang 21 Okt 21.26 (WNS +0,749 ns, termasuk perbaikan LED dan bus I2C), dan di
 > KV260 sudah diuji 21 Okt: AUTH dan READ_HIST VALID, riwayat yang diubah,
 > dihapus, dipotong, atau diputar ulang ditolak.
 
@@ -200,7 +200,7 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | Chip SeBatt | FPGA Kria KV260 |
 | Bus CAN di konektor | UART melalui PMOD dan adaptor USB-UART |
 | Stasiun dan basis data | Program Python di laptop stasiun |
-| BMS curang | Perintah `attack` di station.py: mengubah atau membuang catatan dari dump asli board sebelum diverifikasi |
+| BMS curang | Perintah `attack` di `model/station.py`: mengubah atau membuang catatan dari dump asli board sebelum diverifikasi; dashboard mode `--fpga` juga bisa mengubah salinan dump di sisi host |
 
 ## Batasan
 
@@ -221,7 +221,7 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | auth_ctrl + axil_master + sebatt_top | Ada. Sampling 1 detik, riwayat 64 catatan, READ_HIST, lock, buffer dibekukan selama dump, parser pulih dari frame rusak, sumber switch tanpa ADC. Lolos 13/13 uji `make auth` (21 Okt) |
 | Bitstream Cmod S7 | Dibangun ulang 21 Okt, timing WNS +55,788 ns, 5.235 LUT / 6.024 FF; uji board T6/T7/T9 belum |
 | Nomor urut, buffer riwayat, penguncian di chip | Ada, 13/13 uji auth (21 Okt) |
-| Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 52/52 uji model |
-| Kartu kesehatan baterai di dashboard | Model web ada; belum terhubung ke FPGA |
-| Port ke KV260 | Build penuh PASS (WNS +1,466 ns). Diuji di board 21 Okt: heartbeat, STATUS, AUTH VALID (14,7 ms ujung ke ujung), READ_HIST VALID, serta serangan ubah, hapus, potong, dan putar ulang ditolak. Tegangan masih terbaca 3000 mV tetap, jalur ADS1115 belum diuji di board |
-| Program BMS curang di atas data board | Ada sebagai perintah `attack` di mode interaktif `model/station.py` |
+| Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 57/57 uji model |
+| Kartu kesehatan baterai di dashboard | Ada; mode `--fpga` membaca autentikasi dan riwayat bertanda tangan langsung dari KV260 lewat UART; uji board belum |
+| Port ke KV260 | Build penuh PASS: build board 11.46 WNS +1,466 ns, build ulang 21.26 dengan perbaikan LED/bus I2C WNS +0,749 ns (belum diuji board). Diuji di board 21 Okt: heartbeat, STATUS, AUTH VALID (14,7 ms ujung ke ujung), READ_HIST VALID, serta serangan ubah, hapus, potong, dan putar ulang ditolak. Dashboard mode `--fpga` belum diuji di board; tegangan ADS1115 juga belum |
+| Program BMS curang di atas data board | Ada sebagai perintah `attack` di mode interaktif `model/station.py`; tombol Hapus/Ubah di dashboard mode `--fpga` |

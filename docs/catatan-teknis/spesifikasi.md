@@ -3,7 +3,7 @@
 Kontrak teknis antara RTL (Muqtada), program stasiun (Budi), dan perangkat keras (Guntur) untuk demo di Kria KV260. Dokumen ini memuat keputusan protokol riwayat. Peta lengkap kode dan cara menjalankannya ada di [context.md](../../context.md), prosedur board di [cara-jalan-board.md](cara-jalan-board.md) dan [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md). Apabila ada perbedaan soal protokol, dokumen ini yang dipakai.
 
 Penanda status (keadaan repo per 21 Oktober 2026):
-- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (26/26 pada 21 Okt: 5 sha256, 4 hmac, 4 ads1115, 13 auth). Model Python 52/52. Uji di board disebut terpisah.
+- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (26/26 pada 21 Okt: 5 sha256, 4 hmac, 4 ads1115, 13 auth). Model Python 57/57. Uji di board disebut terpisah.
 - **[Disepakati]** sudah disetujui, belum diimplementasikan.
 - **[Usulan]** menunggu persetujuan Muqtada dan Budi.
 
@@ -29,7 +29,7 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
 
-Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) WNS +1,466 ns, 5.633 LUT, 6.201 FF setelah perbaikan multi-driver `sg_req*`, dump race, CRC, dan parser resync. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
+Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) build board 11.46 WNS +1,466 ns, 5.633 LUT, 6.201 FF; build ulang 21.26 dengan perbaikan LED dan bus I2C WNS +0,749 ns, 5.607 LUT, 6.207 FF, setelah perbaikan multi-driver `sg_req*`, dump race, CRC, dan parser resync. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
 
 Di KV260, blok Zynq UltraScale+ MPSoC hanya dipakai sebagai sumber clock PL (pl_clk0). Prosesor tidak membaca maupun menulis sampel.
 
@@ -134,7 +134,7 @@ catatan = seq(4) ‖ V(2) ‖ tag(32)
 
 ## 10. Urutan Verifikasi di Stasiun [Sudah ada]
 
-Diimplementasikan di `Station.verify_history` (`model/protocol.py` dan `model/station.py`; 52/52 uji model). RTL hanya menyediakan dump bertanda tangan; penetapan status dilakukan di stasiun.
+Diimplementasikan di `Station.verify_history` (`model/protocol.py` dan `model/station.py`; 57/57 uji model). RTL hanya menyediakan dump bertanda tangan; penetapan status dilakukan di stasiun.
 
 Basis data menyimpan jangkar per baterai: {kunci, seq_jangkar, terkunci}.
 

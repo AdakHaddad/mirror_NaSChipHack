@@ -219,6 +219,21 @@ def test_wire_station_reads_and_verifies_history():
     assert [r.seq for r in received.records] == [0, 1, 2]
 
 
+def test_wire_station_raw_history_does_not_verify():
+    chip = _chip(3)
+    nonce = _nonce(14)
+    dump = chip.handle_read_hist_request(nonce)
+    station = _wire_station(WireProtocol.encode_read_hist_resp(dump))
+
+    status, sent_nonce, received = station.read_history_raw(BID, nonce)
+
+    assert status == AuthStatus.VALID
+    assert sent_nonce == nonce
+    assert received is not None
+    assert [r.seq for r in received.records] == [0, 1, 2]
+    assert station.db.lookup(BID).seq_anchor == 0
+
+
 def test_wire_station_auth_uses_0x41_prefix():
     nonce = _nonce(13)
     chip = _chip(1)

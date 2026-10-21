@@ -84,6 +84,17 @@ Kalau ada lebih dari satu `/dev/ttyUSB*`, pilih port CP2102:
 fpga/kv260/demo/run_station.sh --port /dev/ttyUSB1 --demo
 ```
 
+Untuk dashboard web mode FPGA (grafik, kartu kesehatan, tombol serangan):
+
+```bash
+.venv/bin/python web/server.py --fpga
+# atau pilih port: .venv/bin/python web/server.py --fpga /dev/ttyUSB1
+```
+
+Buka <http://127.0.0.1:8000>. Tombol **Muat riwayat** mengambil sampel baru
+tanpa verifikasi; **Tukar baterai** menjalankan autentikasi dan verifikasi
+riwayat asli dari board. Detail ada di `web/README.md`.
+
 Contoh output auth yang benar:
 
 ```text

@@ -213,7 +213,7 @@ class Station:
 
     # --- Auth protocol ---
 
-    def authenticate(self) -> tuple:
+    def authenticate(self, report: bool = True) -> tuple:
         """
         Run full authentication:
           1. Generate random nonce
@@ -222,6 +222,8 @@ class Station:
           4. Verify HMAC
 
         Returns: (AuthStatus, voltage, battery_id_hex)
+        Set ``report=False`` when the caller will send one RESULT for the
+        whole transaction (for example auth followed by history verification).
         """
         # Generate nonce
         nonce = os.urandom(32)
@@ -279,13 +281,20 @@ class Station:
             'voltage': voltage,
             'time': time.time(),
         })
-        self._report(status)
+        if report:
+            self.report_result(status)
 
         return status, voltage, battery_id.hex()
 
-    def read_history(self, battery_id: Optional[bytes] = None,
-                     nonce: Optional[bytes] = None):
-        """Request and verify a signed history dump."""
+    def read_history_raw(self, battery_id: Optional[bytes] = None,
+                         nonce: Optional[bytes] = None):
+        """Request a history dump without verifying it.
+
+        Returns ``(transport_status, nonce, dump)``. A non-VALID transport
+        status means the chip did not return a usable dump; the caller can
+        still use ``verify_history`` later with the same nonce. This is what
+        the dashboard uses to show live samples before the user verifies.
+        """
         if battery_id is None:
             battery_id = self.last_battery_id
         if battery_id is None:
@@ -297,17 +306,25 @@ class Station:
         cmd, payload = self._recv_frame()
 
         if cmd == Command.CHIP_LOCKED:
-            return AuthStatus.BATTERY_LOCKED, None
+            return AuthStatus.BATTERY_LOCKED, nonce, None
         if cmd != Command.READ_HIST_RESP:
-            return AuthStatus.INVALID_HMAC, None
+            return AuthStatus.INVALID_HMAC, nonce, None
 
         dump = WireProtocol.decode_history(payload)
         dump.battery_id = battery_id
-        status = self.verify_history(battery_id, nonce, dump)
-        self._report(status)
+        return AuthStatus.VALID, nonce, dump
+
+    def read_history(self, battery_id: Optional[bytes] = None,
+                     nonce: Optional[bytes] = None):
+        """Request and verify a signed history dump."""
+        transport, nonce, dump = self.read_history_raw(battery_id, nonce)
+        if dump is None:
+            return transport, None
+        status = self.verify_history(dump.battery_id, nonce, dump)
+        self.report_result(status)
         return status, dump
 
-    def _report(self, status: AuthStatus):
+    def report_result(self, status: AuthStatus):
         """Send RESULT so the chip's fail counter tracks the verdict."""
         if self.report_results:
             self._send_frame(Command.RESULT, bytes([int(status)]))
@@ -370,7 +387,7 @@ class Station:
             raise ValueError(f"unknown attack mode: {mode}")
 
         status = self.verify_history(battery_id, nonce, dump)
-        self._report(status)
+        self.report_result(status)
         return status, desc
 
     def history_report(self, status: AuthStatus,
@@ -681,11 +698,13 @@ def find_uart_port() -> Optional[str]:
     preferred = []
     fallback = []
     for p in serial.tools.list_ports.comports():
-        # Ignore legacy motherboard ttyS* ports
+        # Ignore legacy motherboard ttyS* ports and the KV260 PS console.
         if p.device.startswith('/dev/ttyS'):
             continue
         desc = (p.description or '').lower()
         mfr = (p.manufacturer or '').lower()
+        if 'ml carrier' in desc:
+            continue
         if any(x in desc for x in ['cp210', 'ch340', 'ch34']) or 'silicon labs' in mfr:
             preferred.append(p.device)
         elif any(x in desc for x in ['digilent', 'ftdi', 'uart', 'usb']) or \

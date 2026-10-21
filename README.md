@@ -31,8 +31,8 @@ Diagram lengkap, target metrik, dan batas proof of concept ada di [mini proposal
 |---|---|
 | Mini proposal | Lolos seleksi |
 | Persiapan pra-onsite | Berjalan, lihat [milestone](docs/MILESTONES.md) |
-| RTL Flow B | Rantai autentikasi + riwayat bertanda tangan lolos 26/26 uji simulasi cocotb (5 sha256 + 4 hmac + 4 ads1115 + 13 auth; diperbarui 21 Okt). Bitstream Cmod S7 dibangun ulang 21 Okt (WNS +55,788 ns, 5.235 LUT, 6.024 FF); build penuh KV260 + `.bit.bin` (WNS +1,466 ns, 5.633 LUT, 6.201 FF; fix multi-driver, dump race, CRC, parser resync). Diuji di board KV260 21 Okt, lihat [hasil uji](docs/catatan-teknis/hasil-uji-kv260.md). Perbaikan LED hijau/merah dan pengecekan bus I2C menunggu build ulang |
-| Demo web (web/) | Model protokol Python, belum terhubung ke FPGA |
+| RTL Flow B | Rantai autentikasi + riwayat bertanda tangan lolos 26/26 uji simulasi cocotb (5 sha256 + 4 hmac + 4 ads1115 + 13 auth; diperbarui 21 Okt). Bitstream Cmod S7 dibangun ulang 21 Okt (WNS +55,788 ns, 5.235 LUT, 6.024 FF); build penuh KV260 + `.bit.bin` dibangun ulang 21 Okt 21.26 (WNS +0,749 ns, 5.607 LUT, 6.207 FF; fix multi-driver, dump race, CRC, parser resync, LED, dan bus I2C). Uji board 21 Okt memakai build 11.46, lihat [hasil uji](docs/catatan-teknis/hasil-uji-kv260.md); build LED/I2C belum diuji ulang di board |
+| Demo web (web/) | Dashboard simulasi default; mode `--fpga` membaca autentikasi dan riwayat bertanda tangan KV260 lewat UART; uji board belum |
 | Onsite dan Demo Day | 21–23 Oktober 2026 |
 
 ## Struktur Repositori

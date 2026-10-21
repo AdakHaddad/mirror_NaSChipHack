@@ -5,8 +5,8 @@ root repo (`/home/muqtada/Documents/sebatt`) di laptop, kecuali bagian yang
 dijalankan di board.
 
 Status 21 Okt 2026: bitstream penuh sudah dibangun ulang setelah perbaikan
-multi-driver `sg_req*`, dump race, CRC, parser resync, dan adc-free source
-(WNS +1,466 ns, 5 633 LUT, 6 201 FF), peta pin Pmod dan block design clock PS
+multi-driver `sg_req*`, dump race, CRC, parser resync, adc-free source, LED,
+dan bus I2C (WNS +0,749 ns, 5 607 LUT, 6 207 FF), peta pin Pmod dan block design clock PS
 sudah ada. **Uji fisik T6/T7/T9/T10 di KV260 belum dilakukan.** Uji RTL cocotb
 26/26 dan uji board Cmod S7 tetap menjadi bukti fungsional sampai KV260 diuji.
 
@@ -103,9 +103,11 @@ bitstream, `.bin`, XSA). Output:
 - `build/timing.rpt`, `build/utilization.rpt`
 - `build/kv260_top.xsa` (kalau langkah XSA berhasil)
 
-Hasil 21 Okt: WNS **+1,466 ns**, WHS +0,015 ns, 0 endpoint gagal, 5 633 LUT,
-6 201 FF, 0 BRAM, 0 DSP. Build ini sudah memakai perbaikan multi-driver
-`sg_req*`, dump race, CRC, parser resync, dan adc-free source. Jalur kritis
+Hasil 21 Okt: build board 11.46 WNS **+1,466 ns**, 5 633 LUT, 6 201 FF;
+build ulang 21.26 WNS **+0,749 ns**, WHS +0,015 ns, 0 endpoint gagal,
+5 607 LUT, 6 207 FF, 0 BRAM, 0 DSP. Build 21.26 sudah memakai perbaikan
+multi-driver `sg_req*`, dump race, CRC, parser resync, adc-free source, LED,
+dan bus I2C; belum diuji ulang di board. Jalur kritis
 SHA-256 `w` expansion; **jangan naikkan `pl_clk0` di atas 100 MHz** tanpa
 pipeline dan re-timing.
 

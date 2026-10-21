@@ -16,6 +16,7 @@
     modeLabel: $("mode-label"),
     chart: $("chart"),
     chartNote: $("chart-note"),
+    chartSub: $("chart-sub"),
     healthCard: $("health-card"),
     healthId: $("health-id"),
     healthBadge: $("health-badge"),
@@ -27,11 +28,15 @@
     healthPending: $("health-pending"),
     healthNote: $("health-note"),
     voltageValue: $("voltage-value"),
+    voltageControl: $("voltage-control"),
+    voltageHint: $("voltage-hint"),
     slider: $("voltage-slider"),
     btnSwap: $("btn-swap"),
     btnRecord: $("btn-record"),
     autoRecord: $("auto-record"),
+    autoRow: $("auto-row"),
     autoState: $("auto-state"),
+    actionHint: $("action-hint"),
     recordsCount: $("records-count"),
     seqPill: $("seq-pill"),
     recordsBody: $("records-body"),
@@ -39,12 +44,16 @@
     btnDelete: $("btn-delete"),
     btnTamper: $("btn-tamper"),
     btnRestore: $("btn-restore"),
+    attackTitle: $("attack-title"),
+    attackCopy: $("attack-copy"),
     attackHint: $("attack-hint"),
     btnUnlock: $("btn-unlock"),
     btnPowerCycle: $("btn-power-cycle"),
     btnReset: $("btn-reset"),
     logList: $("log-list"),
     toast: $("toast"),
+    footerSource: $("footer-source"),
+    footerHint: $("footer-hint"),
   };
 
   const app = {
@@ -99,10 +108,29 @@
     app.toastTimer = setTimeout(() => el.toast.classList.remove("show"), 3600);
   }
 
+  function isFpga() {
+    return app.data?.mode === "fpga";
+  }
+
+  function syncModePill() {
+    const fpga = isFpga();
+    const error = fpga && app.data?.hardware?.connected === false;
+    el.modePill.classList.toggle("offline", app.offline);
+    el.modePill.classList.toggle("fpga", fpga);
+    el.modePill.classList.toggle("warn", Boolean(error) && !app.offline);
+    if (app.offline) {
+      el.modeLabel.textContent = "Server offline";
+    } else if (fpga) {
+      const port = app.data?.hardware?.port || "UART";
+      el.modeLabel.textContent = error ? `FPGA · ${port} (gangguan)` : `FPGA · ${port}`;
+    } else {
+      el.modeLabel.textContent = "Model Python, bukan FPGA";
+    }
+  }
+
   function setOffline(offline) {
     app.offline = offline;
-    el.modePill.classList.toggle("offline", offline);
-    el.modeLabel.textContent = offline ? "Server offline" : "Model Python, bukan FPGA";
+    syncModePill();
   }
 
   function setBusy(busy) {
@@ -182,6 +210,12 @@
     renderRecords(data);
     renderLogs(data);
     renderControls();
+    syncModePill();
+    if (data.mode === "fpga" && Number.isFinite(data.voltage_mv)) {
+      el.voltageValue.textContent = fmtDecimal.format(data.voltage_mv / 1000);
+    } else {
+      updateVoltageLabel();
+    }
     el.batteryId.textContent = data.battery?.id || "BAT-0001";
     el.healthId.textContent = data.battery?.id || "BAT-0001";
   }
@@ -242,11 +276,15 @@
         <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Belum ada riwayat tegangan">
           <rect x="${margin.left}" y="${margin.top}" width="${plotW}" height="${plotH}" rx="10" fill="rgba(148,163,184,0.025)"></rect>
           <text x="${width / 2}" y="${height / 2 - 8}" text-anchor="middle" class="empty-chart">Belum ada catatan tegangan.</text>
-          <text x="${width / 2}" y="${height / 2 + 15}" text-anchor="middle" class="empty-chart">Catat sampel untuk memulai riwayat.</text>
+          <text x="${width / 2}" y="${height / 2 + 15}" text-anchor="middle" class="empty-chart">${data.mode === "fpga" ? "Tekan “Muat riwayat” setelah FPGA sampling." : "Catat sampel untuk memulai riwayat."}</text>
         </svg>`;
-      el.chartNote.textContent = data.power_cycled
-        ? "Daya dicabut: riwayat hilang, penghitung kembali ke 0"
-        : "Menunggu verifikasi";
+      if (data.mode === "fpga" && data.hardware?.error) {
+        el.chartNote.textContent = "FPGA belum merespons";
+      } else {
+        el.chartNote.textContent = data.power_cycled
+          ? "Daya dicabut: riwayat hilang, penghitung kembali ke 0"
+          : "Menunggu verifikasi";
+      }
       return;
     }
 
@@ -332,7 +370,9 @@
       </svg>`;
 
     const pendingText = data.pending > 0 ? ` · ${data.pending} catatan baru` : "";
-    if (data.power_cycled) {
+    if (data.mode === "fpga" && data.hardware?.error) {
+      el.chartNote.textContent = `FPGA: ${data.hardware.error}`;
+    } else if (data.power_cycled) {
       el.chartNote.textContent = "Daya dicabut: penghitung kembali ke 0";
     } else if (data.last_result?.status === "rejected") {
       el.chartNote.textContent = `Verifikasi gagal${pendingText}`;
@@ -409,6 +449,9 @@
       el.recordsBody.innerHTML = "";
       el.recordsBody.hidden = true;
       el.recordsEmpty.hidden = false;
+      el.recordsEmpty.textContent = data.mode === "fpga"
+        ? "Belum ada catatan dari FPGA. Tekan “Muat riwayat”."
+        : "Belum ada catatan. Tekan “Catat sampel”.";
       return;
     }
 
@@ -459,8 +502,11 @@
     const data = app.data;
     if (!data) return;
 
+    const fpga = data.mode === "fpga";
     const locked = Boolean(data.battery?.locked);
-    const baseline = (data.last_seq || 0) > 0;
+    const baseline = (data.last_seq || 0) > 0
+      || data.health_status === "trusted"
+      || data.health_status === "untrusted";
     const records = Array.isArray(data.records) ? data.records : [];
     const newRecords = baseline
       ? records.filter((record) => record.seq > data.last_seq && !record.deleted)
@@ -471,13 +517,39 @@
 
     el.btnSwap.disabled = app.busy;
     el.btnRecord.disabled = app.busy;
+    el.btnRecord.textContent = fpga ? "Muat riwayat" : "Catat sampel";
     el.btnDelete.disabled = app.busy || locked || !hasNew;
     el.btnTamper.disabled = app.busy || locked || !hasTamperable;
     el.btnRestore.disabled = app.busy || !hasDamage;
     el.btnUnlock.hidden = !locked;
     el.btnUnlock.disabled = app.busy;
-    el.btnPowerCycle.disabled = app.busy;
+    el.btnPowerCycle.disabled = app.busy || fpga;
+    el.btnPowerCycle.title = fpga
+      ? "Mode FPGA: cabut daya dilakukan di board, bukan lewat dashboard."
+      : "";
     el.btnReset.disabled = app.busy;
+
+    el.voltageControl.hidden = fpga;
+    el.autoRow.hidden = fpga;
+    el.voltageHint.textContent = fpga
+      ? "FPGA membaca tegangan dari ADS1115; slider tidak dipakai."
+      : "Putar kenop atau geser nilai";
+    el.chartSub.textContent = fpga
+      ? "Sampling FPGA ±1 detik · buffer 64 catatan"
+      : "1 titik = 3 jam pemakaian · buffer 64 catatan";
+    el.actionHint.textContent = fpga
+      ? "Riwayat yang tampil adalah dump bertanda tangan dari FPGA. Tekan “Muat riwayat” untuk mengambil sampel terbaru."
+      : "Satu sampel mewakili 3 jam pemakaian. Demo memakai satu titik per beberapa detik.";
+    el.attackTitle.textContent = fpga ? "BMS curang (host)" : "Simulasi BMS curang";
+    el.attackCopy.textContent = fpga
+      ? "Dashboard mengubah salinan dump sebelum verifikasi; FPGA tetap memegang kunci."
+      : "Ubah data di jalur sebelum stasiun memeriksa.";
+    el.footerSource.textContent = fpga
+      ? `SeBatt · terhubung ke FPGA via ${data.hardware?.port || "UART"} · clock PL 100 MHz`
+      : "SeBatt · chip diemulasikan oleh model protokol Python, belum terhubung ke FPGA";
+    el.footerHint.textContent = fpga
+      ? "Alur demo: Muat riwayat → Tukar baterai → Hapus/Ubah catatan baru → Tukar baterai."
+      : "Alur demo: tukar normal → catat 2,0 V dan hapus → tukar → pulihkan dan ubah angka → tukar.";
 
     if (locked) {
       el.attackHint.textContent = "Chip terkunci. Buka kunci untuk mengulang skenario demo.";
@@ -486,7 +558,9 @@
     } else if (data.power_cycled && !records.length) {
       el.attackHint.textContent = "Riwayat hilang setelah daya dicabut. Coba “Tukar baterai” untuk melihat ROLLBACK.";
     } else if (!hasNew) {
-      el.attackHint.textContent = "Belum ada catatan baru. Catat sampel dulu, lalu jalankan serangan.";
+      el.attackHint.textContent = fpga
+        ? "Belum ada catatan baru. Tunggu sampling FPGA, tekan “Muat riwayat”, lalu jalankan serangan."
+        : "Belum ada catatan baru. Catat sampel dulu, lalu jalankan serangan.";
     } else {
       el.attackHint.textContent = `${newRecords.length} catatan baru belum diverifikasi. Serang, lalu tekan “Tukar baterai”.`;
     }
@@ -497,6 +571,7 @@
   }
 
   function setAuto(enabled) {
+    if (isFpga()) enabled = false;
     app.auto = enabled;
     clearInterval(app.autoTimer);
     app.autoTimer = null;
@@ -534,7 +609,11 @@
     if (app.busy) return;
     setAuto(false);
     const result = await request("/api/reset");
-    if (result) showToast("Demo direset ke 16 catatan awal.");
+    if (result) {
+      showToast(isFpga()
+        ? "Tampilan direset. Riwayat FPGA tidak dihapus."
+        : "Demo direset ke 16 catatan awal.");
+    }
   }
 
   async function powerCycle() {
@@ -560,7 +639,9 @@
 
   el.btnSwap.addEventListener("click", swap);
   el.btnRecord.addEventListener("click", () => {
-    if (!app.busy) request("/api/record", { mv: currentMv() });
+    if (app.busy) return;
+    if (isFpga()) request("/api/refresh");
+    else request("/api/record", { mv: currentMv() });
   });
   el.btnDelete.addEventListener("click", () => attack("/api/attack/delete"));
   el.btnTamper.addEventListener("click", () => attack("/api/attack/tamper"));

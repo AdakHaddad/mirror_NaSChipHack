@@ -54,7 +54,7 @@
         <div class="card-head">
           <div>
             <h2>Riwayat tegangan</h2>
-            <p>1 titik = 3 jam pemakaian · buffer 64 catatan</p>
+            <p id="chart-sub">1 titik = 3 jam pemakaian · buffer 64 catatan</p>
           </div>
           <div class="chart-legend">
             <span><i class="swatch green"></i>Sah</span>
@@ -107,22 +107,24 @@
           <div class="card-head">
             <div>
               <h2>Tegangan paket</h2>
-              <p>Putar kenop atau geser nilai</p>
+              <p id="voltage-hint">Putar kenop atau geser nilai</p>
             </div>
             <div class="voltage-readout"><span id="voltage-value">3,70</span><small>V</small></div>
           </div>
-          <input class="slider" id="voltage-slider" type="range" min="2000" max="4200" step="10" value="3700" aria-label="Tegangan paket">
-          <div class="slider-scale"><span>2,0 V</span><span>3,7 V</span><span>4,2 V</span></div>
-          <div class="presets">
-            <button type="button" class="chip-btn" data-mv="4200">Penuh</button>
-            <button type="button" class="chip-btn" data-mv="3700">Normal</button>
-            <button type="button" class="chip-btn danger-text" data-mv="2000">Terkuras</button>
+          <div id="voltage-control">
+            <input class="slider" id="voltage-slider" type="range" min="2000" max="4200" step="10" value="3700" aria-label="Tegangan paket">
+            <div class="slider-scale"><span>2,0 V</span><span>3,7 V</span><span>4,2 V</span></div>
+            <div class="presets">
+              <button type="button" class="chip-btn" data-mv="4200">Penuh</button>
+              <button type="button" class="chip-btn" data-mv="3700">Normal</button>
+              <button type="button" class="chip-btn danger-text" data-mv="2000">Terkuras</button>
+            </div>
           </div>
           <div class="action-buttons">
             <button type="button" class="btn primary" id="btn-swap">Tukar baterai</button>
             <button type="button" class="btn secondary" id="btn-record">Catat sampel</button>
           </div>
-          <label class="switch-row" for="auto-record">
+          <label class="switch-row" id="auto-row" for="auto-record">
             <span class="switch">
               <input type="checkbox" id="auto-record">
               <span class="switch-track"></span>
@@ -130,7 +132,7 @@
             <span>Rekam otomatis</span>
             <span class="auto-state" id="auto-state">nonaktif</span>
           </label>
-          <p class="action-hint">Satu sampel mewakili 3 jam pemakaian. Demo memakai satu titik per beberapa detik.</p>
+          <p class="action-hint" id="action-hint">Satu sampel mewakili 3 jam pemakaian. Demo memakai satu titik per beberapa detik.</p>
         </article>
       </aside>
 
@@ -161,8 +163,8 @@
       <article class="card attack-card">
         <div class="card-head">
           <div>
-            <h2>Simulasi BMS curang</h2>
-            <p>Ubah data di jalur sebelum stasiun memeriksa.</p>
+            <h2 id="attack-title">Simulasi BMS curang</h2>
+            <p id="attack-copy">Ubah data di jalur sebelum stasiun memeriksa.</p>
           </div>
           <span class="attack-pill">BMS → stasiun</span>
         </div>
@@ -208,7 +210,7 @@
     </section>
 
     <footer class="footer">
-      <span>SeBatt · chip diemulasikan oleh model protokol Python, belum terhubung ke FPGA</span>
+      <span id="footer-source">SeBatt · chip diemulasikan oleh model protokol Python, belum terhubung ke FPGA</span>
       <span id="footer-hint">Alur demo: tukar normal → catat 2,0 V dan hapus → tukar → pulihkan dan ubah angka → tukar.</span>
     </footer>
   </main>

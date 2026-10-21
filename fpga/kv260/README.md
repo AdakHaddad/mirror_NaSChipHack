@@ -68,18 +68,18 @@ reports.
 
 | Metric | Value |
 |---|---|
-| WNS | **+1.466 ns** |
+| WNS | **+0.749 ns** (build 21.26; build board 11.46: +1.466 ns) |
 | WHS | **+0.015 ns** |
 | TNS / failing endpoints | 0 / 0 |
-| CLB LUTs | 5 633 (4.81 %) |
-| CLB registers | 6 201 (2.65 %) |
+| CLB LUTs | 5 607 (4.79 %) |
+| CLB registers | 6 207 (2.65 %) |
 | BRAM / DSP | 0 / 0 |
 | Clock | `clk_pl_0`, 10.000 ns, 100.000 MHz |
 
 This build includes the multi-driven `sg_req*` fix (the sample-to-signer
 request is generated once, gated by `sample_busy && adc_valid`, instead of
 being driven from both the sampling and signer blocks) plus the later dump
-race, CRC, parser-resync, and adc-free source fixes. The earlier bitstream
+race, CRC, parser-resync, adc-free source, LED, and I2C-bus fixes. The earlier bitstream
 predates those fixes; always rebuild after pulling RTL changes.
 
 The critical path is still the SHA-256 `w` expansion. **Do not raise `pl_clk0`

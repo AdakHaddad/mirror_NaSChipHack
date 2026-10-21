@@ -7,7 +7,7 @@ Pengujian pertama rangkaian SeBatt di board Kria KV260 panitia, 21 Oktober 2026 
 | Bagian | Isi |
 |---|---|
 | Board | AMD Kria KV260, Kria Ubuntu dari kartu SD (dipakai hanya untuk menyalakan clock PL) |
-| Bitstream | kv260_top.bit, Vivado 2024.2, xck26-sfvc784-2LV-c, dibangun 21 Okt 11.46 dari commit f36d639. Build ulang pukul 15.16 menghasilkan isi konfigurasi yang identik (hash isi 46c245355c6874eb) |
+| Bitstream | kv260_top.bit, Vivado 2024.2, xck26-sfvc784-2LV-c, dibangun 21 Okt 11.46 dari commit f36d639. Build ulang pukul 15.16 menghasilkan isi konfigurasi yang identik (hash isi 46c245355c6874eb). Build akhir 21 Okt 21.26 (WNS +0,749 ns, 5.607 LUT, 6.207 FF) memuat perbaikan LED dan bus I2C; belum diuji ulang di board |
 | Pemrograman | JTAG lewat Vivado 2026.1 Hardware Manager (Auto Connect, Program Device pada xck26), tanpa login ke Ubuntu |
 | Komunikasi | CP2102 di Pmod J2 pin 7/8, 115200 8N1, laptop Windows (COM8) |
 | Stasiun | model/station.py mode interaktif, dijalankan dengan Python 3.14 |
@@ -106,14 +106,14 @@ Penguncian otomatis setelah tiga RESULT gagal berturut-turut sudah lolos simulas
 | *Throughput* autentikasi | ≥ 50 per detik | 73,1 per detik, 50/50 VALID | Satu RESULT ikut terkirim per autentikasi |
 | READ_HIST 64 catatan | – | 292,5 ms | Termasuk verifikasi 65 tag di stasiun |
 | Latensi HMAC di FPGA | ≤ 300 siklus | Sekitar 452 siklus ditambah overhead | Perhitungan dari simulasi, belum diukur di board |
-| WNS di 100 MHz | Fmax ≥ 50 MHz | +1,466 ns | Laporan sintesis Vivado, dilaporkan Muqtada |
+| WNS di 100 MHz | Fmax ≥ 50 MHz | +1,466 ns (build 11.46); +0,749 ns (build 21.26) | Laporan sintesis Vivado, dilaporkan Muqtada |
 
 ## Temuan Selama Uji
 
 - **Pmod 3 yang dibiarkan terbuka terbaca 1.** Pull-down internal FPGA kalah, sehingga chip memakai sumber tetap 3000 mV. Pmod 3 harus disambung ke GND untuk ADS1115 dan ke 3V3 untuk sumber tetap. Aturan ini sudah dicatat di RUNBOOK dan spesifikasi.
 - **AUTH menandatangani tegangan valid terakhir saat ADS1115 gagal dibaca.** Tanda kegagalan adalah berhentinya catatan riwayat baru dan LED merah, bukan isi AUTH_RESP. Ini dicatat sebagai batasan.
-- **LED merah tidak pernah padam setelah satu penolakan.** Flag error di auth_ctrl hanya dibersihkan saat reset, dan LED hijau menyala setiap chip selesai membalas, bukan saat stasiun menerima. Sudah diperbaiki di RTL: LED kini mengikuti putusan RESULT terakhir, dan merah padam setelah RESULT VALID atau UNLOCK. Uji cocotb baru (26/26) lolos. Perbaikan ini menunggu build ulang bitstream dan belum diuji di board.
-- **Pmod 2 (SDA) yang tersambung ke GND membuat pembacaan I2C bernilai 0 mV.** SDA yang tertahan rendah terbaca sebagai ACK dan data 0x0000, sehingga 0 mV tersimpan dan ditandatangani seolah hasil ukur asli. Akibatnya kabel yang korsleting bisa memunculkan kejadian terkuras dalam palsu. Sudah diperbaiki di RTL: i2c_master hanya memulai transaksi bila SDA dan SCL sedang tinggi, dan melaporkan error bila tidak. Dua uji cocotb baru (26/26) lolos. Perbaikan ini menunggu build ulang bitstream.
+- **LED merah tidak pernah padam setelah satu penolakan.** Flag error di auth_ctrl hanya dibersihkan saat reset, dan LED hijau menyala setiap chip selesai membalas, bukan saat stasiun menerima. Sudah diperbaiki di RTL: LED kini mengikuti putusan RESULT terakhir, dan merah padam setelah RESULT VALID atau UNLOCK. Uji cocotb baru (26/26) lolos. Perbaikan ini sudah masuk bitstream build 21.26, tetapi belum diuji ulang di board.
+- **Pmod 2 (SDA) yang tersambung ke GND membuat pembacaan I2C bernilai 0 mV.** SDA yang tertahan rendah terbaca sebagai ACK dan data 0x0000, sehingga 0 mV tersimpan dan ditandatangani seolah hasil ukur asli. Akibatnya kabel yang korsleting bisa memunculkan kejadian terkuras dalam palsu. Sudah diperbaiki di RTL: i2c_master hanya memulai transaksi bila SDA dan SCL sedang tinggi, dan melaporkan error bila tidak. Dua uji cocotb baru (26/26) lolos. Perbaikan ini sudah masuk bitstream build 21.26, tetapi belum diuji ulang di board.
 - **HISTORY_TRUNCATED muncul pada dump pertama setelah stasiun dijalankan ulang.** Jangkar stasiun kembali ke 0 sementara catatan lama di chip sudah tertimpa. Status ini diterima dengan peringatan, dan dump berikutnya VALID.
 - **Ubuntu Kria tidak perlu login untuk memprogram lewat JTAG**, karena clock PL sudah menyala setelah boot. Login tetap diperlukan untuk mengecek atau memperbaiki clock pl0_ref. Kata sandi board diminta ke panitia.
 
