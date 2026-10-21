@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from model.hmac import hmac_sha256
 from model.protocol import (
     AuthStatus, Command, WireProtocol,
-    AuthRequest, AuthResponse, HistoryDump,
+    AuthRequest, AuthResponse, HistoryDump, HistoryRecord,
     AUTH_MSG_PREFIX, RECORD_MSG_PREFIX, SUMMARY_MSG_PREFIX,
 )
 
@@ -256,6 +256,59 @@ class Station:
         if cmd != Command.STATUS or len(payload) < 2:
             raise ValueError(f"unexpected STATUS reply: cmd {cmd:#04x}")
         return bool(payload[0]), payload[1]
+
+    def read_history_attacked(self, battery_id: bytes, mode: str,
+                              seq: Optional[int] = None,
+                              count: int = 3, mv: int = 3600):
+        """Play the dishonest BMS: fetch a real dump from the chip, alter it
+        after it left the chip, then verify it like the station would.
+
+        mode: 'tamper' (change one voltage), 'delete' (drop records in the
+        middle), 'cut' (drop the newest records and shrink the range),
+        'replay' (answer a new nonce with a dump signed for an old one).
+        Returns (status, description).
+        """
+        nonce = os.urandom(32)
+        self._send_frame(Command.READ_HIST_REQ, nonce)
+        cmd, payload = self._recv_frame()
+        if cmd == Command.CHIP_LOCKED:
+            return AuthStatus.BATTERY_LOCKED, "chip terkunci"
+        if cmd != Command.READ_HIST_RESP:
+            return AuthStatus.INVALID_HMAC, f"balasan tak terduga {cmd:#04x}"
+        dump = WireProtocol.decode_history(payload)
+        dump.battery_id = battery_id
+        recs = dump.records
+        if len(recs) < 4:
+            return None, "riwayat terlalu pendek, tunggu beberapa detik"
+
+        idx = len(recs) // 2
+        if seq is not None:
+            idx = next((i for i, r in enumerate(recs) if r.seq == seq), idx)
+
+        if mode == 'tamper':
+            old = recs[idx]
+            recs[idx] = HistoryRecord(seq=old.seq, mv=mv, tag=old.tag)
+            desc = f"seq {old.seq}: {old.mv} mV diubah menjadi {mv} mV"
+        elif mode == 'delete':
+            count = max(1, min(count, len(recs) - 2))
+            idx = max(1, min(idx, len(recs) - count - 1))
+            gone = [r.seq for r in recs[idx:idx + count]]
+            del recs[idx:idx + count]
+            desc = f"seq {gone[0]}..{gone[-1]} dibuang dari tengah"
+        elif mode == 'cut':
+            count = max(1, min(count, len(recs) - 1))
+            del recs[len(recs) - count:]
+            dump.seq_last = recs[-1].seq
+            desc = f"{count} catatan terbaru dibuang, rentang dipalsukan"
+        elif mode == 'replay':
+            nonce = os.urandom(32)
+            desc = "dump untuk nonce lama dikirim sebagai jawaban nonce baru"
+        else:
+            raise ValueError(f"unknown attack mode: {mode}")
+
+        status = self.verify_history(battery_id, nonce, dump)
+        self._report(status)
+        return status, desc
 
     def reset_anchor(self, battery_id: bytes):
         """Forget the seq anchor, e.g. after the chip was reset on purpose.
@@ -604,6 +657,8 @@ def interactive_mode(station: Station):
     """Interactive CLI for demo."""
     print("SeBatt Interactive Station")
     print("Commands: auth, history, status, lock, unlock, reset-anchor, bench, quit")
+    print("BMS curang: attack tamper [seq] [mV] | attack delete [n] | "
+          "attack cut [n] | attack replay")
 
     while True:
         try:
@@ -628,6 +683,28 @@ def interactive_mode(station: Station):
         elif cmd == 'reset-anchor':
             station.reset_anchor(b'BAT\x01')
             print("  Seq anchor cleared (use after a deliberate chip reset)")
+        elif cmd.startswith('attack'):
+            parts = cmd.split()
+            if len(parts) < 2 or parts[1] not in ('tamper', 'delete', 'cut', 'replay'):
+                print("  Usage: attack tamper [seq] [mV] | attack delete [n] | "
+                      "attack cut [n] | attack replay")
+                continue
+            mode, args = parts[1], [int(x) for x in parts[2:] if x.isdigit()]
+            kwargs = {}
+            if mode == 'tamper':
+                if len(args) >= 1:
+                    kwargs['seq'] = args[0]
+                if len(args) >= 2:
+                    kwargs['mv'] = args[1]
+            elif mode in ('delete', 'cut') and args:
+                kwargs['count'] = args[0]
+            status, desc = station.read_history_attacked(b'BAT\x01', mode, **kwargs)
+            if status is None:
+                print(f"  {desc}")
+            else:
+                verdict = "DITERIMA" if status.name in ('VALID', 'HISTORY_TRUNCATED') else "DITOLAK"
+                print(f"  BMS curang: {desc}")
+                print(f"  Stasiun  : {status.name} -> {verdict}")
         elif cmd in ('h', 'history'):
             status, dump = station.read_history(b'BAT\x01')
             if dump is None:
