@@ -68,7 +68,7 @@ module kv260_top #(
         .scl       (scl),
         .sda       (sda),
         .sw        (8'd0),
-        .src_sel   (1'b0),   // was: src_sel pin; KV260 reads it as 1 regardless of wiring
+        .src_sel   (src_sel),  // Pmod 3: GND = ADS1115, 3V3 = fixed 3000 mV; never leave open (reads 1)
         .led       (led),
         .led_green (led_green),
         .led_red   (led_red)
