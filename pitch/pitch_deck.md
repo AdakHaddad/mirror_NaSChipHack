@@ -74,7 +74,8 @@ Kondisi per 20 Oktober. Setiap angka diberi sumbernya. Kolom ini diisi ulang set
 - **Model Monetisasi**:
   - Lisensi IP RTL Core ($50k–100k upfront) + Royalti ($0.25–0.50/chip) *(perkiraan, belum bersumber)*
   - Penyediaan modul secure element terprogram untuk retrofit armada
-- **Dampak Ekonomi**: Mencegah kerugian fraud baterai senilai Rp 8–10 juta per paket baterai *(perkiraan, belum bersumber)*.
+- **Dampak Ekonomi**: Mencegah kerugian fraud baterai senilai Rp 8–10 juta per paket baterai *(perkiraan, belum bersumber)*
+- **Angka pasar & asumsi lengkap**: [../bisnis/pitch-dan-angka.md](../bisnis/pitch-dan-angka.md) — pakai angka bersumber di sana; jangan sebut TAM tanpa sumber.
 
 ---
 
