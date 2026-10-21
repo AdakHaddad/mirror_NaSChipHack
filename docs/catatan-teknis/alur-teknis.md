@@ -190,7 +190,7 @@ Untuk 100.000 baterai totalnya sekitar 4 MB. Tanda tangan tidak disimpan, karena
 
 Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dapat menyimpan ringkasannya saja, misalnya "tegangan terendah 2,0 V pada catatan ke-150". Apabila riwayat lengkap tetap disimpan (seq dan tegangan tanpa tanda tangan), kebutuhannya sekitar 400 byte per penukaran, atau sekitar 15 GB per tahun untuk 100.000 baterai yang ditukar sekali sehari.
 
-**Konsekuensi.** Stasiun harus terhubung ke server setiap kali penukaran, karena hanya server yang memegang K. Solusi tahap produk adalah tanda tangan asimetris (misalnya ECDSA). Chip menyimpan kunci privat, stasiun cukup menyimpan kunci publik, sehingga verifikasi dapat dilakukan tanpa koneksi. Gantinya, rangkaian tanda tangan di chip jauh lebih besar daripada HMAC.
+**Konsekuensi.** Stasiun harus terhubung ke server setiap kali penukaran, karena hanya server yang memegang K. Solusi tahap produk adalah tanda tangan asimetris (misalnya ECDSA). Chip menyimpan kunci privat, stasiun cukup menyimpan kunci publik, sehingga verifikasi dapat dilakukan tanpa koneksi. Gantinya, rangkaian tanda tangan di chip jauh lebih besar daripada HMAC. Mekanisme membagi kunci publik tanpa database rahasia per chip (kunci global, sertifikat per chip, atau daftar public key) dirinci di [desain-sampling-riwayat.md](desain-sampling-riwayat.md) §5.
 
 ## Pada Demo
 
