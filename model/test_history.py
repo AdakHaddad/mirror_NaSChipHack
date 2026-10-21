@@ -271,6 +271,15 @@ def test_health_card_aki12v_profile():
     assert "terkuras dalam 1 kali" in lines[1]
 
 
+def test_health_card_lipo3s_profile():
+    # 120k/10k/15k divider, x5.8: 2172 mV pin = 12,60 V (knob top),
+    # 1500 mV pin = 8,70 V (< 9,0 V), 1800 mV pin = 10,44 V (< 10,5 V arms).
+    lines = health_card(_records([2172, 1500, 1800, 2172]), PROFILES["lipo3s"])
+    assert "terendah 8,70 V" in lines[0]
+    assert "siklus 1" in lines[0]
+    assert "terkuras dalam 1 kali" in lines[1]
+
+
 def test_history_report_hides_health_when_rejected():
     station = _wire_station()
     dump = HistoryDump(battery_id=BID, seq_oldest=0, seq_last=1,

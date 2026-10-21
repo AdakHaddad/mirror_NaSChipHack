@@ -213,6 +213,27 @@ class HardwareStateTests(unittest.TestCase):
         self.assertEqual(tampered["mv"], 3600)
         self.assertEqual(self.state.swap()["last_result"]["code"], "INVALID_HMAC")
 
+    def test_lipo3s_profile_scales_health_chart_and_tamper(self):
+        self.station.profile = PROFILES["lipo3s"]
+        self.state = HardwareState(self.station, port="/dev/ttyUSB0")
+        # Knob at the top end (12.4 V pack, 2138 mV pin), then turned down to
+        # 1500 mV pin = 8.7 V: one deep discharge below 9.0 V.
+        for mv in (2138, 1500, 1500, 2138):
+            self.station.sample(mv)
+        state = self.state.swap()
+        self.assertEqual(state["last_result"]["code"], "VALID")
+        self.assertEqual(state["health"]["deep"], 1)
+        self.assertEqual(state["health"]["min_mv"], 8700)
+        self.assertEqual(state["limits"]["deep_mv"], 9000)
+        self.assertEqual(state["limits"]["top_mv"], 12600)
+        self.assertEqual(state["limits"]["short"], "LiPo 3S")
+
+        self.station.sample(1500)
+        self.state.refresh_live()
+        result = self.state.attack_tamper()
+        self.assertIn("11,8 V", result["message"])
+        self.assertEqual(self.state.swap()["last_result"]["code"], "INVALID_HMAC")
+
     def test_power_cycle_is_not_available_on_fpga(self):
         result = self.state.power_cycle()
         self.assertFalse(result["ok"])
