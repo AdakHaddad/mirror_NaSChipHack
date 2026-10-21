@@ -61,7 +61,7 @@ check_pin() {
 check_pin H12 scl
 check_pin E10 sda
 check_pin D10 src_sel
-check_pin C11 btn
+check_pin C11 led_hb
 check_pin B10 uart_tx
 check_pin E12 uart_rx
 check_pin D11 led_green
@@ -70,7 +70,7 @@ check_pin B11 led_red
 echo "-- implemented I/O (routed design)"
 io_rpt=fpga/kv260/build/project/kv260.runs/impl_1/kv260_top_io_placed.rpt
 if [[ -f "$io_rpt" ]]; then
-    for pair in "H12 scl" "E10 sda" "D10 src_sel" "C11 btn" \
+    for pair in "H12 scl" "E10 sda" "D10 src_sel" "C11 led_hb" \
                 "B10 uart_tx" "E12 uart_rx" "D11 led_green" "B11 led_red"
     do
         read -r pin port <<< "$pair"
@@ -98,7 +98,7 @@ fi
 if [[ "$FULL" -eq 1 ]]; then
     echo "-- RTL cocotb suite"
     if PATH="$ROOT/.venv/bin:$PATH" make -C sim all >/tmp/sebatt_cocotb.log 2>&1; then
-        ok "cocotb 20/20 (sha256 5, hmac 4, ads1115 2, auth 9)"
+        ok "cocotb 23/23 (sha256 5, hmac 4, ads1115 2, auth 12)"
     else
         bad "cocotb suite failed (see /tmp/sebatt_cocotb.log)"
     fi

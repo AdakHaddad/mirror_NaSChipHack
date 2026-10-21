@@ -7,7 +7,7 @@
 #   Pmod 1 H12 scl         Pmod 7  B10 uart_tx
 #   Pmod 2 E10 sda         Pmod 8  E12 uart_rx
 #   Pmod 3 D10 src_sel     Pmod 9  D11 led_green
-#   Pmod 4 C11 btn         Pmod 10 B11 led_red
+#   Pmod 4 C11 led_hb      Pmod 10 B11 led_red
 # (The KV260 schematic labels the raw header positions 1,3,5,7 / 2,4,6,8;
 #  those are not the Digilent pin numbers.)
 
@@ -23,13 +23,14 @@ set_property PULLUP true [get_ports { sda }]
 set_property -dict { PACKAGE_PIN D10 IOSTANDARD LVCMOS33 } [get_ports { src_sel }]
 set_property PULLDOWN true [get_ports { src_sel }]
 
-## Pmod 4: reset button, active low (press to GND)
-set_property -dict { PACKAGE_PIN C11 IOSTANDARD LVCMOS33 } [get_ports { btn }]
-set_property PULLUP true [get_ports { btn }]
+## Pmod 4: heartbeat LED (blinks while the PL clock runs)
+set_property -dict { PACKAGE_PIN C11 IOSTANDARD LVCMOS33 } [get_ports { led_hb }]
 
 ## Pmod 7/8: UART to CP2102 (TX -> CP2102 RXD, RX <- CP2102 TXD)
 set_property -dict { PACKAGE_PIN B10 IOSTANDARD LVCMOS33 } [get_ports { uart_tx }]
 set_property -dict { PACKAGE_PIN E12 IOSTANDARD LVCMOS33 } [get_ports { uart_rx }]
+# Idle-high when the CP2102 is unplugged, so noise does not reach the parser.
+set_property PULLUP true [get_ports { uart_rx }]
 
 ## Pmod 9/10: green (auth OK) and red (locked/error) LEDs
 set_property -dict { PACKAGE_PIN D11 IOSTANDARD LVCMOS33 } [get_ports { led_green }]

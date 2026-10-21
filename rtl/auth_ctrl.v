@@ -44,6 +44,16 @@
 //  HISTORY_TRUNCATED bumps the fail counter; three failures in a row lock
 //  the chip. UNLOCK or power cycle clears lock and counter.
 //
+//  Robustness:
+//    - The buffer and tag memory are frozen from the READ_HIST snapshot until
+//      the last response byte; a sample finishing meanwhile is held and
+//      stored afterwards, so a dump never mixes old and new records.
+//    - The response CRC is computed from the byte actually transmitted.
+//    - The parser drops a partial frame after RX_TIMEOUT_CYCLES of silence,
+//      and skips the payload of an oversized frame instead of parsing it.
+//    - The switch and ROM sources do not wait for the ADC, so they work with
+//      the ADS1115 disconnected.
+//
 //  Fixed key for the PoC: bytes 0x00..0x1F (matches model/station.py).
 // ===========================================================================
 
@@ -54,7 +64,8 @@ module auth_ctrl #(
     parameter integer SAMPLE_INTERVAL_MS = 1000,
     parameter integer SAMPLE_CYCLES = (CLK_HZ / 1000) * SAMPLE_INTERVAL_MS,
     parameter [15:0]  ROM_MV = 16'd0,       // recorded-set mV until ROM playback exists
-    parameter [1:0]   SAMPLE_SOURCE = 2'd0  // 0 ADS1115 (primary), 1 ROM, 2 switch
+    parameter [1:0]   SAMPLE_SOURCE = 2'd0, // 0 ADS1115 (primary), 1 ROM, 2 switch
+    parameter integer RX_TIMEOUT_CYCLES = CLK_HZ / 200  // 5 ms idle drops a partial frame
 )(
     input  wire        clk,
     input  wire        resetn,
@@ -78,10 +89,22 @@ module auth_ctrl #(
     // -----------------------------------------------------------------------
     // Voltage source multiplexer (spec section 3)
     // -----------------------------------------------------------------------
-    wire [1:0]  src_sel_code = src_sel ? 2'd2 : SAMPLE_SOURCE;
+    // sw and src_sel are board pins: synchronise them so the value stored in
+    // the buffer and the value signed come from the same clean sample.
+    reg [1:0] src_sel_sync;
+    reg [7:0] sw_s1, sw_s2;
+
+    always @(posedge clk) begin
+        src_sel_sync <= {src_sel_sync[0], src_sel};
+        sw_s1        <= sw;
+        sw_s2        <= sw_s1;
+    end
+
+    wire [1:0]  src_sel_code = src_sel_sync[1] ? 2'd2 : SAMPLE_SOURCE;
+    wire        src_is_adc   = (src_sel_code == 2'd0);
     wire [15:0] mv_source =
         (src_sel_code == 2'd1) ? ROM_MV :
-        (src_sel_code == 2'd2) ? (16'd3000 + sw * 16'd5) :
+        (src_sel_code == 2'd2) ? (16'd3000 + sw_s2 * 16'd5) :
                                  adc_mv;
 
     // -----------------------------------------------------------------------
@@ -194,9 +217,11 @@ module auth_ctrl #(
         P_LEN_HI  = 3'd1,
         P_LEN_LO  = 3'd2,
         P_PAYLOAD = 3'd3,
-        P_CRC     = 3'd4;
+        P_CRC     = 3'd4,
+        P_SKIP    = 3'd5;   // discard an oversized frame until the line idles
 
     reg [2:0]  pstate;
+    reg [31:0] rx_idle;
     reg [7:0]  p_cmd;
     reg [15:0] p_len;
     reg [15:0] p_idx;
@@ -214,9 +239,24 @@ module auth_ctrl #(
             p_crc       <= 8'd0;
             frame_valid <= 1'b0;
             frame_error <= 1'b0;
+            rx_idle     <= 32'd0;
         end else begin
             frame_valid <= 1'b0;
             frame_error <= 1'b0;
+
+            // A frame left incomplete by a lost or stray byte is dropped
+            // after the line has been idle for RX_TIMEOUT_CYCLES.
+            if (rx_valid || pstate == P_CMD)
+                rx_idle <= 32'd0;
+            else
+                rx_idle <= rx_idle + 32'd1;
+
+            if (!rx_valid && pstate != P_CMD &&
+                rx_idle >= RX_TIMEOUT_CYCLES - 1) begin
+                if (pstate != P_SKIP)
+                    frame_error <= 1'b1;
+                pstate <= P_CMD;
+            end
 
             if (rx_valid) begin
                 case (pstate)
@@ -240,7 +280,7 @@ module auth_ctrl #(
                             pstate <= P_CRC;
                         else if ({p_len[15:8], rx_data} > 16'd64) begin
                             frame_error <= 1'b1;
-                            pstate      <= P_CMD;
+                            pstate      <= P_SKIP;
                         end
                         else
                             pstate <= P_PAYLOAD;
@@ -263,6 +303,8 @@ module auth_ctrl #(
                             frame_error <= 1'b1;
                         pstate <= P_CMD;
                     end
+
+                    P_SKIP: ;
 
                     default: pstate <= P_CMD;
                 endcase
@@ -345,8 +387,8 @@ module auth_ctrl #(
     wire [31:0] hist_last_next   = seq_next - 32'd1;
 
     // Record signer request: the newest record wins when a tag is still
-    // running. At the production ratio (sign ~5 us per 100 ms sample) the
-    // queue never overlaps.
+    // running. At the production ratio (sign ~5 us per 1 s sample) the
+    // queue never overlaps; a dump holds new samples (see commit_now).
     reg        sg_req;
     reg [31:0] sg_req_seq;
     reg [15:0] sg_req_mv;
@@ -360,6 +402,21 @@ module auth_ctrl #(
     reg [5:0]  sg_phys;
     reg        sg_busy;
     reg        cmd_reserve;
+
+    // Sample commit. A sample is done when the ADC answers or, for the
+    // switch/ROM sources, at the interval tick without touching the ADC.
+    // While a READ_HIST is between snapshot and last byte the buffer and tag
+    // memory stay frozen; a finished sample waits in hold_* (one slot, so in
+    // 100 ms mode a second sample during a dump replaces the first).
+    reg        hold_valid;
+    reg [15:0] hold_mv;
+
+    wire sample_tick = (sample_cnt >= SAMPLE_CYCLES - 1);
+    wire direct_tick = sample_tick && !src_is_adc && !sample_busy;
+    wire sample_done = (sample_busy && adc_valid) || direct_tick;
+    wire dump_active = (pend_cmd == CMD_READ_HIST) && (mstate != M_IDLE);
+    wire commit_now  = !dump_active && (hold_valid || sample_done);
+    wire [15:0] commit_mv = hold_valid ? hold_mv : mv_source;
 
     // Sign engine AXI drives; the signer wins the mux while busy, and the
     // command FSM only starts a sign from M_WAIT once the signer is done.
@@ -623,16 +680,6 @@ module auth_ctrl #(
             // -------------------------------------------------------------
             sg_axi_start <= 1'b0;
 
-            // A completed sample becomes a pending signer request. This
-            // lives in the same always block as the signer so sg_req* have
-            // exactly one driver in synthesis.
-            if (sample_busy && adc_valid) begin
-                sg_req      <= 1'b1;
-                sg_req_seq  <= seq_next;
-                sg_req_mv   <= mv_source;
-                sg_req_phys <= buf_wr;
-            end
-
             // Claim the signer (and the bus) when free; cmd_reserve is set
             // by M_WAIT before the command FSM owns the bus.
             if (sg_req && !sg_busy && cmd_bus_free && !cmd_reserve) begin
@@ -643,6 +690,17 @@ module auth_ctrl #(
                 sg_busy   <= 1'b1;
                 sg_state  <= SG_BUILD;
                 sg_wr_idx <= 5'd0;
+            end
+
+            // A committed sample becomes a pending signer request. It comes
+            // after the claim above so a request landing on the claim edge
+            // is kept rather than cleared. It lives in the same always block
+            // as the signer so sg_req* have exactly one driver.
+            if (commit_now) begin
+                sg_req      <= 1'b1;
+                sg_req_seq  <= seq_next;
+                sg_req_mv   <= commit_mv;
+                sg_req_phys <= buf_wr;
             end
 
             case (sg_state)
@@ -778,6 +836,7 @@ module auth_ctrl #(
                                         nonce_mem[j] <= payload[j];
                                     auth_ok <= 1'b0;
                                     if (locked_r) begin
+                                        pend_cmd  <= 8'd0;
                                         resp_cmd  <= CMD_CHIP_LOCKED;
                                         resp_plen <= 12'd4;
                                         tx_idx    <= 12'd0;
@@ -799,6 +858,7 @@ module auth_ctrl #(
                                         nonce_mem[j] <= payload[j];
                                     auth_ok <= 1'b0;
                                     if (locked_r) begin
+                                        pend_cmd  <= 8'd0;
                                         resp_cmd  <= CMD_CHIP_LOCKED;
                                         resp_plen <= 12'd4;
                                         tx_idx    <= 12'd0;
@@ -822,14 +882,15 @@ module auth_ctrl #(
                                     if (payload[0] == ST_VALID ||
                                         payload[0] == ST_TRUNCATED) begin
                                         fail_cnt <= 5'd0;
+                                        auth_ok  <= 1'b1;
                                     end else begin
                                         if (fail_cnt < MAX_FAILS)
                                             fail_cnt <= fail_cnt + 5'd1;
                                         if (fail_cnt == MAX_FAILS - 5'd1)
                                             locked_r <= 1'b1;
+                                        auth_ok    <= 1'b0;
                                         auth_error <= 1'b1;
                                     end
-                                    auth_ok <= 1'b1;
                                 end else begin
                                     auth_error <= 1'b1;
                                 end
@@ -856,6 +917,7 @@ module auth_ctrl #(
 
                             CMD_STATUS: begin
                                 if (p_len == 16'd0) begin
+                                    pend_cmd  <= 8'd0;
                                     resp_cmd  <= CMD_STATUS;
                                     resp_plen <= 12'd2;
                                     tx_idx    <= 12'd0;
@@ -1030,8 +1092,10 @@ module auth_ctrl #(
 
                 M_TX_WAIT: begin
                     if (tx_done) begin
+                        // CRC over the byte that went out on the wire, not a
+                        // second read of the response memory.
                         if (tx_idx < tx_total - 12'd1)
-                            tx_crc <= crc8_byte(tx_crc, frame_byte(tx_idx));
+                            tx_crc <= crc8_byte(tx_crc, tx_byte);
                         tx_idx <= tx_idx + 12'd1;
                         mstate <= M_TX;
                     end
@@ -1056,15 +1120,21 @@ module auth_ctrl #(
             seq_next     <= 32'd0;
             buf_wr       <= 6'd0;
             buf_cnt      <= 7'd0;
+            hold_valid   <= 1'b0;
+            hold_mv      <= 16'd0;
         end else begin
             adc_start <= 1'b0;
 
             // Periodic loop: conversions are spaced SAMPLE_CYCLES apart,
             // start to start when the ADC is faster than the interval. The
             // request waits if a conversion is still in flight, so an
-            // interval can stretch but never collapse.
-            if (sample_cnt >= SAMPLE_CYCLES - 1) begin
-                if (!sample_busy && !adc_busy) begin
+            // interval can stretch but never collapse. The switch and ROM
+            // sources complete at the tick itself (direct_tick).
+            if (sample_tick) begin
+                if (!src_is_adc) begin
+                    if (!sample_busy)
+                        sample_cnt <= 32'd0;
+                end else if (!sample_busy && !adc_busy) begin
                     adc_start   <= 1'b1;
                     sample_busy <= 1'b1;
                     sample_cnt  <= 32'd0;
@@ -1073,20 +1143,38 @@ module auth_ctrl #(
                 sample_cnt <= sample_cnt + 32'd1;
             end
 
-            if (sample_busy) begin
-                if (adc_valid) begin
-                    // Store the record; the command/signer block requests
-                    // its tag on the same edge.
-                    buf_mem[buf_wr] <= {seq_next, mv_source};
-                    seq_next        <= seq_next + 32'd1;
-                    buf_wr          <= buf_wr + 6'd1;
-                    if (buf_cnt < 7'd64)
-                        buf_cnt <= buf_cnt + 7'd1;
-                    latest_mv       <= mv_source;
-                    latest_valid    <= 1'b1;
-                    latest_error    <= 1'b0;
-                    sample_busy     <= 1'b0;
-                end else if (adc_error) begin
+            if (sample_done) begin
+                latest_mv    <= mv_source;
+                latest_valid <= 1'b1;
+                latest_error <= 1'b0;
+                if (sample_busy)
+                    sample_busy <= 1'b0;
+            end
+
+            // Store the record (held sample first); the command/signer block
+            // requests its tag on the same edge from commit_now/commit_mv.
+            if (commit_now) begin
+                buf_mem[buf_wr] <= {seq_next, commit_mv};
+                seq_next        <= seq_next + 32'd1;
+                buf_wr          <= buf_wr + 6'd1;
+                if (buf_cnt < 7'd64)
+                    buf_cnt <= buf_cnt + 7'd1;
+            end
+
+            // Hold slot: filled while a dump is in progress, drained by the
+            // commit above once it ends. A sample finishing on the drain
+            // edge takes the slot for the next cycle.
+            if (sample_done && (dump_active || hold_valid)) begin
+                hold_valid <= 1'b1;
+                hold_mv    <= mv_source;
+            end else if (commit_now) begin
+                hold_valid <= 1'b0;
+            end
+
+            // ads1115_ctrl keeps error high until it sees the next start, so
+            // ignore it during the start pulse itself.
+            if (sample_busy && !adc_valid) begin
+                if (adc_error && !adc_start) begin
                     // Keep the last good sample if there is one; otherwise
                     // expose 0 mV so a request still completes. No record is
                     // stored for a failed read.

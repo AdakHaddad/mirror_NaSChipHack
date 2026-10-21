@@ -83,6 +83,9 @@ class Station:
         self.db = IdentityDB()
         self.log = []
         self.last_battery_id: Optional[bytes] = None
+        # Tell the chip each verdict (RESULT) so its fail counter and lock
+        # follow the station, as in spec sections 10 and 11.
+        self.report_results = True
 
         # Register default battery (matches firmware)
         default_key = bytes(range(32))
@@ -96,6 +99,9 @@ class Station:
 
     def _send_frame(self, cmd: int, payload: bytes):
         """Send wire protocol frame."""
+        # Drop stale bytes (adapter plug-in noise, a late reply) so the next
+        # read starts at a frame boundary.
+        self.ser.reset_input_buffer()
         header = bytes([cmd]) + struct.pack('>H', len(payload))
         data = header + payload
         crc = self._crc8(data)
@@ -210,6 +216,7 @@ class Station:
             'voltage': voltage,
             'time': time.time(),
         })
+        self._report(status)
 
         return status, voltage, battery_id.hex()
 
@@ -234,7 +241,28 @@ class Station:
         dump = WireProtocol.decode_history(payload)
         dump.battery_id = battery_id
         status = self.verify_history(battery_id, nonce, dump)
+        self._report(status)
         return status, dump
+
+    def _report(self, status: AuthStatus):
+        """Send RESULT so the chip's fail counter tracks the verdict."""
+        if self.report_results:
+            self._send_frame(Command.RESULT, bytes([int(status)]))
+
+    def query_status(self) -> tuple:
+        """STATUS -> (locked, fail_cnt) as reported by the chip."""
+        self._send_frame(Command.STATUS, b'')
+        cmd, payload = self._recv_frame()
+        if cmd != Command.STATUS or len(payload) < 2:
+            raise ValueError(f"unexpected STATUS reply: cmd {cmd:#04x}")
+        return bool(payload[0]), payload[1]
+
+    def reset_anchor(self, battery_id: bytes):
+        """Forget the seq anchor, e.g. after the chip was reset on purpose.
+        Without this every dump is HISTORY_ROLLBACK until seq passes it."""
+        record = self.db.lookup(battery_id)
+        if record:
+            record.seq_anchor = 0
 
     def verify_history(self, battery_id: bytes, nonce: bytes,
                        dump: HistoryDump) -> AuthStatus:
@@ -567,7 +595,7 @@ def main():
 def interactive_mode(station: Station):
     """Interactive CLI for demo."""
     print("SeBatt Interactive Station")
-    print("Commands: auth, history, lock, unlock, bench, quit")
+    print("Commands: auth, history, status, lock, unlock, reset-anchor, bench, quit")
 
     while True:
         try:
@@ -586,6 +614,12 @@ def interactive_mode(station: Station):
         elif cmd == 'unlock':
             station.unlock_battery(b'BAT\x01')
             print("  Battery unlocked")
+        elif cmd in ('s', 'status'):
+            locked, fails = station.query_status()
+            print(f"  Chip: {'LOCKED' if locked else 'unlocked'}, fail_cnt={fails}")
+        elif cmd == 'reset-anchor':
+            station.reset_anchor(b'BAT\x01')
+            print("  Seq anchor cleared (use after a deliberate chip reset)")
         elif cmd in ('h', 'history'):
             status, dump = station.read_history(b'BAT\x01')
             if dump is None:

@@ -9,8 +9,12 @@
 //    1  SCL  -> ADS1115 SCL        7  TX  -> CP2102 RXD
 //    2  SDA  -> ADS1115 SDA        8  RX  <- CP2102 TXD
 //    3  src_sel (0 = ADS1115)      9  green LED
-//    4  reset button (to GND)     10  red LED
+//    4  heartbeat LED             10  red LED
 //    5, 11 GND                     6, 12 3V3
+//
+//  There is no reset button: a reset restarts seq at 0 and the station then
+//  reports HISTORY_ROLLBACK until seq passes its anchor. Reload the bitstream
+//  (and clear the station anchor) to start over.
 // ===========================================================================
 
 module kv260_top #(
@@ -21,7 +25,7 @@ module kv260_top #(
     inout  wire scl,
     inout  wire sda,
     input  wire src_sel,
-    input  wire btn,
+    output wire led_hb,
     output wire led_green,
     output wire led_red
 );
@@ -34,18 +38,21 @@ module kv260_top #(
         .resetn  (pl_resetn)
     );
 
-    // Button is active-low (pulled up, press to GND); synchronise it and
-    // combine with the PS reset so sebatt_top always starts cleanly.
-    reg [1:0] btn_sync;
+    // pl_resetn0 is asynchronous to pl_clk0: assert at once, release on a
+    // clock edge so every register leaves reset in the same cycle.
+    reg [1:0] rst_sync;
 
     always @(posedge clk or negedge pl_resetn) begin
         if (!pl_resetn)
-            btn_sync <= 2'b00;
+            rst_sync <= 2'b00;
         else
-            btn_sync <= {btn_sync[0], btn};
+            rst_sync <= {rst_sync[0], 1'b1};
     end
 
-    wire resetn = pl_resetn & btn_sync[1];
+    wire resetn = rst_sync[1];
+
+    wire [3:0] led;
+    assign led_hb = led[0];    // ~6 Hz blink at 100 MHz: PL is alive
 
     sebatt_top #(
         .CLK_HZ            (CLK_HZ),
@@ -62,7 +69,7 @@ module kv260_top #(
         .sda       (sda),
         .sw        (8'd0),
         .src_sel   (src_sel),
-        .led       (),
+        .led       (led),
         .led_green (led_green),
         .led_red   (led_red)
     );
