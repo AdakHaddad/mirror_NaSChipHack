@@ -190,7 +190,21 @@ Untuk 100.000 baterai totalnya sekitar 4 MB. Tanda tangan tidak disimpan, karena
 
 Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dapat menyimpan ringkasannya saja, misalnya "tegangan terendah 2,0 V pada catatan ke-150". Apabila riwayat lengkap tetap disimpan (seq dan tegangan tanpa tanda tangan), kebutuhannya sekitar 400 byte per penukaran, atau sekitar 15 GB per tahun untuk 100.000 baterai yang ditukar sekali sehari.
 
-**Konsekuensi.** Stasiun harus terhubung ke server setiap kali penukaran, karena hanya server yang memegang K. Solusi tahap produk adalah tanda tangan asimetris (misalnya ECDSA). Chip menyimpan kunci privat, stasiun cukup menyimpan kunci publik, sehingga verifikasi dapat dilakukan tanpa koneksi. Gantinya, rangkaian tanda tangan di chip jauh lebih besar daripada HMAC.
+**Konsekuensi.** Stasiun harus terhubung ke server setiap kali penukaran, karena hanya server yang memegang K. Solusi tahap produk adalah tanda tangan asimetris (misalnya ECDSA). Chip menyimpan kunci privat, stasiun cukup menyimpan kunci publik, sehingga verifikasi dapat dilakukan tanpa koneksi. Gantinya, rangkaian tanda tangan di chip jauh lebih besar daripada HMAC. Mekanisme membagi kunci publik tanpa database rahasia per chip (kunci global, sertifikat per chip, atau daftar public key) dirinci di [desain-sampling-riwayat.md](desain-sampling-riwayat.md) §5.
+
+**Cara kunci disimpan.** Ada dua momen yang berbeda: *provisioning* (kapan kunci masuk basis data) dan *operasi* (dipakai saat penukaran). Saat provisioning, chip di-enroll: ID dan K di-derive dari RO-PUF (`model/ro_puf.py`: `enroll` → `reconstruct_key`), lalu server mencatat satu baris `battery_id` (kunci utama), `K` (dibungkus), `seq_anchor = 0`, status, dan batch/tanggal. Pada demo ini peran itu digantikan `IdentityDB.register(BID, KEY)` yang hidup di memori, dengan K tetap `bytes(range(32))`. Saat operasi, stasiun mengirim (nonce, ID, respons HMAC chip) ke server; server memilih K berdasarkan `battery_id`, memeriksa HMAC, nonce yang belum terpakai, dan `seq ≥ anchor`, lalu memperbarui `seq_anchor`, status, ringkasan riwayat, dan audit log dalam satu transaksi. K tidak boleh tersimpan plaintext: yang ideal K tidak pernah keluar HSM — verifikasi HMAC dijalankan di dalam HSM/KMS (misalnya AWS KMS HMAC key atau CloudHSM lewat PKCS#11). Tanpa HSM, K dienkripsi dengan kunci pembungkus dari KMS (*envelope encryption*) dan hanya dibuka di memori saat verifikasi; backup basis data tanpa kunci pembungkus tidak berguna, dan restore kunci punya prosedur terpisah. Kalau skema pindah ke ECDSA, basis data hanya menyimpan data publik (`battery_id → Q_chip` atau sertifikatnya, status/revokasi, `seq_anchor`), sehingga boleh di-cache dan direplikasi; yang tetap rahasia hanya private key chip, dan itu tidak pernah ada di cloud.
+
+**Infrastruktur cloud.**
+
+```
+chip → UART → kios/stasiun → HTTPS → API gateway → layanan auth ─┬─ SQL: battery_id, seq_anchor, status, riwayat, audit
+                                                                  └─ KMS/HSM: kunci pembungkus / operasi HMAC
+```
+
+- **Skala.** Data inti 4 MB untuk 100.000 baterai; riwayat lengkap sekitar 15 GB per tahun. Satu basis data terkelola (PostgreSQL/MySQL) dengan replika, arsip, dan backup sudah cukup; tidak perlu penyimpanan khusus.
+- **Ketersediaan.** Pada skema HMAC, kios wajib online setiap penukaran dan K tidak boleh di-cache di kios — satu kios bocor berarti semua kunci bocor. Pada skema ECDSA, kios dapat offline karena verifikasi hanya butuh public key.
+- **Operasional.** Akses basis data hanya lewat layanan (bukan langsung oleh kios), audit setiap verifikasi (chip, kios, hasil), rotasi kunci, dan HSM dengan replikasi serta prosedur restore.
+- **Bertahap.** Envelope encryption dengan KMS sudah memadai untuk 100.000 baterai; HSM dinaikkan saat nilai atau regulasi menuntut.
 
 ## Pada Demo
 

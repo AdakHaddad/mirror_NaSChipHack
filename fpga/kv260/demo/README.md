@@ -72,6 +72,7 @@ melaporkan `HISTORY_ROLLBACK`.
 ## 4. Jalankan demo di laptop
 
 ```bash
+fpga/kv260/demo/run_station.sh --check         # cek cepat board (STATUS/AUTH/READ_HIST)
 fpga/kv260/demo/run_station.sh                 # satu autentikasi
 fpga/kv260/demo/run_station.sh --demo          # suite 8 transaksi
 fpga/kv260/demo/run_station.sh --interactive   # demo manual untuk juri
@@ -84,11 +85,14 @@ Kalau ada lebih dari satu `/dev/ttyUSB*`, pilih port CP2102:
 fpga/kv260/demo/run_station.sh --port /dev/ttyUSB1 --demo
 ```
 
-Untuk dashboard web mode FPGA (grafik, kartu kesehatan, tombol serangan):
+Untuk dashboard web (grafik, kartu kesehatan, tombol serangan), jalankan tanpa
+opsi: server mencari adapter USB-UART sendiri dan langsung memakai mode FPGA.
 
 ```bash
-.venv/bin/python web/server.py --fpga
-# atau pilih port: .venv/bin/python web/server.py --fpga /dev/ttyUSB1
+.venv/bin/python web/server.py                    # auto-deteksi
+.venv/bin/python web/server.py --fpga /dev/ttyUSB1 # pilih port
+.venv/bin/python web/server.py --sim               # latihan tanpa board
+.venv/bin/python -m model.station --check          # cek board sebelum demo
 ```
 
 Buka <http://127.0.0.1:8000>. Tombol **Muat riwayat** mengambil sampel baru

@@ -3,7 +3,7 @@
 > Concept, code, protocol, hardware, and demo in one document.
 >
 > Written 19 October 2026; updated 21 October 2026 after the signed-history
-> implementation. Python model 52/52 tests pass, RTL simulation 26/26 tests pass
+> implementation. Python model 57/57 tests pass, RTL simulation 26/26 tests pass
 > (sha256 + hmac + ads1115 + auth/history; see Section 6.3), offline station demo
 > passes.
 > Hardware results are marked separately.
@@ -1156,7 +1156,7 @@ sees that the attacker is between the battery and the station.
 | ADS1115 I2C RTL | Done 20 Oct: `i2c_master.v` + `ads1115_ctrl.v` + cocotb model, 2/2 tests pass |
 | Flow B auth RTL | Done 20–21 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; periodic sampling (1 s default), signed 64-record history, READ_HIST, RESULT/LOCK/UNLOCK/STATUS, lock; cocotb `make auth` 13/13 pass |
 | Cmod S7 bitstream | Rebuilt 21 Oct: `xc7s25csga225-1`, WNS +55.788 ns, 5 235 LUT / 6 024 FF, 0 BRAM/DSP; hardware run pending |
-| KV260 port | Done 21 Oct: PS `pl_clk0` 100 MHz block design, Pmod XDC, full bitstream + `.bit.bin`, RUNBOOK, demo bundle; `sg_req*`/dump-race/CRC/parser fixes; WNS +1.466 ns, 5 633 LUT / 6 201 FF, 0 BRAM/DSP; physical T6/T7/T9/T10 pending |
+| KV260 port | Done 21 Oct: PS `pl_clk0` 100 MHz block design, Pmod XDC, full bitstream + `.bit.bin`, RUNBOOK, demo bundle; `sg_req*`/dump-race/CRC/parser fixes; board test 21 Oct passed AUTH/READ_HIST/attacks; rebuild 21.26 with LED/I2C fixes WNS +0.749 ns, 5 607 LUT / 6 207 FF, 0 BRAM/DSP, not yet retested on board |
 | Test plan | Written; preflight passes, Flow A blocked by reset bug |
 | Periodic ADS1115 sampling | Done: 1 s default demo (`SAMPLE_INTERVAL_MS`), every sample stored and tagged; AUTH_REQ signs the latest sample |
 | Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 13/13 auth suite |
@@ -1168,23 +1168,27 @@ sees that the attacker is between the battery and the station.
 |---|---|
 | Firmware Flow A prefix sync | Flow A `HMAC(nonce‖ID‖V)` must add 0x41 to match Python/RTL vectors |
 | key_vault integration | `auth_ctrl` still writes the key through `axil_master` |
-| BMS attacker proxy | Demo scenes 2–3 |
+| BMS attacker proxy (optional) | Dashboard FPGA mode has host-side Hapus/Ubah buttons; a physical proxy is only for the two-laptop staging |
 | Cmod S7 hardware run | Program the built bitstream, run T7/T9 on the board |
-| KV260 hardware run | Program the bitstream, verify `pl0_ref`, run T6/T7/T9/T10 on the board |
+| KV260 retest | Verify LED and I2C fixes from the 21.26 build on the board; complete the formal T6/T7/T9/T10 checklist |
 | Fallback video | Insurance for demo day |
 
 ### 11.3 Known discrepancies and risks
 
-1. **Docs and code now cover the Flow B feature set, but only in simulation.**
-   The RTL performs AUTH_REQ -> HMAC -> AUTH_RESP, periodic signed history,
-   READ_HIST, lock after three failed RESULTs, and prefixes 0x41/0x53/0x48; the
-   Python model verifies the history (gaps/rollback/truncation). The cocotb
-   suite passes 26/26. Do not claim board verification (T6/T7/T9) yet.
+1. **Docs and code cover the Flow B feature set; KV260 was tested once on
+   21 Oct.** The RTL performs AUTH_REQ -> HMAC -> AUTH_RESP, periodic signed
+   history, READ_HIST, lock after three failed RESULTs, and prefixes
+   0x41/0x53/0x48; the Python model verifies the history
+   (gaps/rollback/truncation). The cocotb suite passes 26/26, and the board
+   test covered AUTH VALID, READ_HIST VALID, and rejected tamper/delete/cut/
+   replay. The 21.26 rebuild with the LED and I2C fixes is not yet retested;
+   auto-lock, power-cut rollback, and the 1 000-run scenarios remain pending.
 
 2. **MILESTONES says M3 demo is done.**
    That refers to Flow A (MicroBlaze). After the 18 October pivot, Flow A is only
    a fallback. Flow B RTL is built and sim-verified; the Cmod board run and
-   KV260 physical tests are still pending (KV260 bitstream is built).
+   KV260 board test ran 21 Oct, but the formal T6/T7/T9/T10 checklist and the
+   LED/I2C rebuild retest are still pending.
 
 3. **Basys 3 XDC mismatch.**
    `fpga/basys_3/nexys_a7.xdc` contains Nexys pins. The Basys 3 project points
@@ -1233,9 +1237,10 @@ sees that the attacker is between the battery and the station.
     Power loss loses the counter and buffer. The demo's "power cut" Q&A answer
     depends on this; the product needs NVM or a backup supply.
 
-12. **No dashboard/attacker proxy code in the repo yet.**
-    `alur-demo.md` assigns these to Budi. The demo cannot run end-to-end
-    without them.
+12. **Dashboard connects to the FPGA, but only the model path is live-tested.**
+    `web/server.py` auto-detects the CP2102 and reads signed AUTH/READ_HIST
+    data from the board (`--fpga` / `--sim` override); the attacker buttons
+    work host-side. The physical two-laptop proxy is optional.
 
 ---
 
@@ -1247,7 +1252,7 @@ Ordered by critical path.
 
 1. **~~Freeze the history contract.~~** Done 21 Oct: `READ_HIST_REQ/RESP`,
    record layout, prefixes, and verification order are in `model/protocol.py`;
-   vectors regenerated and model tests pass 52/52.
+   vectors regenerated and model tests pass 57/57.
 2. **~~Add station history verification.~~** Done 21 Oct:
    `Station.verify_history` loads the anchor, checks tags, and detects gaps,
    rollback, and truncation; the web demo renders the health card.
@@ -1275,7 +1280,8 @@ Ordered by critical path.
 
 ### Before submission
 
-13. Finalize the dashboard and attacker proxy.
+13. ~~Finalize the dashboard and attacker proxy.~~ Done: `web/` has simulation
+    and FPGA modes with host-side attacks; live board test remains.
 14. Rehearse the 60-second demo five times.
 15. Write the 2-page README with block diagram, how to run, test results, and
     AI usage.

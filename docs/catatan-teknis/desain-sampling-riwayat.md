@@ -200,6 +200,33 @@ compromised, attacker bisa memalsukan histori. Dengan ECDSA:
 - banyak station/pihak ketiga bisa memverifikasi;
 - ada non-repudiation.
 
+### Bagaimana verifikasi bekerja tanpa database semua chip
+
+Verifikasi ECDSA hanya membutuhkan **public key** `Q = d·G` milik penanda
+tangan, bukan private key `d`. Kunci publik bukan rahasia, jadi ia bisa ikut
+dikirim bersama pesan alih-alih disimpan di verifier. Ada tiga cara verifier
+mendapatkannya:
+
+1. **Satu pasangan kunci global per model.** Semua chip berbagi kunci yang
+   sama dengan vendor; station menyimpan satu public key. Paling sederhana,
+   tetapi tidak membedakan chip, dan kalau `d` bocor dari satu chip, semua chip
+   bisa dipalsukan.
+2. **Per chip + sertifikat (umum di produk).** Vendor menandatangani sertifikat
+   berisi `Q_chip` dengan private key root CA saat manufaktur. Chip mengirim
+   pesan + tanda tangan + sertifikat; station cukup menyimpan satu public key
+   root untuk memverifikasi sertifikat, lalu memakai `Q_chip` untuk
+   memverifikasi pesan. Verifier tidak menyimpan apa pun per chip: satu public
+   key root menggantikan `N` rahasia.
+3. **Per chip + daftar public key.** Station menyimpan daftar `Q_chip`. Ini
+   memang "database", tetapi isinya publik, jadi kebocorannya tidak mematikan
+   keamanan—berbeda dari HMAC, yang mengharuskan station menyimpan `K` rahasia
+   (di demo: satu `K` untuk semua chip, `bytes(range(32))`).
+
+Sertifikat tetap tidak gratis: `Q_chip` harus terikat ke identitas chip saat
+enrollment, kalau tidak penyerang bisa mendaftarkan public key miliknya sendiri
+(lihat poin yang sama di bawah). Dan semua batasan lain di bagian ini—replay,
+rollback, private key yang bisa diekstrak—tetap berlaku.
+
 ### Yang tidak diselesaikan ECDSA
 
 - Data yang dihilangkan tetap tidak terlihat.
