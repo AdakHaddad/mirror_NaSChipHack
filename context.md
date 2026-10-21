@@ -9,8 +9,9 @@
 > Hardware results are marked separately.
 >
 > **Update 21 Oct 2026 (KV260):** Pmod pin map, PS clock-only block design, full
-> bitstream and `.bit.bin` are built (WNS +1.475 ns, 5 204 LUT / 5 988 FF);
-> physical KV260 tests are still pending.
+> bitstream and `.bit.bin` are built after fixing the multi-driven `sg_req*`
+> nets (WNS +0.687 ns, 5 611 LUT / 6 130 FF); physical KV260 tests are still
+> pending.
 >
 > **Revision 19 Oct 2026 (hardware session):** the demo ADC changed from an
 > SPI MCP3202 to an **ADS1115 over I2C** (no SPI ADC available). Practice board
@@ -1046,7 +1047,8 @@ Hard stops from the test plan:
 
 - Built 21 Oct: `kv260_top.v` + `kv260.xdc` + `build.tcl` (PS clock-only block
   design, `pl_clk0` 100 MHz from IOPLL) + `RUNBOOK.md`. Bitstream
-  `build/kv260_top.bit`, boot image `build/kv260_top.bit.bin`.
+  `build/kv260_top.bit`, boot image `build/kv260_top.bit.bin`. Rebuilt after
+  fixing the multi-driven `sg_req*` nets; WNS +0.687 ns.
 - Logic clock comes from the PS (`pl_clk0`), so the Zynq UltraScale+ block stays
   in the block design as a clock source. There is no PL oscillator on the KV260.
 - **Verify `pl0_ref` at ~99.999 MHz and enabled before trusting UART.** Stock
@@ -1154,7 +1156,7 @@ sees that the attacker is between the battery and the station.
 | ADS1115 I2C RTL | Done 20 Oct: `i2c_master.v` + `ads1115_ctrl.v` + cocotb model, 2/2 tests pass |
 | Flow B auth RTL | Done 20–21 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; periodic sampling (1 s default), signed 64-record history, READ_HIST, RESULT/LOCK/UNLOCK/STATUS, lock; cocotb `make auth` 9/9 pass |
 | Cmod S7 bitstream | Rebuilt 21 Oct: `xc7s25csga225-1`, WNS +55.788 ns, 5 235 LUT / 6 024 FF, 0 BRAM/DSP; hardware run pending |
-| KV260 port | Done 21 Oct: PS `pl_clk0` 100 MHz block design, Pmod XDC, full bitstream + `.bit.bin`, RUNBOOK; WNS +1.475 ns, 5 204 LUT / 5 988 FF, 0 BRAM/DSP; physical T6/T7/T9/T10 pending |
+| KV260 port | Done 21 Oct: PS `pl_clk0` 100 MHz block design, Pmod XDC, full bitstream + `.bit.bin`, RUNBOOK; multi-driver `sg_req*` fixed; WNS +0.687 ns, 5 611 LUT / 6 130 FF, 0 BRAM/DSP; physical T6/T7/T9/T10 pending |
 | Test plan | Written; preflight passes, Flow A blocked by reset bug |
 | Periodic ADS1115 sampling | Done: 1 s default demo (`SAMPLE_INTERVAL_MS`), every sample stored and tagged; AUTH_REQ signs the latest sample |
 | Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 9/9 auth suite |

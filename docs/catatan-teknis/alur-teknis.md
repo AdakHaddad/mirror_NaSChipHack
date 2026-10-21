@@ -219,4 +219,4 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | Nomor urut, buffer riwayat, penguncian di chip | Ada, 9/9 uji auth (21 Okt) |
 | Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 52/52 uji model |
 | Kartu kesehatan baterai di dashboard | Model web ada; belum terhubung ke FPGA |
-| Port ke KV260 | Build penuh PASS (WNS +1,475 ns); bitstream + `.bit.bin` + runbook sudah ada; uji board belum |
+| Port ke KV260 | Build penuh PASS setelah perbaikan multi-driver `sg_req*` (WNS +0,687 ns); bitstream + `.bit.bin` + runbook sudah ada; uji board belum |

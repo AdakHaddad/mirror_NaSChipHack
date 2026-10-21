@@ -5,7 +5,7 @@
 //  The PS block design (design_1) supplies pl_clk0 = 100 MHz and pl_resetn0;
 //  the PS is used only as a clock source, all sample/auth logic stays in PL.
 //
-//  Pmod J2 wiring (Digilent Type 1A pin numbers, see RUNBOOK.md):
+//  Pmod J2 wiring (Digilent 12-pin numbering, see RUNBOOK.md):
 //    1  SCL  -> ADS1115 SCL        7  TX  -> CP2102 RXD
 //    2  SDA  -> ADS1115 SDA        8  RX  <- CP2102 TXD
 //    3  src_sel (0 = ADS1115)      9  green LED

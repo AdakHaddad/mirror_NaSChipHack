@@ -68,12 +68,19 @@ reports.
 
 | Metric | Value |
 |---|---|
-| WNS | **+1.475 ns** |
+| WNS | **+0.687 ns** |
+| WHS | **+0.012 ns** |
 | TNS / failing endpoints | 0 / 0 |
-| CLB LUTs | 5 204 (4.44 %) |
-| CLB registers | 5 988 (2.56 %) |
+| CLB LUTs | 5 611 (4.79 %) |
+| CLB registers | 6 130 (2.62 %) |
 | BRAM / DSP | 0 / 0 |
 | Clock | `clk_pl_0`, 10.000 ns, 100.000 MHz |
+
+This build includes the fix for the multi-driven `sg_req*` nets: the
+sample-to-signer request is now generated once in the command/signer block,
+gated by `sample_busy && adc_valid`, instead of being driven from both the
+sampling and signer blocks. The resulting bitstream has no tied-off signer
+request.
 
 The critical path is still the SHA-256 `w` expansion. **Do not raise `pl_clk0`
 above 100 MHz** without pipelining it and re-running timing.

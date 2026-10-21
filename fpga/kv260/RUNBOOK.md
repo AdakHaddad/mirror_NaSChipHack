@@ -4,10 +4,11 @@ Panduan operasional Flow B di **Kria KV260**. Semua perintah dijalankan dari
 root repo (`/home/muqtada/Documents/sebatt`) di laptop, kecuali bagian yang
 dijalankan di board.
 
-Status 21 Okt 2026: bitstream penuh sudah dibangun (WNS +1,475 ns, 5 204 LUT,
-5 988 FF), peta pin Pmod dan block design clock PS sudah ada. **Uji fisik
-T6/T7/T9/T10 di KV260 belum dilakukan.** Uji RTL cocotb 20/20 dan uji board
-Cmod S7 tetap menjadi bukti fungsional sampai KV260 diuji.
+Status 21 Okt 2026: bitstream penuh sudah dibangun ulang setelah perbaikan
+multi-driver `sg_req*` (WNS +0,687 ns, 5 611 LUT, 6 130 FF), peta pin Pmod dan
+block design clock PS sudah ada. **Uji fisik T6/T7/T9/T10 di KV260 belum
+dilakukan.** Uji RTL cocotb 20/20 dan uji board Cmod S7 tetap menjadi bukti
+fungsional sampai KV260 diuji.
 
 - Bitstream: `fpga/kv260/build/kv260_top.bit`
 - Boot image: `fpga/kv260/build/kv260_top.bit.bin`
@@ -95,9 +96,11 @@ bitstream, `.bin`, XSA). Output:
 - `build/timing.rpt`, `build/utilization.rpt`
 - `build/kv260_top.xsa` (kalau langkah XSA berhasil)
 
-Hasil 21 Okt: WNS **+1,475 ns**, 0 endpoint gagal, 5 204 LUT, 5 988 FF, 0 BRAM,
-0 DSP. Jalur kritis SHA-256 `w` expansion; **jangan naikkan `pl_clk0` di atas
-100 MHz** tanpa pipeline dan re-timing.
+Hasil 21 Okt: WNS **+0,687 ns**, WHS +0,012 ns, 0 endpoint gagal, 5 611 LUT,
+6 130 FF, 0 BRAM, 0 DSP. Build ini sudah memakai perbaikan multi-driver
+`sg_req*` (request sample→signer hanya digerakkan dari blok signer). Jalur
+kritis SHA-256 `w` expansion; **jangan naikkan `pl_clk0` di atas 100 MHz**
+tanpa pipeline dan re-timing.
 
 Cek cepat tanpa bitstream (opsional):
 

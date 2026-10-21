@@ -29,7 +29,7 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
 
-Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) WNS +1,475 ns, 5.204 LUT, 5.988 FF. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
+Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) WNS +0,687 ns, 5.611 LUT, 6.130 FF setelah perbaikan multi-driver `sg_req*`. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
 
 Di KV260, blok Zynq UltraScale+ MPSoC hanya dipakai sebagai sumber clock PL (pl_clk0). Prosesor tidak membaca maupun menulis sampel.
 

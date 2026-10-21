@@ -2,8 +2,14 @@
 # Package pins are from the Kria K26 SOM pinout (SOM240 nets HDA11..HDA18)
 # and match the KV260 master constraints / kv260_ispMipiRx pin.xdc.
 #
-# Pmod pin numbering is the Digilent Type 1A order on the physical connector:
-#   data 1-4, 7-10; GND/3V3 on 5/6 and 11/12.
+# Wiring uses the Digilent 12-pin numbering:
+#   signals 1-4 and 7-10, GND on 5/11, 3V3 on 6/12.
+#   Pmod 1 H12 scl         Pmod 7  B10 uart_tx
+#   Pmod 2 E10 sda         Pmod 8  E12 uart_rx
+#   Pmod 3 D10 src_sel     Pmod 9  D11 led_green
+#   Pmod 4 C11 btn         Pmod 10 B11 led_red
+# (The KV260 schematic labels the raw header positions 1,3,5,7 / 2,4,6,8;
+#  those are not the Digilent pin numbers.)
 
 ## Pmod 1: I2C SCL to ADS1115 (open-drain, external/module pull-ups)
 set_property -dict { PACKAGE_PIN H12 IOSTANDARD LVCMOS33 } [get_ports { scl }]

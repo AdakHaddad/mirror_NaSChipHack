@@ -147,7 +147,7 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 
 ## 5. Fase 4 — Tanpa Board (sore / sambil menunggu)
 
-- [x] Build penuh `xck26` (port KV260): **21 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +1,475 ns, 5 204 LUT / 5 988 FF; bitstream + `.bit.bin` + runbook di `fpga/kv260/`; uji board belum
+- [x] Build penuh `xck26` (port KV260): **21 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +0,687 ns, 5 611 LUT / 6 130 FF; multi-driver `sg_req*` fixed; bitstream + `.bit.bin` + runbook di `fpga/kv260/`; uji board belum
 - [ ] SD image Ubuntu untuk KV260 + kenalan update BOOT.BIN
 - [ ] Loopback CP2102: jumper TX–RX, kirim/terima via pyserial
 - [ ] `fpga/kv260/`: constraint PMOD asli (nama pin dari carrier KV260), `shell.json`, `.bif` + `bootgen` untuk `.bit → .bit.bin`; timing-only check sudah ada
