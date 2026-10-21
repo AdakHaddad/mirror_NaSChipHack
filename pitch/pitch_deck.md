@@ -70,12 +70,13 @@ Kondisi per 20 Oktober. Setiap angka diberi sumbernya. Kolom ini diisi ulang set
 
 ## Slide 6: Model Bisnis & Pasar (4:00 - 4:30)
 
-- **Pasar Sasaran**: Operator swap (Swap Energy, Oyika, Electrum, Pertamina) & produsen BMS nasional (IBC).
-- **Model Monetisasi**:
-  - Lisensi IP RTL Core ($50k–100k upfront) + Royalti ($0.25–0.50/chip) *(perkiraan, belum bersumber)*
-  - Penyediaan modul secure element terprogram untuk retrofit armada
-- **Dampak Ekonomi**: Mencegah kerugian fraud baterai senilai Rp 8–10 juta per paket baterai *(perkiraan, belum bersumber)*
-- **Angka pasar & asumsi lengkap**: [../bisnis/pitch-dan-angka.md](../bisnis/pitch-dan-angka.md) — pakai angka bersumber di sana; jangan sebut TAM tanpa sumber.
+- **Pasar Sasaran**: Operator swap (SWAP Energi, Electrum, V-Green/VinFast, Volta/Oyika) & produsen BMS/gauge nasional.
+- **Model Monetisasi** (dasar & sumber lengkap di [../bisnis/pitch-dan-angka.md](../bisnis/pitch-dan-angka.md)):
+  - Lisensi IP RTL Core: $50k–100k upfront + royalti 1–2% harga chip (benchmark ARM; ilustrasi $0,02–0,10/chip)
+  - Modul retrofit armada: $3,50/unit, margin kotor ±55%
+  - Layanan verifikasi: Rp 5.000–10.000/baterai/tahun (0,3–1% pendapatan langganan operator)
+- **Dampak Ekonomi**: Kerugian per kasus Rp 2–4 juta; harga baterai Rp 4,55 juta (VinFast) dan ≈ setengah harga motor (Polytron)
+- **Angka pasar & asumsi lengkap**: [../bisnis/pitch-dan-angka.md](../bisnis/pitch-dan-angka.md) — jangan sebut TAM tanpa sumber.
 
 ---
 

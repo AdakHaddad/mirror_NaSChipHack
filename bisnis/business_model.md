@@ -1,5 +1,11 @@
 # Model Bisnis & Analisis Pasar: SeBatt
 
+> **Catatan (21 Okt 2026):** sebagian angka di dokumen ini belum bersumber
+> (termasuk TAM dan royalti USD 0,25–0,50/chip). Angka pitch final yang
+> berlabel **[Sumber]**/[Asumsi] dengan dasar dan tautan ada di
+> [pitch-dan-angka.md](pitch-dan-angka.md) — pakai dokumen itu untuk
+> presentasi.
+
 ## 1. Ringkasan Eksekutif
 
 SeBatt (*Secure Battery Identity Chip*) menyediakan solusi akar kepercayaan perangkat keras (*hardware root of trust*) untuk ekosistem baterai kendaraan listrik (EV), khususnya jaringan stasiun penukaran baterai (*battery swap station*). Menggabungkan *Ring-Oscillator Physical Unclonable Function* (RO-PUF) dan penandatanganan kriptografis HMAC-SHA-256 langsung pada titik pengukuran tegangan ADC.
