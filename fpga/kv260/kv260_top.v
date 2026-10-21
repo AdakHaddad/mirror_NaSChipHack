@@ -68,10 +68,9 @@ module kv260_top #(
         .scl       (scl),
         .sda       (sda),
         .sw        (8'd0),
-        .src_sel   (src_sel),
+        .src_sel   (1'b0),   // was: src_sel pin; KV260 reads it as 1 regardless of wiring
         .led       (led),
         .led_green (led_green),
         .led_red   (led_red)
     );
-
 endmodule
