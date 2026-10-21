@@ -17,6 +17,7 @@
     chart: $("chart"),
     chartNote: $("chart-note"),
     chartSub: $("chart-sub"),
+    chartLimits: $("chart-limits"),
     healthCard: $("health-card"),
     healthId: $("health-id"),
     healthBadge: $("health-badge"),
@@ -266,8 +267,16 @@
     const margin = { left: narrow ? 40 : 48, right: narrow ? 12 : 18, top: 18, bottom: 34 };
     const plotW = width - margin.left - margin.right;
     const plotH = height - margin.top - margin.bottom;
-    const yMin = 1900;
-    const yMax = 4300;
+    // Safe band comes from the station profile (sel Li-ion, LiPo 3S, ...).
+    const limits = data.limits || { short: "sel Li-ion", deep_mv: 2500, top_mv: 4200 };
+    const deepMv = limits.deep_mv;
+    const topMv = limits.top_mv;
+    const band = topMv - deepMv;
+    const values = records.flatMap((r) => [r.mv, r.original_mv]).filter(Number.isFinite);
+    const yMin = Math.min(deepMv - 0.35 * band, ...values.map((mv) => mv - 0.05 * band));
+    const yMax = Math.max(topMv + 0.06 * band, ...values.map((mv) => mv + 0.05 * band));
+    el.chartLimits.textContent =
+      `Batas aman ${limits.short} ${fmtVoltageShort(deepMv)}–${fmtVoltageShort(topMv)} V`;
 
     const y = (mv) => margin.top + ((yMax - mv) / (yMax - yMin)) * plotH;
 
@@ -294,7 +303,9 @@
     const x = (seq) =>
       margin.left + ((seq - firstSeq) / span) * plotW;
 
-    const yTicks = [2000, 2500, 3000, 3500, 4000, 4200];
+    const step = band > 2500 ? 1000 : 500;
+    const yTicks = [];
+    for (let mv = Math.ceil(yMin / step) * step; mv <= yMax; mv += step) yTicks.push(mv);
     const grid = yTicks
       .map((mv) => {
         const py = y(mv);
@@ -350,21 +361,21 @@
             <circle cx="${px}" cy="${ghost}" r="5" class="ghost"></circle>
             <circle cx="${px}" cy="${py}" r="5.5" class="point tampered">${title}</circle>`;
         }
-        return `<circle cx="${px}" cy="${py}" r="4.5" class="point ${record.mv < 2500 ? "deep" : "safe"}">${title}</circle>`;
+        return `<circle cx="${px}" cy="${py}" r="4.5" class="point ${record.mv < deepMv ? "deep" : "safe"}">${title}</circle>`;
       })
       .join("");
 
     el.chart.innerHTML = `
       <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik riwayat tegangan baterai">
-        <rect x="${margin.left}" y="${y(4200)}" width="${plotW}" height="${y(2500) - y(4200)}" class="zone-safe"></rect>
-        <rect x="${margin.left}" y="${y(2500)}" width="${plotW}" height="${y(2000) - y(2500)}" class="zone-danger"></rect>
-        <rect x="${margin.left}" y="${y(4300)}" width="${plotW}" height="${y(4200) - y(4300)}" class="zone-danger"></rect>
+        <rect x="${margin.left}" y="${y(topMv)}" width="${plotW}" height="${y(deepMv) - y(topMv)}" class="zone-safe"></rect>
+        <rect x="${margin.left}" y="${y(deepMv)}" width="${plotW}" height="${y(yMin) - y(deepMv)}" class="zone-danger"></rect>
+        <rect x="${margin.left}" y="${y(yMax)}" width="${plotW}" height="${y(topMv) - y(yMax)}" class="zone-danger"></rect>
         ${grid}
         ${xAxis}
-        <line x1="${margin.left}" y1="${y(2500)}" x2="${width - margin.right}" y2="${y(2500)}" class="limit-line"></line>
-        <line x1="${margin.left}" y1="${y(4200)}" x2="${width - margin.right}" y2="${y(4200)}" class="limit-line"></line>
-        <text x="${width - margin.right - 4}" y="${y(2500) - 6}" text-anchor="end" class="limit-text">2,5 V</text>
-        <text x="${width - margin.right - 4}" y="${y(4200) - 6}" text-anchor="end" class="limit-text">4,2 V</text>
+        <line x1="${margin.left}" y1="${y(deepMv)}" x2="${width - margin.right}" y2="${y(deepMv)}" class="limit-line"></line>
+        <line x1="${margin.left}" y1="${y(topMv)}" x2="${width - margin.right}" y2="${y(topMv)}" class="limit-line"></line>
+        <text x="${width - margin.right - 4}" y="${y(deepMv) - 6}" text-anchor="end" class="limit-text">${fmtVoltageShort(deepMv)} V</text>
+        <text x="${width - margin.right - 4}" y="${y(topMv) - 6}" text-anchor="end" class="limit-text">${fmtVoltageShort(topMv)} V</text>
         ${segments.join("")}
         ${points}
       </svg>`;

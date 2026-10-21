@@ -27,6 +27,7 @@ from model.station import (
     PROFILES,
     Station,
     health_summary,
+    profile_limits,
     to_battery_mv,
     to_pin_mv,
 )
@@ -370,7 +371,8 @@ class HardwareState:
             target = max(candidates, key=lambda rec: rec.seq)
             # Forge a healthy-looking battery voltage, then convert it back to
             # the pin millivolts that the chip actually signs.
-            shown = 3600 if abs(self._batt(target.mv) - 3600) > 50 else 4000
+            forge = self.profile["forge_mv"]
+            shown = forge if abs(self._batt(target.mv) - forge) > 50 else self.profile["full_mv"]
             forged = to_pin_mv(shown, self.profile)
             self._attack = {"kind": "tamper", "seq": target.seq,
                             "mv": forged, "shown_mv": shown}
@@ -448,6 +450,7 @@ class HardwareState:
                 "chip_seq": self._chip_seq,
                 "voltage_mv": self._voltage_mv,
                 "profile": self.profile["label"],
+                "limits": profile_limits(self.profile),
                 "pending": pending,
                 "buffer_size": BUFFER_SIZE,
                 "records": self._display_records(),

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from model.hmac import hmac_sha256
-from model.station import PROFILES, health_summary
+from model.station import PROFILES, health_summary, profile_limits
 
 BATTERY_ID = b"BAT\x01"
 BATTERY_LABEL = "BAT-0001"
@@ -328,6 +328,7 @@ class DemoState:
                 "chip_seq": chip_seq,
                 "pending": pending,
                 "buffer_size": BUFFER_SIZE,
+                "limits": profile_limits(SIM_PROFILE),
                 "records": [rec.public() for rec in self.records],
                 "health": self.health,
                 "health_status": self.health_status,

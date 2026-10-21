@@ -163,7 +163,8 @@ def main() -> None:
                         help="Baud UART FPGA (default 115200)")
     parser.add_argument("--profil", choices=sorted(PROFILES), default=DEFAULT_PROFILE,
                         help="Profil baterai mode FPGA: sel (kenop di A0 = satu sel "
-                             "Li-ion) atau aki12v (aki 12 V lewat pembagi casing)")
+                             "Li-ion), lipo3s (LiPo 3S lewat pembagi 120k/kenop/15k), "
+                             "atau aki12v (aki 12 V lewat pembagi 47k/10k)")
     args = parser.parse_args()
 
     global STATE

@@ -73,23 +73,50 @@ PROFILES = {
     # below 3.0 V followed by a rise above 4.0 V.
     "sel": {
         "name": "sel",
+        "short": "sel Li-ion",
         "label": "sel Li-ion (kenop 0-3,3 V di A0 dibaca 0-4,2 V)",
         "scale": 4200 / 3300,
         "deep_mv": 2500,
         "arm_mv": 3000,
         "full_mv": 4000,
+        "top_mv": 4200,
+        "forge_mv": 3600,
+    },
+    # LiPo 3S on the 120k / 10k knob / 15k divider (docs/gambar/rangkaian-adc).
+    # Knob at the top end reads the real pack (pin x 5.8); turning it down
+    # stands in for a drained pack. Deep discharge below 3.0 V per cell; a
+    # charge cycle is a dip below 3.5 V/cell followed by a rise above 4.1 V/cell.
+    # Calibrate scale against a multimeter with the knob at the top end.
+    "lipo3s": {
+        "name": "lipo3s",
+        "short": "LiPo 3S",
+        "label": "LiPo 3S lewat pembagi 120k/10k/15k (pin × 5,8)",
+        "scale": 5.8,
+        "deep_mv": 9000,
+        "arm_mv": 10500,
+        "full_mv": 12300,
+        "top_mv": 12600,
+        "forge_mv": 11800,
     },
     # 12 V lead-acid battery behind the 47k/10k divider in the casing.
     "aki12v": {
         "name": "aki12v",
+        "short": "aki 12 V",
         "label": "aki 12 V lewat pembagi 47k/10k (pin × 5,7)",
         "scale": 5.7,
         "deep_mv": 10500,
         "arm_mv": 11800,
         "full_mv": 12600,
+        "top_mv": 14400,
+        "forge_mv": 12400,
     },
 }
 DEFAULT_PROFILE = "sel"
+
+
+def profile_limits(profile: dict) -> dict:
+    """Profile fields the dashboard needs to draw its chart."""
+    return {key: profile[key] for key in ("name", "short", "label", "deep_mv", "top_mv")}
 
 
 def to_battery_mv(pin_mv: int, profile: dict) -> int:
@@ -425,7 +452,7 @@ class Station:
 
     def read_history_attacked(self, battery_id: bytes, mode: str,
                               seq: Optional[int] = None,
-                              count: int = 3, mv: int = 3600):
+                              count: int = 3, mv: Optional[int] = None):
         """Play the dishonest BMS: fetch a real dump from the chip, alter it
         after it left the chip, then verify it like the station would.
 
@@ -433,7 +460,8 @@ class Station:
         middle), 'cut' (drop the newest records and shrink the range),
         'replay' (answer a new nonce with a dump signed for an old one).
         For 'tamper', mv is the forged battery voltage in the station's
-        profile (default 3.6 V); it is converted back to ADC-pin millivolts.
+        profile (default: the profile's forge_mv); it is converted back to
+        ADC-pin millivolts.
         Returns (status, description).
         """
         nonce = os.urandom(32)
@@ -454,6 +482,8 @@ class Station:
             idx = next((i for i, r in enumerate(recs) if r.seq == seq), idx)
 
         if mode == 'tamper':
+            if mv is None:
+                mv = self.profile["forge_mv"]
             old = recs[idx]
             forged = to_pin_mv(mv, self.profile)
             recs[idx] = HistoryRecord(seq=old.seq, mv=forged, tag=old.tag)
@@ -824,7 +854,8 @@ def main():
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
     parser.add_argument('--profil', choices=sorted(PROFILES), default=DEFAULT_PROFILE,
                         help='Battery profile for the health card: sel (knob on A0 as one '
-                             'Li-ion cell) or aki12v (12 V battery through the casing divider)')
+                             'Li-ion cell), lipo3s (LiPo 3S through the 120k/knob/15k '
+                             'divider) or aki12v (12 V battery through the 47k/10k divider)')
     args = parser.parse_args()
 
     if args.offline:
