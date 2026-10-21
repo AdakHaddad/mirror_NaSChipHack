@@ -299,6 +299,42 @@ async def test_fail_counter_locks_after_three_results(dut):
 
 
 @cocotb.test()
+async def test_leds_follow_last_verdict(dut):
+    """Green after RESULT VALID, red after a rejected RESULT, and green again
+    after the next RESULT VALID (the red flag must not stick)."""
+    await bring_up(dut)
+    cocotb.start_soon(adc_model(dut, adc_state(3300)))
+
+    def leds():
+        v = int(dut.led.value)
+        return bool(v & 0x4), bool(v & 0x8)      # (green flag, red flag)
+
+    nonce = bytes([0x66]) * 32
+    cmd, _ = await exchange(dut, frame(Command.AUTH_REQ, nonce), 42)
+    assert cmd == Command.AUTH_RESP
+    await ClockCycles(dut.clk, 5)
+    assert leds() == (False, False), f"reply alone is not a verdict: {leds()}"
+
+    async def result(status):
+        await uart_send_frame(dut, frame(Command.RESULT, bytes([status])))
+        await ClockCycles(dut.clk, 40)
+
+    await result(AuthStatus.VALID)
+    assert leds() == (True, False), leds()
+    await result(AuthStatus.INVALID_HMAC)
+    assert leds() == (False, True), leds()
+    await result(AuthStatus.VALID)
+    assert leds() == (True, False), f"red stuck after valid: {leds()}"
+
+    await uart_send_frame(dut, frame(Command.LOCK))
+    await ClockCycles(dut.clk, 40)
+    assert leds() == (False, True), leds()
+    await uart_send_frame(dut, frame(Command.UNLOCK))
+    await ClockCycles(dut.clk, 40)
+    assert leds()[1] is False, f"red after unlock: {leds()}"
+
+
+@cocotb.test()
 async def test_periodic_sampling_interval(dut):
     """adc_start must fire every SAMPLE_CYCLES while the ADC is idle."""
     await bring_up(dut)
