@@ -91,6 +91,7 @@ opsi: server mencari adapter USB-UART sendiri dan langsung memakai mode FPGA.
 .venv/bin/python web/server.py                    # auto-deteksi
 .venv/bin/python web/server.py --fpga /dev/ttyUSB1 # pilih port
 .venv/bin/python web/server.py --sim               # latihan tanpa board
+.venv/bin/python -m model.station --check          # cek board sebelum demo
 ```
 
 Buka <http://127.0.0.1:8000>. Tombol **Muat riwayat** mengambil sampel baru

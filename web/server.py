@@ -189,6 +189,11 @@ def main() -> None:
             else:
                 error = STATE.state().get("hardware", {}).get("error")
                 print(f"Mode FPGA: {port} @ {args.baud} baud")
+                checks = station.self_check()
+                for name, ok, detail in checks:
+                    print(f"  [{'OK' if ok else 'FAIL'}] {name}: {detail}")
+                if not all(ok for _, ok, _ in checks):
+                    print("  Perbaiki sebelum demo; lihat fpga/kv260/RUNBOOK.md.")
                 if error:
                     print(f"  Peringatan: {error}")
         elif explicit:

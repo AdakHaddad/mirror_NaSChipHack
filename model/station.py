@@ -337,6 +337,39 @@ class Station:
             raise ValueError(f"unexpected STATUS reply: cmd {cmd:#04x}")
         return bool(payload[0]), payload[1]
 
+    def self_check(self, battery_id: Optional[bytes] = None) -> list:
+        """Pre-demo check: STATUS, AUTH, and one signed history read.
+
+        Returns ``(name, ok, detail)`` tuples. No RESULT is sent, so the
+        chip's fail counter and lock state do not move. HISTORY_TRUNCATED
+        counts as OK because a fresh station anchor can legitimately see
+        older records already overwritten.
+        """
+        try:
+            locked, fail_cnt = self.query_status()
+        except Exception as exc:
+            return [("STATUS", False, str(exc))]
+        results = [("STATUS", True, f"locked={locked}, fail_cnt={fail_cnt}")]
+
+        status, voltage, bid = self.authenticate(report=False)
+        results.append(("AUTH", status == AuthStatus.VALID,
+                        f"{status.name}, {voltage} mV, {bid or '-'}"))
+
+        battery = battery_id or self.last_battery_id or b'BAT\x01'
+        try:
+            transport, nonce, dump = self.read_history_raw(battery)
+        except Exception as exc:
+            results.append(("READ_HIST", False, str(exc)))
+            return results
+        if dump is None:
+            results.append(("READ_HIST", False, f"transport {transport.name}"))
+            return results
+        history = self.verify_history(battery, nonce, dump)
+        ok = history in (AuthStatus.VALID, AuthStatus.HISTORY_TRUNCATED)
+        results.append(("READ_HIST", ok,
+                        f"{history.name}, {len(dump.records)} catatan"))
+        return results
+
     def read_history_attacked(self, battery_id: bytes, mode: str,
                               seq: Optional[int] = None,
                               count: int = 3, mv: int = 3600):
@@ -727,6 +760,8 @@ def main():
     parser.add_argument('--demo', action='store_true', help='Run demo sequence')
     parser.add_argument('--benchmark', action='store_true', help='Run throughput benchmark')
     parser.add_argument('--history', action='store_true', help='Read and verify signed history')
+    parser.add_argument('--check', action='store_true',
+                        help='Pre-demo self-check (STATUS, AUTH, READ_HIST)')
     parser.add_argument('--count', type=int, default=100, help='Benchmark count')
     parser.add_argument('--offline', action='store_true', help='Run offline test (no hardware)')
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
@@ -746,7 +781,8 @@ def main():
             print("[INFO] No hardware board detected on USB-UART. Running simulated Demo Day suite...\n")
             run_offline_test(demo_mode=True)
             return
-        print("No FPGA USB-UART board detected. Connect Nexys A7 via micro-USB, specify --port, or use --offline.")
+        print("No USB-UART board detected. Connect the CP2102 at Pmod J2, "
+              "pass --port, or use --offline.")
         sys.exit(1)
 
     print(f"Connecting to {port} at {args.baud} baud...")
@@ -763,7 +799,13 @@ def main():
     station.scale = args.scale
 
     try:
-        if args.demo:
+        if args.check:
+            checks = station.self_check()
+            for name, ok, detail in checks:
+                print(f"[{'OK' if ok else 'FAIL'}] {name}: {detail}")
+            if not all(ok for _, ok, _ in checks):
+                sys.exit(1)
+        elif args.demo:
             run_demo(station)
         elif args.history:
             status, dump = station.read_history(b'BAT\x01')

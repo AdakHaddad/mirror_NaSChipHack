@@ -272,6 +272,45 @@ sudo chmod 666 /dev/ttyUSB0
 
 ---
 
+## 7b. Self-check sebelum demo
+
+Satu perintah untuk memastikan board benar-benar siap: STATUS, AUTH, lalu satu
+pembacaan riwayat bertanda tangan. Tidak ada RESULT yang dikirim, jadi hitungan
+gagal dan lock chip tidak berubah; jangkar stasiun ikut menyesuaikan ke `seq`
+terakhir yang valid.
+
+```bash
+source .venv/bin/activate
+python -m model.station --check              # auto-deteksi CP2102
+python -m model.station --check --port /dev/ttyUSB1
+```
+
+Contoh output siap demo:
+
+```
+[OK] STATUS: locked=False, fail_cnt=0
+[OK] AUTH: VALID, 3700 mV, 42415401
+[OK] READ_HIST: VALID, 12 catatan
+```
+
+Dashboard menjalankan self-check yang sama saat start dan mencetak baris
+`[OK]`/`[FAIL]`:
+
+```bash
+python3 web/server.py            # auto-deteksi; pakai --sim untuk latihan
+```
+
+Urutan yang benar: muat bitstream dulu (bagian 6), baru jalankan self-check dan
+dashboard. Setelah bitstream dimuat ulang, `seq` chip kembali ke 0 — restart
+server dashboard supaya jangkar ikut kembali ke 0; kalau tidak, pertukaran
+pertama akan melaporkan `HISTORY_ROLLBACK`.
+
+`READ_HIST: HISTORY_TRUNCATED` tetap dianggap OK (jangkar stasiun baru dan
+buffer sudah berputar). `FAIL` pada salah satu baris berarti jangan mulai demo:
+lihat bagian 12.
+
+---
+
 ## 8. Smoke test satu autentikasi
 
 ```bash
@@ -406,6 +445,8 @@ gagal setelah sampel baik, sampel terakhir dipertahankan dan LED merah menyala.
 | `JTAG ... Cannot halt hart` | bug hw_server 2024.2 | pakai `fpgautil` atau hw_server 2024.1 |
 | Build berhenti di `validate_bd_design` FREQ_HZ | port BD tidak cocok dengan pin PS | jalankan `build.tcl` versi ini (membaca frekuensi aktual dari pin PS) |
 | `Permission denied` port serial | user tidak di grup `dialout` | `sudo usermod -aG dialout $USER`, login ulang |
+| Dashboard jatuh ke mode simulasi padahal CP2102 tersambung | auto-deteksi melewati port “ML Carrier Card” atau salah pilih adapter | cek `/dev/ttyUSB*`, paksa `--fpga /dev/ttyUSBx` |
+| Self-check `[FAIL]` | board tidak menjawab, bitstream belum termuat, atau voltage 0 | muat bitstream (bagian 6), cek wiring I2C/LED, ulangi `--check` |
 
 ---
 

@@ -104,6 +104,17 @@ class HardwareStateTests(unittest.TestCase):
         self.assertEqual(state["health"]["samples"], 2)
         self.assertEqual(state["health"]["min_mv"], 2000)
 
+    def test_station_self_check_passes_and_aligns_anchor(self):
+        self.station.sample(3700)
+        self.station.sample(2000)
+
+        checks = self.station.self_check()
+
+        self.assertEqual([name for name, _, _ in checks],
+                         ["STATUS", "AUTH", "READ_HIST"])
+        self.assertTrue(all(ok for _, ok, _ in checks))
+        self.assertEqual(self.station.db.lookup(BATTERY_ID).seq_anchor, 1)
+
     def test_delete_attack_is_detected(self):
         self.station.sample(3700)
         self.state.swap()

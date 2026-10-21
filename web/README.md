@@ -52,6 +52,14 @@ Carrier Card” biasanya console PS, bukan UART Pmod. Jika hanya port itu yang
 terlihat, sambungkan adapter CP2102 atau beri `--fpga /dev/ttyUSBx` secara
 eksplisit. Cek dulu dengan `python3 -m model.station --port /dev/ttyUSBx`.
 
+Saat start, server menjalankan self-check STATUS + AUTH + READ_HIST dan
+mencetak `[OK]`/`[FAIL]` per baris. Cek yang sama bisa dijalankan manual:
+
+```bash
+python3 -m model.station --check
+python3 -m model.station --check --port /dev/ttyUSBx
+```
+
 ### Perbedaan mode FPGA
 
 - Slider tegangan, “Catat sampel”, dan rekam otomatis disembunyikan. FPGA
