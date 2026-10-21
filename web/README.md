@@ -47,7 +47,11 @@ python3 web/server.py --fpga /dev/ttyUSB0 --baud 115200
 py -3.14 -m web.server --fpga COM8 --open
 ```
 
-Chip menandatangani tegangan di pin ADC. Dashboard mengubahnya ke tegangan baterai dengan profil yang sama dengan station CLI (`--profil`, bawaan `sel`): kenop 0–3,3 V di A0 dibaca sebagai satu sel Li-ion 0–4,2 V, terkuras dalam di bawah 2,5 V, dan satu siklus berarti turun di bawah 3,0 V lalu naik di atas 4,0 V. Verifikasi tanda tangan tetap memakai nilai pin yang asli. Grafik dashboard dibuat untuk skala sel, sedangkan profil `aki12v` dipakai lewat station CLI.
+Chip menandatangani tegangan di pin ADC. Dashboard mengubahnya ke tegangan baterai dengan profil yang sama dengan station CLI (`--profil`, bawaan `sel`): kenop 0–3,3 V di A0 dibaca sebagai satu sel Li-ion 0–4,2 V, terkuras dalam di bawah 2,5 V, dan satu siklus berarti turun di bawah 3,0 V lalu naik di atas 4,0 V. Verifikasi tanda tangan tetap memakai nilai pin yang asli. Grafik dashboard mengikuti pita aman profil yang dipilih. Untuk LiPo 3S pada rangkaian di [rangkaian-adc.md](../docs/catatan-teknis/rangkaian-adc.md), jalankan dengan `--profil lipo3s` (pin × 5,8, terkuras dalam di bawah 9,0 V, pita aman 9,0–12,6 V):
+
+```bash
+py -3.14 -m web.server --fpga COM8 --profil lipo3s --open
+```
 
 Persyaratan: `pyserial` terpasang dan pengguna masuk grup `dialout` (atau punya
 akses ke port). Auto-deteksi memprioritaskan CP2102/CH340; port KV260 “ML

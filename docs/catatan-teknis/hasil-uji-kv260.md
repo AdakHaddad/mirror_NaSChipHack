@@ -162,11 +162,11 @@ py -3.14 -m model.station --port COM8 --benchmark --count 100
 # Uji tanpa board (model Python)
 py -3.14 -m model.station --offline --demo
 
-# Kartu kesehatan untuk baterai 12 V di casing (pembagi 47k/10k)
-py -3.14 -m model.station --port COM8 --interactive --profil aki12v
+# Kartu kesehatan untuk LiPo 3S (pembagi 120k/kenop 10k/15k)
+py -3.14 -m model.station --port COM8 --interactive --profil lipo3s
 
-# Dashboard web yang membaca board
-py -3.14 -m web.server --fpga COM8 --open
+# Dashboard web yang membaca board dengan LiPo 3S
+py -3.14 -m web.server --fpga COM8 --profil lipo3s --open
 ```
 
 Kartu kesehatan memakai profil baterai yang sama di CLI dan dashboard (opsi --profil). Chip menandatangani tegangan di pin ADC, lalu stasiun mengubahnya ke tegangan baterai.
@@ -174,9 +174,10 @@ Kartu kesehatan memakai profil baterai yang sama di CLI dan dashboard (opsi --pr
 | Profil | Rangkaian | Pin ke baterai | Terkuras dalam | Satu siklus |
 |---|---|---|---|---|
 | sel (bawaan) | Kenop langsung ke A0, mewakili satu sel Li-ion | × 4200/3300 (0–3,3 V menjadi 0–4,2 V) | di bawah 2,5 V | turun di bawah 3,0 V lalu naik di atas 4,0 V |
-| aki12v | Aki 12 V lewat pembagi 47k/10k di casing | × 5,7 | di bawah 10,5 V | turun di bawah 11,8 V lalu naik di atas 12,6 V |
+| lipo3s | LiPo 3S lewat pembagi 120k/kenop 10k/15k, kenop di ujung atas membaca tegangan asli | × 5,8 (dikalibrasi) | di bawah 9,0 V | turun di bawah 10,5 V lalu naik di atas 12,3 V |
+| aki12v | Aki 12 V lewat pembagi 47k/10k | × 5,7 | di bawah 10,5 V | turun di bawah 11,8 V lalu naik di atas 12,6 V |
 
-Dengan profil sel, kenop di tengah (sekitar 1650 mV di pin) terbaca 2,1 V dan tercatat sebagai terkuras dalam. Dashboard grafiknya dibuat untuk skala sel, sehingga profil aki12v dipakai di CLI.
+Dengan profil sel, kenop di tengah (sekitar 1650 mV di pin) terbaca 2,1 V dan tercatat sebagai terkuras dalam. Grafik dashboard mengikuti profil yang dipilih. Rangkaian LiPo dijelaskan di [rangkaian-adc.md](rangkaian-adc.md). Profil lipo3s belum diuji di board.
 
 Ganti COM8 dengan nomor port CP2102 di laptop yang dipakai.
 

@@ -23,11 +23,8 @@ Demo memakai **modul ADS1115** (16 bit, 4 kanal, I2C). Pilihan ini diambil 19 Ok
 | Kapasitor keramik 100 nF | 2 | Filter masukan AIN0 |
 | Resistor 330 Ω | 4 | Pembatas arus LED |
 | LED 10 mm hijau dan merah | 2 + 2 | Penanda status di breadboard |
-| Resistor 1% 47 kΩ, 10 kΩ, dan 3,3 kΩ | Masing-masing 2 | Pembagi tegangan 12 V dan resistor seri potensiometer |
-| Saklar toggle mini SPDT (lubang 6 mm) | 1 | Saklar LIVE/DEMO |
-| Dioda Schottky BAT43 | 2 | Pelindung masukan ADC |
-| Sekring 0,5 A dengan dudukan inline | 1 | Di kabel (+) baterai |
-| Kabel dan terminal untuk aki 12 V | 1 set | Dari kutub baterai ke casing |
+| Resistor 1% 120 kΩ dan 15 kΩ | Masing-masing 2 | Pembagi tegangan LiPo. Pengganti: 100 kΩ + 22 kΩ seri dan 10 kΩ + 4,7 kΩ seri |
+| Konektor JST-XH 4 pin betina | 1 | Pasangan konektor balance LiPo 3S |
 | Adaptor USB-UART CP2102 (logika 3,3 V) | 3 | Board ke laptop, laptop ke laptop, satu cadangan |
 | Breadboard kecil | 1 | |
 | Kabel jumper male-female dan male-male | Masing-masing 20 | Header Pmod berupa pin, sehingga perlu ujung female |
@@ -43,55 +40,56 @@ Demo memakai **modul ADS1115** (16 bit, 4 kanal, I2C). Pilihan ini diambil 19 Ok
 | SDA | Pmod pin 2 |
 | ADDR | GND (alamat 0x48) |
 | ALRT | Tidak dipakai |
-| A0 | Keluaran saklar LIVE/DEMO |
+| A0 | Wiper kenop pada pembagi LiPo |
 | A1–A3 | Ke GND |
 
 Modul umumnya sudah membawa resistor pull-up 10 kΩ di SCL dan SDA ke VDD, serta kapasitor decoupling. Karena pull-up mengikuti VDD, modul **wajib diberi 3,3 V, bukan 5 V**, agar pin FPGA tidak menerima 5 V.
 
-## Rangkaian di Dalam Casing (Baterai 12 V)
+## Rangkaian Baterai LiPo 3S
 
-Casing dari [folder casing](../../casing/README.md) ditempel ke baterai 12 V. Saklar LIVE/DEMO di tutup memilih sumber tegangan yang masuk ke A0:
+Skematik lengkap ada di [rangkaian-adc.png](../gambar/rangkaian-adc.png), dibuat oleh skrip rangkaian-adc.py di folder yang sama. Baterai demo adalah LiPo 3S (12,6 V penuh, 11,1 V nominal). Tegangannya diambil dari dua pin paling luar konektor balance JST-XH, sehingga kabel arus besar XT60 tidak disentuh. LiPo hanya diukur. KV260 tetap memakai adaptor 12 V sendiri.
 
-- **LIVE:** tegangan baterai 12 V yang sebenarnya, melalui pembagi tegangan.
-- **DEMO:** kenop potensiometer, untuk memperagakan baterai yang terkuras tanpa benar-benar menguras baterai.
+Kenop potensiometer menjadi bagian dari pembagi tegangan, sehingga satu rangkaian melayani pembacaan asli sekaligus simulasi baterai terkuras.
 
 ```
-(+) baterai ── sekring 0,5 A ── 47 kΩ ──┬── titik LIVE
-                                         │
-                                       10 kΩ
-                                         │
-(−) baterai ─────────────────────────────┴── GND
-
-3,3 V ── 3,3 kΩ ── [potensiometer 10 kΩ] ── GND
-                          │
-                       wiper = titik DEMO
-
-titik LIVE ──┐
-             ├── saklar SPDT ──┬── ADS1115 A0
-titik DEMO ──┘                 ├── 100 nF ke GND
-                               └── dioda Schottky ke 3,3 V (pelindung)
+(+) LiPo ── R1 120 kΩ ──┬── [kenop 10 kΩ] ──┬── R2 15 kΩ ── (−) LiPo = GND
+                        atas    wiper       bawah
+                                  │
+                                  ├── 100 nF ke GND
+                                  └── ADS1115 A0
 ```
 
-**Pembagi tegangan 47 kΩ dan 10 kΩ** memberi rasio 10/57 = 0,175. Hasilnya untuk beberapa kondisi:
+**Kenop di ujung atas** memberi rasio 25/145, atau tegangan LiPo dibagi 5,8. Inilah tegangan LiPo yang sebenarnya, dan nilainya dapat dicocokkan dengan multimeter.
 
-| Tegangan baterai | Masuk A0 | Keterangan |
+| Tegangan LiPo | Per sel | Masuk A0 |
 |---|---|---|
-| 14,4 V | 2,53 V | Tertinggi saat diisi (aki timbal-asam) |
-| 12,6 V | 2,21 V | Penuh |
-| 10,5 V | 1,84 V | Sekitar batas terkuras dalam untuk aki 12 V |
+| 12,6 V | 4,20 V (penuh) | 2,17 V |
+| 11,1 V | 3,70 V (nominal) | 1,91 V |
+| 9,0 V | 3,00 V (batas terkuras dalam) | 1,55 V |
 
-RTL mengirim tegangan A0 dalam milivolt. Stasiun mengalikannya dengan 5,7 untuk mendapatkan tegangan baterai. Satu LSB setara sekitar 0,7 mV tegangan baterai, sehingga ketelitian ADC jauh melebihi kebutuhan demo.
+**Kenop diputar turun** menurunkan rasio sampai 15/145 di ujung bawah. LiPo 12,4 V lalu terbaca 7,4 V, seolah baterai terkuras, tanpa benar-benar menguras sel. Tegangan A0 selalu berada di antara 1,3 V dan 2,17 V pada posisi kenop mana pun, jauh di bawah batas 3,3 V.
 
-**Potensiometer dengan resistor seri 3,3 kΩ** menghasilkan 0–2,48 V, setara 0–14,1 V baterai setelah dikali 5,7. Dengan demikian, kedua posisi saklar memakai faktor yang sama, dan stasiun tidak perlu tahu posisi saklar.
+RTL mengirim tegangan A0 dalam milivolt. Stasiun mengalikannya dengan faktor di profil lipo3s (model/station.py). Satu LSB ADS1115 setara sekitar 0,7 mV tegangan LiPo.
 
-Uji di meja tanpa casing boleh memakai potensiometer yang langsung terhubung antara 3,3 V dan GND, dengan wiper ke A0. Pada susunan ini faktor di stasiun adalah 1, bukan 5,7.
+**Kalibrasi.** Toleransi resistor 1% dan impedansi masukan ADS1115 dapat menggeser faktor sampai sekitar 2%. Putar kenop ke ujung atas, ukur LiPo dengan multimeter, lalu jalankan AUTH di station yang mencetak "pin N mV". Faktor baru adalah tegangan multimeter dibagi N. Isi nilai itu ke kolom scale profil lipo3s.
+
+**Profil lipo3s** menilai riwayat dengan batas berikut:
+
+| Kejadian | Batas |
+|---|---|
+| Terkuras dalam | di bawah 9,0 V (3,0 V per sel) |
+| Satu siklus pengisian | turun di bawah 10,5 V, lalu naik di atas 12,3 V |
+| Pita aman di grafik | 9,0–12,6 V |
+
+Siklus pengisian hanya terhitung apabila pembacaan dengan kenop di ujung atas melewati 12,3 V. Untuk memperagakannya, LiPo perlu diisi penuh sebelum demo.
 
 **Pengaman:**
-- Sekring 0,5 A dipasang sedekat mungkin dengan kutub (+) baterai, karena baterai 12 V dapat mengalirkan arus sangat besar bila kabel terhubung singkat.
-- Dioda Schottky (misalnya BAT43) dari A0 ke 3,3 V menahan tegangan berlebih apabila pembagi terlepas.
-- GND baterai disatukan dengan GND Pmod. Hanya kutub (−) yang terhubung langsung, sedangkan kutub (+) selalu melalui pembagi.
+- R1 disolder menempel di konektor J1. Setelah R1, kabel yang terhubung singkat hanya mengalirkan sekitar 0,1 mA, sehingga seluruh kabel ke breadboard aman tanpa sekring.
+- Arus ke A0 dibatasi R1, sehingga dioda ESD internal ADS1115 sudah cukup sebagai pelindung.
+- Kutub (−) LiPo disatukan dengan GND Pmod. Kutub (+) hanya terhubung melalui R1.
+- Pembagi menarik sekitar 0,09 mA dari LiPo. Cabut konektor balance setelah demo.
 
-**Batas terkuras dalam** bergantung pada jenis baterai. Untuk aki timbal-asam 12 V sekitar 10,5 V. Untuk paket Li-ion 3S sekitar 9 V (3,0 V per sel). Batas ini disesuaikan di dashboard dengan jenis baterai yang dipakai.
+Uji di meja tanpa LiPo memakai potensiometer yang langsung terhubung antara 3,3 V dan GND, dengan wiper ke A0. Susunan ini memakai profil sel, yang membaca 0–3,3 V di A0 sebagai satu sel Li-ion 0–4,2 V.
 
 ## Sambungan ke Pmod
 
@@ -101,10 +99,10 @@ Header Pmod J2 KV260 berisi 2 baris × 6 pin. Pin 5 dan 11 adalah GND, pin 6 dan
 |---|---|---|
 | 1 | I2C SCL | ADS1115 SCL |
 | 2 | I2C SDA | ADS1115 SDA |
-| 3 | Tombol atau pemilih sumber | Cadangan |
-| 4 | – | Bebas |
-| 5 | GND | GND breadboard |
-| 6 | 3,3 V | VDD ADS1115 dan rangkaian potensiometer |
+| 3 | src_sel | GND = baca ADS1115, 3,3 V = sumber tetap 3000 mV. Jangan dibiarkan terbuka |
+| 4 | led_hb | Resistor 330 Ω, lalu LED heartbeat, lalu GND |
+| 5 | GND | GND breadboard dan (−) LiPo |
+| 6 | 3,3 V | VDD ADS1115 |
 | 7 | UART TX (dari FPGA) | RX adaptor CP2102 |
 | 8 | UART RX (ke FPGA) | TX adaptor CP2102 |
 | 9 | LED hijau | Resistor 330 Ω, lalu LED, lalu GND |
@@ -134,7 +132,7 @@ Konversi nilai:
 
 $$V_{A0} = \frac{raw}{8}\ \text{mV}$$
 
-Contoh: kenop di tengah memberi sekitar 1,24 V pada rangkaian casing, sehingga mV sekitar 1240 dan tegangan baterai di stasiun sekitar 7,1 V.
+Contoh: LiPo 12,4 V dengan kenop di ujung atas memberi sekitar 2,14 V di A0, sehingga mV sekitar 2138 dan tegangan baterai di stasiun 2138 × 5,8 ≈ 12,4 V.
 
 ## Antarmuka Modul ads1115_ctrl
 
@@ -153,7 +151,7 @@ Contoh: kenop di tengah memberi sekitar 1,24 V pada rangkaian casing, sehingga m
 
 ## Urutan Pengujian
 
-1. **Tanpa FPGA.** Rakit di breadboard, beri 3,3 V dari power supply, lalu ukur A0 dengan multimeter sambil memutar kenop. Tegangan harus bergerak sesuai tabel di atas.
+1. **Tanpa FPGA.** Rakit pembagi, sambungkan LiPo, lalu ukur wiper terhadap GND dengan multimeter sambil memutar kenop. Tegangan harus bergerak di antara sekitar 1,3 V dan 2,17 V, dan tidak pernah melebihi 3,3 V. Baru setelah itu wiper disambung ke A0.
 2. **Uji I2C dengan mikrokontroler (opsional, paling cepat).** Baca ADS1115 dengan STM32 atau Arduino untuk memastikan modul hidup di alamat 0x48.
 3. **Simulasi.** Jalankan uji cocotb ads1115 di folder sim. Uji ini lolos 2/2 (dijalankan ulang 20 Okt).
 4. **Cmod S7 (T9).** Sambungkan modul ke Pmod JA, kirim AUTH_REQ dari stasiun sambil memutar kenop, lalu bandingkan nilai V dengan multimeter. Tidak boleh ada NACK. Prosedur lengkap ada di [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md).
@@ -162,5 +160,5 @@ Contoh: kenop di tengah memberi sekitar 1,24 V pada rangkaian casing, sehingga m
 ## Batasan
 
 - Tegangan dapat dipalsukan sebelum masuk ADS1115 atau di jalur I2C. Pada produk, ADC berada di dalam chip yang sama dengan IP SeBatt.
-- Demo memakai baterai 12 V. Paket motor listrik bertegangan 48 V ke atas membutuhkan isolasi dan proteksi masukan yang lebih ketat.
-- Mode DEMO memakai potensiometer, sehingga adegan baterai terkuras tidak berasal dari baterai yang benar-benar terkuras. Hal ini disebutkan saat pitch.
+- Demo memakai LiPo 3S 12,6 V. Paket motor listrik bertegangan 48 V ke atas membutuhkan isolasi dan proteksi masukan yang lebih ketat.
+- Adegan baterai terkuras dibuat dengan memutar kenop pada pembagi, bukan dengan menguras LiPo, karena LiPo rusak bila dikuras di bawah 3,0 V per sel. Hal ini disebutkan saat pitch. Kenop di ujung atas tetap membaca tegangan LiPo yang sebenarnya.
