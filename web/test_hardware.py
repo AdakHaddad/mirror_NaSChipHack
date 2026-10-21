@@ -9,7 +9,7 @@ from model.protocol import (
     AuthStatus,
     SeBattChip,
 )
-from model.station import IdentityDB, Station
+from model.station import IdentityDB, PROFILES, Station, health_summary, to_battery_mv
 from web.hardware import HardwareState
 
 BATTERY_ID = b"BAT\x01"
@@ -88,7 +88,7 @@ class HardwareStateTests(unittest.TestCase):
         self.assertEqual(state["chip_seq"], 0)
         self.assertEqual(state["pending"], 1)
         self.assertEqual(len(state["records"]), 1)
-        self.assertEqual(state["voltage_mv"], 3700)
+        self.assertEqual(state["voltage_mv"], to_battery_mv(3700, PROFILES["sel"]))
         self.assertEqual(state["health_status"], "unverified")
         self.assertIsNone(state["health"])
 
@@ -102,7 +102,7 @@ class HardwareStateTests(unittest.TestCase):
         self.assertEqual(state["pending"], 0)
         self.assertEqual(state["health_status"], "trusted")
         self.assertEqual(state["health"]["samples"], 2)
-        self.assertEqual(state["health"]["min_mv"], 2000)
+        self.assertEqual(state["health"]["min_mv"], to_battery_mv(2000, PROFILES["sel"]))
 
     def test_delete_attack_is_detected(self):
         self.station.sample(3700)
@@ -177,6 +177,30 @@ class HardwareStateTests(unittest.TestCase):
         self.assertEqual(len(state["records"]), 64)
         self.assertEqual(state["health"]["samples"], 64)
         self.assertEqual(state["chip_seq"], 79)
+
+    def test_health_matches_cli_profile(self):
+        # Knob mid (1650 mV pin = 2.10 V cell) dips below 2.5 V: one deep
+        # discharge, same verdict as model.station.health_card.
+        for mv in (3200, 1650, 1650, 3200):
+            self.station.sample(mv)
+        state = self.state.swap()
+        dump = self.station.read_history_raw(BATTERY_ID)[2]
+        expected = health_summary(dump.records, PROFILES["sel"])
+        self.assertEqual(state["health"]["deep"], expected["deep_events"])
+        self.assertEqual(state["health"]["deep"], 1)
+        self.assertEqual(state["health"]["min_mv"], expected["min_mv"])
+        self.assertIn("sel", state["profile"])
+
+    def test_tamper_shows_battery_voltage_but_verifies_pin_value(self):
+        self.station.sample(3000)
+        self.state.swap()
+        self.station.sample(1600)                 # about 2.0 V cell
+        self.state.refresh_live()
+        result = self.state.attack_tamper()
+        self.assertIn("3,6 V", result["message"])
+        tampered = [r for r in result["state"]["records"] if r["tampered"]][0]
+        self.assertEqual(tampered["mv"], 3600)
+        self.assertEqual(self.state.swap()["last_result"]["code"], "INVALID_HMAC")
 
     def test_power_cycle_is_not_available_on_fpga(self):
         result = self.state.power_cycle()

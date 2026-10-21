@@ -10,7 +10,7 @@ from .protocol import (
     Station as ModelStation, WireProtocol,
 )
 from .protocol import HistoryRecord
-from .station import IdentityDB, Station as WireStation, health_card
+from .station import IdentityDB, PROFILES, Station as WireStation, health_card, health_summary
 from .gen_vectors import sebatt_protocol_vectors
 
 
@@ -44,8 +44,7 @@ def _wire_station(reply=b''):
     station.log = []
     station.last_battery_id = None
     station.report_results = True
-    station.deep_mv = 1000
-    station.scale = 1.0
+    station.profile = PROFILES["sel"]
     station._last_seen = None
     return station
 
@@ -253,14 +252,22 @@ def _records(mvs, start=0):
 
 
 def test_health_card_counts_deep_discharge_events():
-    lines = health_card(_records([3000, 900, 800, 3000, 950, 3000]), deep_mv=1000)
-    assert "terendah 800 mV pada seq 2" in lines[0]
+    # sel profile: pin x 4200/3300, deep below 2.5 V cell (about 1964 mV pin)
+    lines = health_card(_records([3000, 1500, 1400, 3000, 1800, 3000]), PROFILES["sel"])
+    assert "terendah 1,78 V pada seq 2" in lines[0]
     assert "terkuras dalam 2 kali" in lines[1]
 
 
-def test_health_card_scales_to_battery_volts():
-    lines = health_card(_records([2210, 1840]), deep_mv=1842, scale=5.7)
-    assert "baterai 10.49 V" in lines[0]
+def test_health_summary_counts_a_charge_cycle():
+    # 3,82 V -> 2,04 V (below 3,0 V) -> 4,07 V (above 4,0 V) = one cycle
+    h = health_summary(_records([3000, 1600, 3200]), PROFILES["sel"])
+    assert h["cycles"] == 1 and h["deep_events"] == 1
+
+
+def test_health_card_aki12v_profile():
+    # 47k/10k divider: 2210 mV pin = 12,6 V, 1800 mV pin = 10,26 V (< 10,5 V)
+    lines = health_card(_records([2210, 1800]), PROFILES["aki12v"])
+    assert "terendah 10,26 V" in lines[0]
     assert "terkuras dalam 1 kali" in lines[1]
 
 
