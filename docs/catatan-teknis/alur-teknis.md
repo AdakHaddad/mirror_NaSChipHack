@@ -68,7 +68,7 @@ Catatan **sudah ditandatangani saat diambil**. Buffer berada di dalam chip dan t
 
 > **Status implementasi 21 Oktober:** sampling periodik 1 detik, penomoran `seq`,
 > buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`.
-> Regresi cocotb 23/23. Bitstream KV260 dibangun ulang (WNS +1,466 ns), dan di
+> Regresi cocotb 24/24. Bitstream KV260 dibangun ulang (WNS +1,466 ns), dan di
 > KV260 sudah diuji 21 Okt: AUTH dan READ_HIST VALID, riwayat yang diubah,
 > dihapus, dipotong, atau diputar ulang ditolak.
 
@@ -217,10 +217,10 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | key_vault | Ada sebagai modul, belum dipasang. Kunci tetap ditulis auth_ctrl |
 | Emulator stasiun Python | Ada untuk autentikasi, pembacaan riwayat, verifikasi tag, jangkar, RESULT, STATUS, dan lock |
 | ads1115_ctrl + i2c_master | Ada, lolos 2/2 uji cocotb (20 Okt); lihat `sim/test_ads1115.py` |
-| uart_if versi RTL | Ada, termasuk dalam 12/12 uji auth (21 Okt) |
-| auth_ctrl + axil_master + sebatt_top | Ada. Sampling 1 detik, riwayat 64 catatan, READ_HIST, lock, buffer dibekukan selama dump, parser pulih dari frame rusak, sumber switch tanpa ADC. Lolos 12/12 uji `make auth` (21 Okt) |
+| uart_if versi RTL | Ada, termasuk dalam 13/13 uji auth (21 Okt) |
+| auth_ctrl + axil_master + sebatt_top | Ada. Sampling 1 detik, riwayat 64 catatan, READ_HIST, lock, buffer dibekukan selama dump, parser pulih dari frame rusak, sumber switch tanpa ADC. Lolos 13/13 uji `make auth` (21 Okt) |
 | Bitstream Cmod S7 | Dibangun ulang 21 Okt, timing WNS +55,788 ns, 5.235 LUT / 6.024 FF; uji board T6/T7/T9 belum |
-| Nomor urut, buffer riwayat, penguncian di chip | Ada, 12/12 uji auth (21 Okt) |
+| Nomor urut, buffer riwayat, penguncian di chip | Ada, 13/13 uji auth (21 Okt) |
 | Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 52/52 uji model |
 | Kartu kesehatan baterai di dashboard | Model web ada; belum terhubung ke FPGA |
 | Port ke KV260 | Build penuh PASS (WNS +1,466 ns). Diuji di board 21 Okt: heartbeat, STATUS, AUTH VALID (14,7 ms ujung ke ujung), READ_HIST VALID, serta serangan ubah, hapus, potong, dan putar ulang ditolak. Tegangan masih terbaca 3000 mV tetap, jalur ADS1115 belum diuji di board |

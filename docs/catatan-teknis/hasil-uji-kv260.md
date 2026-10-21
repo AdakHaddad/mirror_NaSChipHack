@@ -112,6 +112,7 @@ Penguncian otomatis setelah tiga RESULT gagal berturut-turut sudah lolos simulas
 
 - **Pmod 3 yang dibiarkan terbuka terbaca 1.** Pull-down internal FPGA kalah, sehingga chip memakai sumber tetap 3000 mV. Pmod 3 harus disambung ke GND untuk ADS1115 dan ke 3V3 untuk sumber tetap. Aturan ini sudah dicatat di RUNBOOK dan spesifikasi.
 - **AUTH menandatangani tegangan valid terakhir saat ADS1115 gagal dibaca.** Tanda kegagalan adalah berhentinya catatan riwayat baru dan LED merah, bukan isi AUTH_RESP. Ini dicatat sebagai batasan.
+- **LED merah tidak pernah padam setelah satu penolakan.** Flag error di auth_ctrl hanya dibersihkan saat reset, dan LED hijau menyala setiap chip selesai membalas, bukan saat stasiun menerima. Sudah diperbaiki di RTL: LED kini mengikuti putusan RESULT terakhir, dan merah padam setelah RESULT VALID atau UNLOCK. Uji cocotb baru (24/24) lolos. Perbaikan ini menunggu build ulang bitstream dan belum diuji di board.
 - **Pmod 2 (SDA) yang tersambung ke GND membuat pembacaan I2C bernilai 0 mV.** Kabel SDA harus terpisah dari GND.
 - **HISTORY_TRUNCATED muncul pada dump pertama setelah stasiun dijalankan ulang.** Jangkar stasiun kembali ke 0 sementara catatan lama di chip sudah tertimpa. Status ini diterima dengan peringatan, dan dump berikutnya VALID.
 - **Ubuntu Kria tidak perlu login untuk memprogram lewat JTAG**, karena clock PL sudah menyala setelah boot. Login tetap diperlukan untuk mengecek atau memperbaiki clock pl0_ref. Kata sandi board diminta ke panitia.
