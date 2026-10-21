@@ -35,7 +35,9 @@ do
 done
 
 echo "-- build freshness"
+# Only sources that reach the bitstream count; README edits in rtl/ do not.
 newer="$(find rtl fpga/kv260/kv260_top.v fpga/kv260/kv260.xdc \
+    \( -name '*.v' -o -name '*.xdc' \) \
     -newer fpga/kv260/build/kv260_top.bit -print -quit 2>/dev/null)"
 if [[ -n "$newer" ]]; then
     bad "bitstream is older than $newer; rerun build.tcl"
