@@ -2,7 +2,7 @@
 
 ![Alur teknis SeBatt: rantai perangkat (A) dan urutan protokol saat penukaran (B)](../gambar/alur-teknis.png)
 
-Gambar di atas adalah arsitektur target yang dijanjikan di proposal. Dokumen ini menjelaskannya sebagai satu alur berurutan, dari baterai dibuat sampai stasiun memutuskan menerima atau menolak. Contoh angka dipakai di setiap langkah. Tegangan ditulis dalam volt agar mudah dibaca, padahal yang tersimpan di chip berupa angka mentah dari ADC.
+Gambar di atas adalah arsitektur yang dijanjikan di proposal dan sudah diimplementasikan di RTL (lolos simulasi, belum diuji di board). Dokumen ini menjelaskannya sebagai satu alur berurutan, dari baterai dibuat sampai stasiun memutuskan menerima atau menolak. Contoh angka dipakai di setiap langkah. Tegangan ditulis dalam volt agar mudah dibaca, padahal yang tersimpan di chip berupa angka mentah dari ADC.
 
 ## Dua Istilah yang Perlu Dipahami Dulu
 
@@ -67,10 +67,10 @@ Buffer menampung 64 catatan terakhir. Saat penuh, catatan paling lama ditimpa.
 Catatan **sudah ditandatangani saat diambil**. Buffer berada di dalam chip dan tidak dapat diubah oleh BMS atau program apa pun.
 
 > **Status implementasi 21 Oktober:** sampling periodik 1 detik, penomoran `seq`,
-> buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`;
-> regresi cocotb 23/23. Bitstream Cmod S7 dan KV260 sudah dibangun ulang
-> (KV260 WNS +1,466 ns); bitstream, `.bit.bin`, dan paket demo KV260 siap;
-> uji board belum.
+> buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`.
+> Regresi cocotb 23/23. Bitstream KV260 dibangun ulang (WNS +1,466 ns), dan di
+> KV260 sudah diuji 21 Okt: AUTH dan READ_HIST VALID, riwayat yang diubah,
+> dihapus, dipotong, atau diputar ulang ditolak.
 
 ## Langkah 2. Baterai Masuk Stasiun
 
@@ -88,6 +88,8 @@ Buffer sudah berisi catatan bertag. Saat menerima `READ_HIST_REQ`, chip mengirim
 4. Satu tag ringkasan atas `0x48 || nonce || ID || seq_tertua || seq_terakhir`.
 
 Tag per catatan dibuat saat sampel diambil, bukan saat dump. Tag ringkasan mengikat nonce ke rentang yang benar-benar ada, sehingga BMS tidak bisa membuang catatan terbaru lalu mengirim rentang yang tampak utuh.
+
+Selama riwayat dikirim (sekitar 215 ms untuk 64 catatan), buffer dan tag dibekukan. Sampel yang selesai pada saat itu ditahan, lalu disimpan setelah pengiriman selesai, sehingga isi dump selalu sama dengan rentang yang ditandatangani di tag ringkasan.
 
 Setelah keluar dari chip, catatan dan tag melewati jalur yang dapat disadap BMS, tetapi perubahan apa pun akan terlihat di langkah berikutnya.
 
@@ -107,7 +109,7 @@ Selain itu, tanda tangan jawaban pada langkah 2 juga diperiksa dengan nonce yang
 
 - Semua cocok: baterai **diterima**. Basis data menyimpan seq terakhir = 184 untuk penukaran berikutnya.
 - Ada yang tidak cocok: baterai **ditolak**, dengan alasan yang ditampilkan di layar.
-- Stasiun memberi tahu chip hasilnya. Setelah tiga kali ditolak berturut-turut, chip mengunci diri dan tidak mau menjawab lagi.
+- Stasiun mengirim hasilnya ke chip (perintah RESULT). Setelah tiga kali ditolak berturut-turut, chip mengunci diri dan membalas setiap permintaan dengan CHIP_LOCKED.
 
 ## Kartu Kesehatan Baterai
 
@@ -146,8 +148,8 @@ BMS yang curang berada di antara chip dan stasiun. BMS dapat mengubah atau membu
 |---|---|
 | ads1115_ctrl + i2c_master | Langkah 1.1: membaca ADS1115 lewat I2C |
 | auth_ctrl | Langkah 1.2–1.3: memberi nomor dan menyimpan. Langkah 2–3: melayani stasiun. Langkah 5: menghitung kegagalan dan mengunci |
-| key_vault | Menyimpan K. Hanya terhubung ke hmac_sha256 |
-| hmac_sha256 | Langkah 2.2 dan 3.2: menghitung tanda tangan |
+| Kunci K | Tahap 1: kunci tetap yang ditulis auth_ctrl ke hmac_sha256. Modul key_vault (tanpa port baca) dan RO-PUF untuk tahap 2 belum dipasang |
+| hmac_sha256 | Langkah 1.3: tag tiap catatan. Langkah 2.2: jawaban autentikasi. Langkah 3: tag ringkasan |
 | uart_if | Jalur pesan ke dan dari stasiun |
 
 Byte awal pesan yang ditandatangani membedakan tiga jenis tanda tangan: 0x53 untuk catatan (ID, seq, tegangan), 0x41 untuk jawaban autentikasi (nonce, ID, tegangan), dan 0x48 untuk ringkasan riwayat (nonce, ID, rentang seq). Dengan pembeda ini, tanda tangan catatan tidak dapat dipakai sebagai jawaban nonce.
@@ -198,7 +200,7 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | Chip SeBatt | FPGA Kria KV260 |
 | Bus CAN di konektor | UART melalui PMOD dan adaptor USB-UART |
 | Stasiun dan basis data | Program Python di laptop stasiun |
-| BMS curang | Program perantara di laptop kedua |
+| BMS curang | Perintah `attack` di station.py: mengubah atau membuang catatan dari dump asli board sebelum diverifikasi |
 
 ## Batasan
 
@@ -211,14 +213,15 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 
 | Bagian | Status |
 |---|---|
-| hmac_sha256 dan inti SHA-256 | Ada, lolos 9/9 vektor uji |
-| key_vault | Ada, versi uji (kunci masih dapat dibaca dan ditulis ulang) |
-| Emulator stasiun Python | Ada untuk autentikasi, pembacaan riwayat, verifikasi tag, jangkar, dan lock |
+| hmac_sha256 dan inti SHA-256 | Ada, lolos 9/9 uji (5 SHA-256 + 4 HMAC) |
+| key_vault | Ada sebagai modul, belum dipasang. Kunci tetap ditulis auth_ctrl |
+| Emulator stasiun Python | Ada untuk autentikasi, pembacaan riwayat, verifikasi tag, jangkar, RESULT, STATUS, dan lock |
 | ads1115_ctrl + i2c_master | Ada, lolos 2/2 uji cocotb (20 Okt); lihat `sim/test_ads1115.py` |
 | uart_if versi RTL | Ada, termasuk dalam 12/12 uji auth (21 Okt) |
-| auth_ctrl + axil_master + sebatt_top | Ada; sampling periodik 1 detik, riwayat 64 record, READ_HIST, dan lock; lolos 12/12 uji `make auth` (21 Okt) |
+| auth_ctrl + axil_master + sebatt_top | Ada. Sampling 1 detik, riwayat 64 catatan, READ_HIST, lock, buffer dibekukan selama dump, parser pulih dari frame rusak, sumber switch tanpa ADC. Lolos 12/12 uji `make auth` (21 Okt) |
 | Bitstream Cmod S7 | Dibangun ulang 21 Okt, timing WNS +55,788 ns, 5.235 LUT / 6.024 FF; uji board T6/T7/T9 belum |
 | Nomor urut, buffer riwayat, penguncian di chip | Ada, 12/12 uji auth (21 Okt) |
 | Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 52/52 uji model |
 | Kartu kesehatan baterai di dashboard | Model web ada; belum terhubung ke FPGA |
-| Port ke KV260 | Build penuh PASS setelah perbaikan multi-driver `sg_req*`, dump race, CRC, dan parser resync (WNS +1,466 ns); bitstream + `.bit.bin` + runbook + paket demo sudah ada; uji board belum |
+| Port ke KV260 | Build penuh PASS (WNS +1,466 ns). Diuji di board 21 Okt: heartbeat, STATUS, AUTH VALID (14,7 ms ujung ke ujung), READ_HIST VALID, serta serangan ubah, hapus, potong, dan putar ulang ditolak. Tegangan masih terbaca 3000 mV tetap, jalur ADS1115 belum diuji di board |
+| Program BMS curang di atas data board | Ada sebagai perintah `attack` di mode interaktif `model/station.py` |
