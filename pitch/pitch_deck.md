@@ -29,6 +29,7 @@
   1. **RO-PUF (Physical Unclonable Function), tahap 2**: Sidik jari mikroskopis dari variasi pabrikasi silikon. Kunci kriptografis tidak disimpan di flash/NVM, melainkan direkonstruksi secara *on-the-fly*. RTL dan model RO-PUF ada, tetapi belum terpasang di rangkaian demo. Demo memakai kunci tetap.
   2. **In-situ Signing**: ADC membaca voltase analog paket baterai, langsung dialirkan ke core HMAC-SHA-256 di silikon yang sama. Pada PoC, ADC berupa modul ADS1115 eksternal (I2C).
   3. **Zero-Trust Handshake**: Stasiun mengirimkan *nonce* unik setiap swap. Respons HMAC memvalidasi `nonce || Battery_ID || Voltage`.
+- **Gambar slide**: rantai perangkat + urutan protokol ada di [gambar alur teknis](../docs/gambar/alur-teknis.png) (16:9, siap tempel di slide).
 
 ---
 

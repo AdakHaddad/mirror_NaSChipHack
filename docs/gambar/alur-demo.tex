@@ -1,6 +1,6 @@
 % Ilustrasi demo SeBatt: susunan meja dan tiga adegan.
-% Kompilasi: latexmk -pdf alur-demo.tex
-% PNG: pdftoppm -png -r 200 -singlefile alur-demo.pdf alur-demo
+% Kompilasi: tectonic -X compile alur-demo.tex  (atau latexmk -pdf alur-demo.tex)
+% PNG: pdftoppm -png -r 300 -singlefile alur-demo.pdf alur-demo
 \documentclass[border=8pt]{standalone}
 \usepackage[T1]{fontenc}
 \usepackage[scaled=0.92]{helvet}
@@ -51,7 +51,7 @@
 \fill[ok] (1.35,2.45) circle (0.13);
 \fill[bad] (1.75,2.45) circle (0.13);
 \node[font=\scriptsize] at (1.55,2.08) {LED};
-\node[font=\scriptsize, text=black!60, align=center] at (0.6,-0.25) {potensiometer + ADS1115 (I2C)};
+\node[font=\scriptsize, text=black!60, align=center] at (0.6,-0.25) {potensiometer +\\ADS1115 (I2C)};
 
 % Juri memutar kenop
 \pic at (-1.0,4.55) {person};
