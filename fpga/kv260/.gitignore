@@ -3,3 +3,5 @@ build/
 *.jou
 *.log
 clockInfo.txt
+*.bit
+*.bit.bin
