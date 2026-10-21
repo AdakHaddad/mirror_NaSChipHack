@@ -9,7 +9,9 @@
 //      START, addr+W, reg_addr, RESTART, addr+R,
 //      rd_data[15:8] (master ACK), rd_data[7:0] (master NACK), STOP
 //
-//  SCL = 100 kHz from a 100 MHz clock (quarter-bit divider).
+//  SCL = I2C_HZ from CLK_HZ (quarter-bit divider, 100 kHz by default).
+//  A start on a bus that is not idle (SDA or SCL low) ends at once with
+//  done + ack_error instead of reading garbage.
 //  SCL/SDA are open-drain; the board needs pull-ups (the ADS1115 module has
 //  them). Simulation adds weak pull-ups behind `SIMULATION.
 // ===========================================================================
@@ -73,8 +75,26 @@ module i2c_master #(
     assign scl = scl_oen ? 1'b0 : 1'bz;
     assign sda = sda_oen ? 1'b0 : 1'bz;
 
-    wire sda_i = sda;
-    wire tick  = (div_cnt == QUARTER - 1);
+    // SDA/SCL come from the board: synchronise them before use. A transaction
+    // only starts on an idle bus (both lines high). A line held low, e.g. SDA
+    // shorted to GND, would otherwise read as ACK plus 0x0000 data and a
+    // 0 mV sample would be stored and signed as if it were real.
+    reg [1:0] sda_sync;
+    reg [1:0] scl_sync;
+
+    always @(posedge clk) begin
+        if (!resetn) begin
+            sda_sync <= 2'b11;
+            scl_sync <= 2'b11;
+        end else begin
+            sda_sync <= {sda_sync[0], sda};
+            scl_sync <= {scl_sync[0], scl};
+        end
+    end
+
+    wire sda_i    = sda_sync[1];
+    wire bus_idle = sda_sync[1] && scl_sync[1];
+    wire tick     = (div_cnt == QUARTER - 1);
 
 `ifdef SIMULATION
     pullup (scl);
@@ -116,7 +136,11 @@ module i2c_master #(
             done <= 1'b0;
 
             if (state == S_IDLE) begin
-                if (start) begin
+                if (start && !bus_idle) begin
+                    // Bus stuck low: report a failed transaction at once.
+                    ack_error <= 1'b1;
+                    done      <= 1'b1;
+                end else if (start) begin
                     busy       <= 1'b1;
                     ack_error  <= 1'b0;
                     dev_addr_r <= dev_addr;
