@@ -42,12 +42,17 @@ def _wire_station(reply=b''):
     station.db.register(BID, KEY)
     station.log = []
     station.last_battery_id = None
+    station.report_results = True
     return station
 
 
 class FakeSerial:
+    """The canned reply arrives only after the first request is written, as
+    on a real port (the station flushes its input before each request)."""
+
     def __init__(self, data):
-        self.data = bytearray(data)
+        self.pending = bytearray(data)
+        self.data = bytearray()
         self.timeout = None
         self.written = bytearray()
         self.is_open = True
@@ -57,8 +62,13 @@ class FakeSerial:
         del self.data[:size]
         return out
 
+    def reset_input_buffer(self):
+        self.data.clear()
+
     def write(self, data):
         self.written.extend(data)
+        self.data.extend(self.pending)
+        self.pending.clear()
 
     def flush(self):
         pass

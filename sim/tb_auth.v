@@ -10,6 +10,8 @@ module tb_auth;
     reg         adc_valid;
     reg         adc_busy;
     reg         adc_error;
+    reg  [7:0]  sw;
+    reg         src_sel;
 
     wire [3:0]  led;
     wire        locked_flag;
@@ -29,8 +31,8 @@ module tb_auth;
         .adc_valid  (adc_valid),
         .adc_busy   (adc_busy),
         .adc_error  (adc_error),
-        .sw         (8'd0),
-        .src_sel    (1'b0),
+        .sw         (sw),
+        .src_sel    (src_sel),
         .locked_flag(locked_flag),
         .led        (led)
     );

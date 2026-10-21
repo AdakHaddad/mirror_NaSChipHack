@@ -80,6 +80,8 @@ async def bring_up(dut):
     dut.adc_valid.value = 0
     dut.adc_busy.value = 0
     dut.adc_error.value = 0
+    dut.sw.value = 0
+    dut.src_sel.value = 0
     await ClockCycles(dut.clk, 10)
     dut.resetn.value = 1
     await ClockCycles(dut.clk, 5)
@@ -92,6 +94,11 @@ async def adc_model(dut, state):
         await RisingEdge(dut.adc_start)
         if not state["enabled"]:
             continue
+        if state.get("hold_until_tx"):
+            # Finish this conversion only once the chip starts replying,
+            # i.e. right after the READ_HIST snapshot.
+            state["hold_until_tx"] = False
+            await FallingEdge(dut.tx)
         await ClockCycles(dut.clk, 20)
         mv = (state["voltages"][count] if state["ramp"]
               else state["voltage"])
@@ -111,7 +118,7 @@ def adc_state(voltage=3300, stop_after=None, ramp=False):
         "voltage": voltage,
         "stop_after": stop_after,
         "ramp": ramp,
-        "voltages": [3000 + (i * 37) % 900 for i in range(200)],
+        "voltages": [3000 + (i * 37) % 900 for i in range(400)],
         "mvs": [],
         "count": 0,
         "enabled": True,
@@ -344,3 +351,127 @@ async def test_read_hist_full_buffer_matches_python(dut):
     summary_tag = payload[9 + 38 * n:9 + 38 * n + 32]
     assert summary_tag == hmac_sha256(
         KEY, summary_msg(nonce, seq_oldest, seq_last))
+
+
+def check_dump(payload, nonce):
+    """Verifies a READ_HIST_RESP payload; returns (n, oldest, last, records)."""
+    n = payload[0]
+    seq_oldest, seq_last = struct.unpack(">II", payload[1:9])
+    assert len(payload) == 41 + 38 * n
+    records = []
+    for rec in range(n):
+        off = 9 + 38 * rec
+        seq, mv = struct.unpack(">IH", payload[off:off + 6])
+        tag = payload[off + 6:off + 38]
+        assert seq == seq_oldest + rec, (seq, seq_oldest + rec)
+        assert tag == hmac_sha256(KEY, record_msg(seq, mv)), seq
+        records.append((seq, mv))
+    if n:
+        assert seq_last == seq_oldest + n - 1, (seq_oldest, seq_last, n)
+    summary_tag = payload[9 + 38 * n:9 + 38 * n + 32]
+    assert summary_tag == hmac_sha256(
+        KEY, summary_msg(nonce, seq_oldest, seq_last))
+    return n, seq_oldest, seq_last, records
+
+
+@cocotb.test()
+async def test_read_hist_full_buffer_while_sampling(dut):
+    """A full buffer keeps sampling during the ~25 ms dump (1 sample/ms in
+    simulation). A conversion is made to finish just as the reply starts, so
+    the new sample would land in the slot of record 0 of the dump. The dump
+    must still be the snapshot (record 0 intact, every tag valid), and the
+    samples taken meanwhile are stored afterwards with contiguous seq."""
+    await bring_up(dut)
+    state = adc_state(ramp=True)
+    cocotb.start_soon(adc_model(dut, state))
+
+    while state["count"] < 70:
+        await ClockCycles(dut.clk, 500)
+    state["hold_until_tx"] = True
+    await RisingEdge(dut.adc_start)
+
+    nonce = bytes([(i * 7 + 3) & 0xFF for i in range(32)])
+    resp_len = 4 + 1 + 4 + 4 + 64 * 38 + 32
+    cmd, payload = await exchange(dut, frame(Command.READ_HIST_REQ, nonce),
+                                  resp_len)
+    assert cmd == Command.READ_HIST_RESP
+    n, oldest, last, records = check_dump(payload, nonce)
+    assert n == 64, n
+    # Nothing was lost before the snapshot, so seq indexes the ADC trace.
+    for seq, mv in records:
+        assert mv == state["mvs"][seq], (seq, mv, state["mvs"][seq])
+
+    # Let held samples drain and a few more arrive, then dump again.
+    await ClockCycles(dut.clk, 12000 * 5)
+    nonce2 = bytes([0x3C]) * 32
+    cmd, payload = await exchange(dut, frame(Command.READ_HIST_REQ, nonce2),
+                                  resp_len)
+    assert cmd == Command.READ_HIST_RESP
+    n2, oldest2, last2, _ = check_dump(payload, nonce2)
+    assert n2 == 64, n2
+    assert last2 > last, (last, last2)
+
+
+@cocotb.test()
+async def test_switch_source_without_adc(dut):
+    """src_sel = 1 records 3000 + sw * 5 mV at every tick without starting
+    the ADC, so the board can be tested with the ADS1115 disconnected."""
+    await bring_up(dut)
+    dut.sw.value = 140             # 3000 + 140 * 5 = 3700 mV
+    dut.src_sel.value = 1
+    starts = {"n": 0}
+
+    async def count_starts():
+        while True:
+            await RisingEdge(dut.adc_start)
+            starts["n"] += 1
+
+    cocotb.start_soon(count_starts())
+    await ClockCycles(dut.clk, 12000 * 4 + 200)
+
+    nonce = bytes([0x11]) * 32
+    cmd, payload = await exchange(dut, frame(Command.AUTH_REQ, nonce), 42)
+    assert cmd == Command.AUTH_RESP
+    assert struct.unpack(">H", payload[4:6])[0] == 3700
+    assert payload[6:38] == hmac_sha256(KEY, auth_msg(nonce, 3700))
+
+    nonce2 = bytes([0x22]) * 32
+    recv = cocotb.start_soon(uart_recv_frame(dut, 4))
+    await uart_send_frame(dut, frame(Command.READ_HIST_REQ, nonce2))
+    head = await recv
+    plen = (head[1] << 8) | head[2]
+    n_rec = (plen - 41) // 38
+    rest = await uart_recv_frame(dut, 4 + 38 * n_rec + 41 - 4)
+    cmd, payload = WireProtocol.decode(head + rest)
+    assert cmd == Command.READ_HIST_RESP
+    n, _, _, records = check_dump(payload, nonce2)
+    assert n >= 3, n
+    assert all(mv == 3700 for _, mv in records), records
+    assert starts["n"] == 0, f"ADC started {starts['n']} times"
+
+
+@cocotb.test()
+async def test_parser_recovers_after_bad_frames(dut):
+    """A truncated frame and an oversized frame are dropped after the line
+    idles; the next valid frame is answered."""
+    await bring_up(dut)
+    cocotb.start_soon(adc_model(dut, adc_state(3300)))
+    timeout = 12_000_000 // 200 + 1000      # RX_TIMEOUT_CYCLES + margin
+
+    # Truncated: CMD and half of LEN, then silence.
+    for b in (0x01, 0x00):
+        await uart_send_byte(dut, b)
+    await ClockCycles(dut.clk, timeout)
+    nonce = bytes([0x44]) * 32
+    cmd, payload = await exchange(dut, frame(Command.AUTH_REQ, nonce), 42)
+    assert cmd == Command.AUTH_RESP
+    assert payload[6:38] == hmac_sha256(KEY, auth_msg(nonce, 3300))
+
+    # Oversized: LEN = 256 followed by bytes that look like frames.
+    junk = bytes([0x01, 0x01, 0x00]) + frame(Command.STATUS) * 8
+    await uart_send_frame(dut, junk)
+    await ClockCycles(dut.clk, timeout)
+    nonce = bytes([0x55]) * 32
+    cmd, payload = await exchange(dut, frame(Command.AUTH_REQ, nonce), 42)
+    assert cmd == Command.AUTH_RESP
+    assert payload[6:38] == hmac_sha256(KEY, auth_msg(nonce, 3300))
