@@ -834,7 +834,6 @@ module auth_ctrl #(
                                 if (p_len == 16'd32) begin
                                     for (j = 0; j < 32; j = j + 1)
                                         nonce_mem[j] <= payload[j];
-                                    auth_ok <= 1'b0;
                                     if (locked_r) begin
                                         pend_cmd  <= 8'd0;
                                         resp_cmd  <= CMD_CHIP_LOCKED;
@@ -856,7 +855,6 @@ module auth_ctrl #(
                                 if (p_len == 16'd32) begin
                                     for (j = 0; j < 32; j = j + 1)
                                         nonce_mem[j] <= payload[j];
-                                    auth_ok <= 1'b0;
                                     if (locked_r) begin
                                         pend_cmd  <= 8'd0;
                                         resp_cmd  <= CMD_CHIP_LOCKED;
@@ -877,12 +875,14 @@ module auth_ctrl #(
                             // RESULT VALID / HISTORY_TRUNCATED reset the fail
                             // counter; every other status bumps it and locks
                             // the chip on the third failure (spec section 11).
+                            // The green/red LEDs show this last verdict.
                             CMD_RESULT: begin
                                 if (p_len == 16'd1) begin
                                     if (payload[0] == ST_VALID ||
                                         payload[0] == ST_TRUNCATED) begin
-                                        fail_cnt <= 5'd0;
-                                        auth_ok  <= 1'b1;
+                                        fail_cnt   <= 5'd0;
+                                        auth_ok    <= 1'b1;
+                                        auth_error <= 1'b0;
                                     end else begin
                                         if (fail_cnt < MAX_FAILS)
                                             fail_cnt <= fail_cnt + 5'd1;
@@ -899,7 +899,7 @@ module auth_ctrl #(
                             CMD_LOCK: begin
                                 if (p_len == 16'd0) begin
                                     locked_r <= 1'b1;
-                                    auth_ok  <= 1'b1;
+                                    auth_ok  <= 1'b0;
                                 end else begin
                                     auth_error <= 1'b1;
                                 end
@@ -907,9 +907,9 @@ module auth_ctrl #(
 
                             CMD_UNLOCK: begin
                                 if (p_len == 16'd0) begin
-                                    locked_r <= 1'b0;
-                                    fail_cnt <= 5'd0;
-                                    auth_ok  <= 1'b1;
+                                    locked_r   <= 1'b0;
+                                    fail_cnt   <= 5'd0;
+                                    auth_error <= 1'b0;
                                 end else begin
                                     auth_error <= 1'b1;
                                 end
@@ -923,7 +923,6 @@ module auth_ctrl #(
                                     tx_idx    <= 12'd0;
                                     tx_total  <= 12'd6;
                                     tx_crc    <= 8'd0;
-                                    auth_ok   <= 1'b0;
                                     mstate    <= M_TX;
                                 end else begin
                                     auth_error <= 1'b1;
@@ -1085,7 +1084,6 @@ module auth_ctrl #(
                         tx_start <= 1'b1;
                         mstate   <= M_TX_WAIT;
                     end else begin
-                        auth_ok <= 1'b1;
                         mstate  <= M_IDLE;
                     end
                 end
@@ -1190,7 +1188,9 @@ module auth_ctrl #(
     end
 
     // -----------------------------------------------------------------------
-    // LEDs: heartbeat, busy, last command ok (green), locked/error (red)
+    // LEDs: heartbeat, busy, last station verdict accepted (green), and
+    // locked / last verdict rejected / protocol or ADC error (red). A RESULT
+    // VALID or UNLOCK clears the error; the ADC error clears on a good read.
     // -----------------------------------------------------------------------
     reg [23:0] hb_cnt;
 
