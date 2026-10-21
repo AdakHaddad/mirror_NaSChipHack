@@ -130,7 +130,7 @@ Tidak ditampilkan di demo utama, tetapi siap dijalankan bila juri bertanya.
 
 | Pertanyaan | Yang ditunjukkan |
 |---|---|
-| "Bagaimana kalau jawaban lama dikirim ulang?" | Uji lewat model Python: nonce yang sama ditolak `REPLAY_DETECTED`; belum ada tombol kirim ulang di dashboard |
+| "Bagaimana kalau jawaban lama dikirim ulang?" | Sudah diuji di KV260: perintah `attack replay` di station CLI memakai dump untuk nonce lama, hasilnya DITOLAK (INVALID_HMAC, tanda tangan ringkasan tidak cocok dengan nonce baru) |
 | "Bagaimana kalau dicoba terus?" | Tiga kali gagal berturut-turut, LED merah menyala, chip terkunci |
 | "Bagaimana kalau dayanya dicabut?" | Cabut daya board, nomor urut kembali ke 0, stasiun menolak: penghitung diputar balik. Akui bahwa produk membutuhkan memori permanen |
 | "Apa bedanya dengan chip yang sudah ada?" | Slide pembanding BQ40Z50 (SHA-1 untuk keaslian paket, lifetime log tanpa tanda tangan) dan contoh alat reset siklus baterai iPhone. Sebut juga MAX17205: SHA-256, tetapi tetap anti-kloning paket, bukan integritas riwayat |
