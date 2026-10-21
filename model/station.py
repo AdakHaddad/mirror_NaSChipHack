@@ -39,6 +39,62 @@ from model.protocol import (
 
 
 # -----------------------------------------------------------------------
+# Verdict wording for the demo screen
+# -----------------------------------------------------------------------
+ACCEPTED = (AuthStatus.VALID, AuthStatus.HISTORY_TRUNCATED)
+
+STATUS_NOTES = {
+    AuthStatus.HISTORY_TRUNCATED:
+        "Diterima. Catatan lebih lama dari jangkar stasiun sudah tertimpa di "
+        "buffer 64 catatan (wajar pada dump pertama setelah stasiun dijalankan).",
+    AuthStatus.HISTORY_ROLLBACK:
+        "Nomor urut chip lebih kecil dari catatan stasiun. Chip direset atau "
+        "dimuat ulang. Kalau disengaja, jalankan reset-anchor.",
+    AuthStatus.HISTORY_GAP:
+        "Ada nomor urut yang hilang: catatan dibuang di tengah jalan.",
+    AuthStatus.INVALID_HMAC:
+        "Tanda tangan tidak cocok: data diubah, rentang dipalsukan, atau "
+        "jawaban lama diputar ulang.",
+    AuthStatus.BATTERY_LOCKED:
+        "Chip terkunci. Ketik unlock untuk membuka.",
+}
+
+
+def verdict(status: AuthStatus) -> str:
+    return "DITERIMA" if status in ACCEPTED else "DITOLAK"
+
+
+def health_card(records, deep_mv: int, scale: float = 1.0) -> list:
+    """Battery health from an already verified history (station side only).
+
+    A run of consecutive samples below deep_mv counts as one deep-discharge
+    event. Voltages are shown at the ADC pin and, when scale != 1, as the
+    battery voltage behind the divider.
+    """
+    if not records:
+        return ["Kesehatan: belum ada catatan"]
+
+    def fmt(mv):
+        pin = f"{mv} mV"
+        return pin if scale == 1.0 else f"{pin} (baterai {mv * scale / 1000:.2f} V)"
+
+    low = min(records, key=lambda r: r.mv)
+    events, below = 0, False
+    for r in records:
+        if r.mv < deep_mv and not below:
+            events += 1
+        below = r.mv < deep_mv
+    lines = [f"Kesehatan: terendah {fmt(low.mv)} pada seq {low.seq}, "
+             f"terbaru {fmt(records[-1].mv)}"]
+    if events:
+        lines.append(f"PERHATIAN: terkuras dalam {events} kali "
+                     f"(di bawah {fmt(deep_mv)}). Riwayat asli, baterai perlu diperiksa.")
+    else:
+        lines.append(f"Tidak ada kejadian di bawah {fmt(deep_mv)}.")
+    return lines
+
+
+# -----------------------------------------------------------------------
 # Identity database
 # -----------------------------------------------------------------------
 @dataclass
@@ -86,6 +142,13 @@ class Station:
         # Tell the chip each verdict (RESULT) so its fail counter and lock
         # follow the station, as in spec sections 10 and 11.
         self.report_results = True
+        # Health card: a sample below deep_mv counts as a deep discharge.
+        # scale converts the ADC-pin millivolts to battery volts (1.0 for a
+        # knob straight on A0, 5.7 for the 47k/10k divider in the casing).
+        self.deep_mv = 1000
+        self.scale = 1.0
+        # (seq_last, time first seen) to notice a sensor that stopped sampling
+        self._last_seen: Optional[tuple] = None
 
         # Register default battery (matches firmware)
         default_key = bytes(range(32))
@@ -309,6 +372,43 @@ class Station:
         status = self.verify_history(battery_id, nonce, dump)
         self._report(status)
         return status, desc
+
+    def history_report(self, status: AuthStatus,
+                       dump: Optional[HistoryDump]) -> list:
+        """Human-readable lines for a verified (or rejected) history: the
+        verdict, what it means, a health card for accepted histories, and a
+        warning when the chip has stopped producing new samples."""
+        lines = []
+        if dump is None:
+            lines.append(f"History: {status.name} -> {verdict(status)}")
+            note = STATUS_NOTES.get(status)
+            if note:
+                lines.append(f"  {note}")
+            return lines
+
+        lines.append(f"History: {len(dump.records)} catatan, seq "
+                     f"{dump.seq_oldest}..{dump.seq_last} -> {status.name} "
+                     f"({verdict(status)})")
+        note = STATUS_NOTES.get(status)
+        if note:
+            lines.append(f"  {note}")
+        if status not in ACCEPTED:
+            lines.append("  Riwayat: TIDAK DAPAT DIPERCAYA, kartu kesehatan tidak ditampilkan")
+            return lines
+
+        lines.extend("  " + l for l in health_card(dump.records, self.deep_mv,
+                                                    self.scale))
+
+        now = time.monotonic()
+        if self._last_seen and self._last_seen[0] == dump.seq_last:
+            idle = now - self._last_seen[1]
+            if idle >= 3.0:
+                lines.append(f"  PERINGATAN: tidak ada catatan baru selama {idle:.0f} s. "
+                             "Sensor tidak terbaca (cek ADS1115, kabel SDA/SCL, "
+                             "dan Pmod 3 ke GND). AUTH memakai tegangan valid terakhir.")
+        else:
+            self._last_seen = (dump.seq_last, now)
+        return lines
 
     def reset_anchor(self, battery_id: bytes):
         """Forget the seq anchor, e.g. after the chip was reset on purpose.
@@ -611,6 +711,10 @@ def main():
     parser.add_argument('--count', type=int, default=100, help='Benchmark count')
     parser.add_argument('--offline', action='store_true', help='Run offline test (no hardware)')
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
+    parser.add_argument('--deep-mv', type=int, default=1000,
+                        help='Health card: ADC-pin mV below which a sample counts as deep discharge')
+    parser.add_argument('--scale', type=float, default=1.0,
+                        help='ADC-pin mV to battery volts factor (1.0 knob on A0, 5.7 casing divider)')
     args = parser.parse_args()
 
     if args.offline:
@@ -627,18 +731,25 @@ def main():
         sys.exit(1)
 
     print(f"Connecting to {port} at {args.baud} baud...")
-    station = Station(port, args.baud)
+    try:
+        station = Station(port, args.baud)
+    except serial.SerialException as e:
+        ports = [p.device for p in serial.tools.list_ports.comports()]
+        print(f"Tidak bisa membuka {port}: {e}")
+        print(f"Port yang tersedia: {', '.join(ports) if ports else '(tidak ada)'}")
+        print("Cek kabel CP2102, nomor COM di Device Manager, dan pastikan "
+              "PuTTY atau station lain tidak sedang memakai port itu.")
+        sys.exit(1)
+    station.deep_mv = args.deep_mv
+    station.scale = args.scale
 
     try:
         if args.demo:
             run_demo(station)
         elif args.history:
             status, dump = station.read_history(b'BAT\x01')
-            if dump is None:
-                print(f"History: {status.name}")
-            else:
-                print(f"History: {len(dump.records)} records, "
-                      f"seq {dump.seq_oldest}..{dump.seq_last} -> {status.name}")
+            for line in station.history_report(status, dump):
+                print(line)
         elif args.benchmark:
             run_benchmark(station, args.count)
         elif args.interactive:
@@ -668,57 +779,79 @@ def interactive_mode(station: Station):
 
         if cmd in ('q', 'quit', 'exit'):
             break
-        elif cmd in ('a', 'auth'):
-            status, voltage, bid = station.authenticate()
-            print(f"  Battery: {bid}  Voltage: {voltage}mV  → {status.name}")
-        elif cmd == 'lock':
-            station.lock_battery(b'BAT\x01')
-            print("  Battery locked")
-        elif cmd == 'unlock':
-            station.unlock_battery(b'BAT\x01')
-            print("  Battery unlocked")
-        elif cmd in ('s', 'status'):
-            locked, fails = station.query_status()
-            print(f"  Chip: {'LOCKED' if locked else 'unlocked'}, fail_cnt={fails}")
-        elif cmd == 'reset-anchor':
-            station.reset_anchor(b'BAT\x01')
-            print("  Seq anchor cleared (use after a deliberate chip reset)")
-        elif cmd.startswith('attack'):
-            parts = cmd.split()
-            if len(parts) < 2 or parts[1] not in ('tamper', 'delete', 'cut', 'replay'):
-                print("  Usage: attack tamper [seq] [mV] | attack delete [n] | "
-                      "attack cut [n] | attack replay")
-                continue
-            mode, args = parts[1], [int(x) for x in parts[2:] if x.isdigit()]
-            kwargs = {}
-            if mode == 'tamper':
-                if len(args) >= 1:
-                    kwargs['seq'] = args[0]
-                if len(args) >= 2:
-                    kwargs['mv'] = args[1]
-            elif mode in ('delete', 'cut') and args:
-                kwargs['count'] = args[0]
-            status, desc = station.read_history_attacked(b'BAT\x01', mode, **kwargs)
-            if status is None:
-                print(f"  {desc}")
-            else:
-                verdict = "DITERIMA" if status.name in ('VALID', 'HISTORY_TRUNCATED') else "DITOLAK"
-                print(f"  BMS curang: {desc}")
-                print(f"  Stasiun  : {status.name} -> {verdict}")
-        elif cmd in ('h', 'history'):
-            status, dump = station.read_history(b'BAT\x01')
-            if dump is None:
-                print(f"  History: {status.name}")
-            else:
-                print(f"  History: {len(dump.records)} records, "
-                      f"seq {dump.seq_oldest}..{dump.seq_last} -> {status.name}")
-        elif cmd in ('b', 'bench'):
-            run_benchmark(station, 50)
-        elif cmd == 'log':
-            for entry in station.log[-10:]:
-                print(f"  {entry}")
+        try:
+            _run_command(station, cmd)
+        except (TimeoutError, ValueError, OSError) as e:
+            # The board did not answer or the adapter was unplugged; keep the
+            # session (and its seq anchor) alive instead of exiting.
+            print(f"  Tidak ada jawaban yang benar dari chip: {e}")
+            print("  Cek LED heartbeat, kabel CP2102, dan apakah bitstream masih termuat.")
+
+
+def _run_command(station: Station, cmd: str):
+    """One interactive command (everything except quit)."""
+    if cmd in ('a', 'auth'):
+        status, voltage, bid = station.authenticate()
+        if status == AuthStatus.BATTERY_LOCKED:
+            print(f"  Battery: {bid}  Chip terkunci → BATTERY_LOCKED (DITOLAK). "
+                  "Ketik unlock untuk membuka.")
         else:
-            print("  Unknown command")
+            print(f"  Battery: {bid}  Voltage: {voltage}mV  → {status.name} "
+                  f"({verdict(status)})")
+    elif cmd == 'lock':
+        station.lock_battery(b'BAT\x01')
+        print("  Battery locked")
+    elif cmd == 'unlock':
+        station.unlock_battery(b'BAT\x01')
+        print("  Battery unlocked")
+    elif cmd in ('s', 'status'):
+        locked, fails = station.query_status()
+        print(f"  Chip: {'LOCKED' if locked else 'unlocked'}, fail_cnt={fails}")
+    elif cmd == 'reset-anchor':
+        station.reset_anchor(b'BAT\x01')
+        print("  Seq anchor cleared (use after a deliberate chip reset)")
+    elif cmd.startswith('attack'):
+        parts = cmd.split()
+        if len(parts) < 2 or parts[1] not in ('tamper', 'delete', 'cut', 'replay'):
+            print("  Usage: attack tamper [seq] [mV] | attack delete [n] | "
+                  "attack cut [n] | attack replay")
+            return
+        mode, args = parts[1], [int(x) for x in parts[2:] if x.isdigit()]
+        kwargs = {}
+        if mode == 'tamper':
+            if len(args) >= 1:
+                kwargs['seq'] = args[0]
+            if len(args) >= 2:
+                kwargs['mv'] = args[1]
+        elif mode in ('delete', 'cut') and args:
+            kwargs['count'] = args[0]
+        status, desc = station.read_history_attacked(b'BAT\x01', mode, **kwargs)
+        if status is None:
+            print(f"  {desc}")
+        else:
+            print(f"  BMS curang: {desc}")
+            print(f"  Stasiun  : {status.name} -> {verdict(status)}")
+            try:
+                locked, fails = station.query_status()
+                if locked:
+                    print("  Chip     : TERKUNCI setelah 3 penolakan berturut-turut. "
+                          "Ketik unlock untuk membuka.")
+                else:
+                    print(f"  Chip     : gagal berturut-turut {fails}/3 "
+                          "(history yang VALID mengembalikan ke 0)")
+            except (TimeoutError, ValueError):
+                pass
+    elif cmd in ('h', 'history'):
+        status, dump = station.read_history(b'BAT\x01')
+        for line in station.history_report(status, dump):
+            print(f"  {line}")
+    elif cmd in ('b', 'bench'):
+        run_benchmark(station, 50)
+    elif cmd == 'log':
+        for entry in station.log[-10:]:
+            print(f"  {entry}")
+    else:
+        print("  Unknown command")
 
 
 if __name__ == '__main__':
