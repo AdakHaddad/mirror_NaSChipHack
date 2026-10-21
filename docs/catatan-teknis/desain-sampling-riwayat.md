@@ -21,7 +21,7 @@ Sudah ada (per 21 Oktober, setelah implementasi Flow B):
   (HISTORY_GAP / HISTORY_ROLLBACK / HISTORY_TRUNCATED).
 - `SAMPLE_CYCLES` dapat di-override; testbench memakai 12 000 siklus (1 ms)
   dan BAUD 1 Mbaud hanya untuk mempercepat simulasi.
-- Regresi cocotb: 20/20 PASS (5 sha256, 4 hmac, 2 ads1115, 9 auth); model
+- Regresi cocotb: 23/23 PASS (5 sha256, 4 hmac, 2 ads1115, 12 auth); model
   Python 52/52, termasuk verifikasi riwayat di `model/protocol.py` dan
   `model/station.py`.
 - Bitstream Cmod S7 dibangun ulang 21 Okt dengan timing bersih.

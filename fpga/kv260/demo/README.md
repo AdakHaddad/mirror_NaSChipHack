@@ -7,7 +7,7 @@ Paket singkat untuk demo SeBatt di Kria KV260. Detail lengkap ada di
 
 | File | Dipakai di | Fungsi |
 |---|---|---|
-| `../../build/kv260_top.bit.bin` | board | bitstream untuk `fpgautil` |
+| `../build/kv260_top.bit.bin` | board | bitstream untuk `fpgautil` |
 | `load.sh` | board | cek `pl0_ref`, unload app bawaan, load bitstream, cek `dmesg` |
 | `run_station.sh` | laptop | jalankan `model.station` dengan venv repo |
 | `preflight.sh` | laptop | cek artefak, timing, pin XDC, tes model, deteksi USB-serial |
@@ -63,6 +63,11 @@ sudo ./load.sh ./kv260_top.bit.bin
 Kalau clock gated, ikuti `../RUNBOOK.md` §5 (`clk_ignore_unused`). Kalau rate
 96,97 MHz, jangan lanjut demo UART; lihat §5 untuk fallback BOOT.BIN/build
 ulang.
+
+Tidak ada tombol reset. Memuat ulang bitstream mengembalikan `seq` chip ke 0;
+kalau memakai `--history` setelah reload, jalankan
+`run_station.sh --interactive` lalu `reset-anchor` agar stasiun tidak
+melaporkan `HISTORY_ROLLBACK`.
 
 ## 4. Jalankan demo di laptop
 

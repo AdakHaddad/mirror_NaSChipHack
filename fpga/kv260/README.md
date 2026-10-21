@@ -68,26 +68,35 @@ reports.
 
 | Metric | Value |
 |---|---|
-| WNS | **+0.687 ns** |
-| WHS | **+0.012 ns** |
+| WNS | **+1.466 ns** |
+| WHS | **+0.015 ns** |
 | TNS / failing endpoints | 0 / 0 |
-| CLB LUTs | 5 611 (4.79 %) |
-| CLB registers | 6 130 (2.62 %) |
+| CLB LUTs | 5 633 (4.81 %) |
+| CLB registers | 6 201 (2.65 %) |
 | BRAM / DSP | 0 / 0 |
 | Clock | `clk_pl_0`, 10.000 ns, 100.000 MHz |
 
-This build includes the fix for the multi-driven `sg_req*` nets: the
-sample-to-signer request is now generated once in the command/signer block,
-gated by `sample_busy && adc_valid`, instead of being driven from both the
-sampling and signer blocks. The resulting bitstream has no tied-off signer
-request.
+This build includes the multi-driven `sg_req*` fix (the sample-to-signer
+request is generated once, gated by `sample_busy && adc_valid`, instead of
+being driven from both the sampling and signer blocks) plus the later dump
+race, CRC, parser-resync, and adc-free source fixes. The earlier bitstream
+predates those fixes; always rebuild after pulling RTL changes.
 
 The critical path is still the SHA-256 `w` expansion. **Do not raise `pl_clk0`
 above 100 MHz** without pipelining it and re-running timing.
 
 ## Program
 
-Primary: boot Kria Ubuntu, check the PL clock, then
+Primary: boot Kria Ubuntu, then run the demo bundle (`demo/README.md`):
+
+```bash
+fpga/kv260/demo/preflight.sh          # on the laptop first
+scp fpga/kv260/build/kv260_top.bit.bin \
+    fpga/kv260/demo/load.sh kria@<ip>:~/
+sudo ./load.sh ./kv260_top.bit.bin    # on the board
+```
+
+Manual equivalent: check the PL clock, then
 
 ```bash
 sudo fpgautil -b kv260_top.bit.bin

@@ -7,7 +7,13 @@
 #   sudo ./load.sh ./kv260_top.bit.bin
 set -euo pipefail
 
-BITBIN="${1:-$(cd "$(dirname "$0")" && pwd)/../build/kv260_top.bit.bin}"
+if [[ $# -ge 1 ]]; then
+    BITBIN="$1"
+elif [[ -f ./kv260_top.bit.bin ]]; then
+    BITBIN=./kv260_top.bit.bin
+else
+    BITBIN="$(cd "$(dirname "$0")" && pwd)/../build/kv260_top.bit.bin"
+fi
 BITBIN="$(readlink -f "$BITBIN")"
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -71,3 +77,6 @@ echo "Next: on the host, from the repo root:"
 echo "  source .venv/bin/activate"
 echo "  python -m model.station --port /dev/ttyUSB0"
 echo "or run fpga/kv260/demo/run_station.sh --demo"
+echo
+echo "No reset button: after reloading, run --interactive and 'reset-anchor'"
+echo "before '--history', otherwise the station reports HISTORY_ROLLBACK."

@@ -1,4 +1,5 @@
-# KV260 timing/fit check (no bitstream: carrier pin map still TODO).
+# KV260 timing/fit check for the PL-only core (no PS/BD, no bitstream).
+# For the demo bitstream use build.tcl.
 # Usage: vivado -mode batch -source build_synth.tcl
 
 set here   [file normalize [file dirname [info script]]]

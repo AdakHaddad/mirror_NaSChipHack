@@ -2,7 +2,7 @@
 # Host-side preflight for the KV260 demo.
 # Usage:
 #   fpga/kv260/demo/preflight.sh          # artifacts, timing, pin map, Python tests
-#   fpga/kv260/demo/preflight.sh --full   # also run the cocotb RTL suite (~2.5 min)
+#   fpga/kv260/demo/preflight.sh --full   # also run the cocotb RTL suite (~7 min)
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -34,13 +34,28 @@ do
     fi
 done
 
+echo "-- build freshness"
+newer="$(find rtl fpga/kv260/kv260_top.v fpga/kv260/kv260.xdc \
+    -newer fpga/kv260/build/kv260_top.bit -print -quit 2>/dev/null)"
+if [[ -n "$newer" ]]; then
+    bad "bitstream is older than $newer; rerun build.tcl"
+else
+    ok "bitstream is newer than all RTL/XDC sources"
+fi
+
 echo "-- timing"
-if grep -q "All user specified timing constraints are met" fpga/kv260/build/timing.rpt 2>/dev/null; then
+timing_rpt=fpga/kv260/build/timing.rpt
+impl_timing=fpga/kv260/build/project/kv260.runs/impl_1/kv260_top_timing_summary_routed.rpt
+if [[ -f "$impl_timing" ]]; then
+    timing_rpt="$impl_timing"
+    ok "using routed implementation timing report"
+fi
+if grep -q "All user specified timing constraints are met" "$timing_rpt" 2>/dev/null; then
     ok "timing constraints met"
 else
-    bad "timing.rpt does not report met constraints"
+    bad "$timing_rpt does not report met constraints"
 fi
-wns="$(grep -A4 'WNS(ns)' fpga/kv260/build/timing.rpt 2>/dev/null | grep -E '^\s+-?[0-9]+\.[0-9]+' | head -1 | awk '{print $1}')"
+wns="$(grep -A4 'WNS(ns)' "$timing_rpt" 2>/dev/null | grep -E '^\s+-?[0-9]+\.[0-9]+' | head -1 | awk '{print $1}')"
 if [[ -n "$wns" ]]; then
     if awk "BEGIN{exit !($wns >= 0)}"; then
         ok "WNS = $wns ns"

@@ -517,24 +517,32 @@ def run_offline_test(demo_mode: bool = False):
 # Port detection
 # -----------------------------------------------------------------------
 def find_uart_port() -> Optional[str]:
-    """Auto-detect FPGA UART port (USB-UART only)."""
+    """Auto-detect the FPGA UART, preferring the external CP210x/CH340.
+
+    The KV260 PS console also appears as a USB-UART (FTDI), so blindly taking
+    the first port can connect the station to the wrong UART. Prefer the
+    external adapter used for Pmod J2, then fall back to any USB serial.
+    """
     if serial is None:
         return None
-    ports = serial.tools.list_ports.comports()
-    for p in ports:
+    preferred = []
+    fallback = []
+    for p in serial.tools.list_ports.comports():
         # Ignore legacy motherboard ttyS* ports
         if p.device.startswith('/dev/ttyS'):
             continue
         desc = (p.description or '').lower()
         mfr = (p.manufacturer or '').lower()
-        # Digilent / FTDI / CP210x / CH340 / USB serial
-        if any(x in desc for x in ['digilent', 'ftdi', 'cp210', 'ch34', 'uart', 'usb']):
-            return p.device
-        if any(x in mfr for x in ['digilent', 'ftdi', 'silicon labs']):
-            return p.device
-        if 'ttyusb' in p.device.lower() or 'ttyacm' in p.device.lower():
-            return p.device
-    return None
+        if any(x in desc for x in ['cp210', 'ch340', 'ch34']) or 'silicon labs' in mfr:
+            preferred.append(p.device)
+        elif any(x in desc for x in ['digilent', 'ftdi', 'uart', 'usb']) or \
+                any(x in mfr for x in ['digilent', 'ftdi']):
+            fallback.append(p.device)
+        elif 'ttyusb' in p.device.lower() or 'ttyacm' in p.device.lower():
+            fallback.append(p.device)
+    if preferred:
+        return preferred[0]
+    return fallback[0] if fallback else None
 
 
 # -----------------------------------------------------------------------

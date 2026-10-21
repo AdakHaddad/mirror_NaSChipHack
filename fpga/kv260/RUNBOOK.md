@@ -5,10 +5,10 @@ root repo (`/home/muqtada/Documents/sebatt`) di laptop, kecuali bagian yang
 dijalankan di board.
 
 Status 21 Okt 2026: bitstream penuh sudah dibangun ulang setelah perbaikan
-multi-driver `sg_req*` (WNS +0,687 ns, 5 611 LUT, 6 130 FF), peta pin Pmod dan
-block design clock PS sudah ada. **Uji fisik T6/T7/T9/T10 di KV260 belum
-dilakukan.** Uji RTL cocotb 20/20 dan uji board Cmod S7 tetap menjadi bukti
-fungsional sampai KV260 diuji.
+multi-driver `sg_req*`, dump race, CRC, parser resync, dan adc-free source
+(WNS +1,466 ns, 5 633 LUT, 6 201 FF), peta pin Pmod dan block design clock PS
+sudah ada. **Uji fisik T6/T7/T9/T10 di KV260 belum dilakukan.** Uji RTL cocotb
+23/23 dan uji board Cmod S7 tetap menjadi bukti fungsional sampai KV260 diuji.
 
 - Bitstream: `fpga/kv260/build/kv260_top.bit`
 - Boot image: `fpga/kv260/build/kv260_top.bit.bin`
@@ -19,6 +19,8 @@ fungsional sampai KV260 diuji.
 - Pin map: `fpga/kv260/kv260.xdc`
 - Rujukan pin: master XDC KV260 / Kria K26 SOM (`kv260_ispMipiRx` `pin.xdc`,
   Kria-PYNQ `base.xdc`)
+- Paket demo: `fpga/kv260/demo/` — `preflight.sh`, `load.sh`,
+  `run_station.sh`, dan panduan singkat `README.md`
 
 ---
 
@@ -99,11 +101,11 @@ bitstream, `.bin`, XSA). Output:
 - `build/timing.rpt`, `build/utilization.rpt`
 - `build/kv260_top.xsa` (kalau langkah XSA berhasil)
 
-Hasil 21 Okt: WNS **+0,687 ns**, WHS +0,012 ns, 0 endpoint gagal, 5 611 LUT,
-6 130 FF, 0 BRAM, 0 DSP. Build ini sudah memakai perbaikan multi-driver
-`sg_req*` (request sample→signer hanya digerakkan dari blok signer). Jalur
-kritis SHA-256 `w` expansion; **jangan naikkan `pl_clk0` di atas 100 MHz**
-tanpa pipeline dan re-timing.
+Hasil 21 Okt: WNS **+1,466 ns**, WHS +0,015 ns, 0 endpoint gagal, 5 633 LUT,
+6 201 FF, 0 BRAM, 0 DSP. Build ini sudah memakai perbaikan multi-driver
+`sg_req*`, dump race, CRC, parser resync, dan adc-free source. Jalur kritis
+SHA-256 `w` expansion; **jangan naikkan `pl_clk0` di atas 100 MHz** tanpa
+pipeline dan re-timing.
 
 Cek cepat tanpa bitstream (opsional):
 
@@ -133,7 +135,8 @@ final.
 4. Salin boot image ke board:
 
    ```bash
-   scp fpga/kv260/build/kv260_top.bit.bin <user>@<ip-kv260>:~/
+   scp fpga/kv260/build/kv260_top.bit.bin \
+       fpga/kv260/demo/load.sh <user>@<ip-kv260>:~/
    ```
 
 ---
@@ -195,6 +198,15 @@ dari clock yang belum aktif, bukan dari RTL.
 
 ### 6a. `fpgautil` (utama)
 
+Cara tercepat, sekaligus mengecek clock sebelum/sesudah load:
+
+```bash
+chmod +x load.sh
+sudo ./load.sh ./kv260_top.bit.bin
+```
+
+Atau manual:
+
 ```bash
 sudo fpgautil -b ~/kv260_top.bit.bin
 sudo dmesg | tail -n 20
@@ -202,7 +214,9 @@ sudo dmesg | tail -n 20
 
 `fpgautil` biasanya sudah ada di `/usr/sbin/fpgautil` pada Kria Ubuntu. Kalau
 tidak ada, pasang paket FPGA manager/dfx-mgr sesuai panduan Kria, atau pakai
-JTAG.
+JTAG. `.bit.bin` di sini dibuat oleh Vivado (`write_bitstream -bin_file`);
+FPGA Manager sejak 2018.3 menerima format Vivado maupun bootgen, jadi
+konversi bootgen tidak diperlukan.
 
 ### 6b. JTAG (cadangan)
 
@@ -219,16 +233,20 @@ JTAG hanya memuat PL; clock PS tetap harus sudah benar (bagian 5). Kalau muncul
 
 ### 6c. Cek hidup
 
-Tidak ada LED heartbeat di peta pin KV260 ini. Tanda PL hidup adalah respons
-UART terhadap satu `AUTH_REQ` (bagian 8). LED hijau menyala setelah auth valid;
-LED merah menyala saat lock/error (termasuk ADS1115 tidak terbaca).
+LED heartbeat di Pmod 4 berkedip sekitar 6 Hz saat `pl_clk0` dan logika PL
+hidup. Tanda aplikasi siap adalah respons UART terhadap satu `AUTH_REQ`
+(bagian 8). LED hijau menyala setelah auth valid; LED merah menyala saat
+lock/error (termasuk ADS1115 tidak terbaca).
 
 ---
 
 ## 7. Cek port UART aplikasi
 
 CP2102 biasanya muncul sebagai `/dev/ttyUSB0`; konsol PS KV260 bisa menempati
-port lain. Kalau ragu, lepas-sambung CP2102 dan lihat port mana yang muncul.
+port lain dan juga terdeteksi sebagai USB serial. `model.station` sekarang
+memprioritaskan CP210x/CH340, tetapi tetap sebutkan `--port` kalau ada lebih
+dari satu adapter. Kalau ragu, lepas-sambung CP2102 dan lihat port mana yang
+muncul.
 
 ```bash
 ls -l /dev/ttyUSB*
@@ -397,5 +415,5 @@ gagal setelah sampel baik, sampel terakhir dipertahankan dan LED merah menyala.
 - Bitstream khusus `xck26-sfvc784-2LV-c`; jangan pakai di varian SOM lain.
 - `pl_clk0` milik PS/firmware boot. Kalau firmware stock tidak memasang 100 MHz,
   bitstream ini tidak akan berjalan benar; lihat bagian 5.
-- Tidak ada LED heartbeat di peta pin ini; liveness dicek lewat UART.
+- Heartbeat di Pmod 4 hanya menandakan clock PL; liveness aplikasi tetap dicek lewat UART.
 - Uji fisik KV260 belum dilakukan per 21 Okt 2026.

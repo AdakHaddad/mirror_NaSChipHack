@@ -29,7 +29,7 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
 
-Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) WNS +0,687 ns, 5.611 LUT, 6.130 FF setelah perbaikan multi-driver `sg_req*`. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
+Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) WNS +1,466 ns, 5.633 LUT, 6.201 FF setelah perbaikan multi-driver `sg_req*`, dump race, CRC, dan parser resync. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
 
 Di KV260, blok Zynq UltraScale+ MPSoC hanya dipakai sebagai sumber clock PL (pl_clk0). Prosesor tidak membaca maupun menulis sampel.
 
@@ -152,7 +152,7 @@ Nonce dibuat baru untuk setiap permintaan dan hanya berlaku untuk satu jawaban.
 
 ## 11. Penguncian Chip [Sudah ada]
 
-Sudah ada di `rtl/auth_ctrl.v` dan diuji 9/9 cocotb (STATUS, LOCK, UNLOCK, CHIP_LOCKED, lock setelah tiga RESULT gagal).
+Sudah ada di `rtl/auth_ctrl.v` dan diuji 12/12 cocotb (STATUS, LOCK, UNLOCK, CHIP_LOCKED, lock setelah tiga RESULT gagal).
 
 - Penghitung gagal bertambah setiap chip menerima RESULT selain VALID dan HISTORY_TRUNCATED, lalu kembali ke nol setelah RESULT VALID.
 - Chip terkunci setelah tiga kegagalan berturut-turut atau satu perintah LOCK.
@@ -190,7 +190,7 @@ Stasiun mengirim READ_HIST_REQ setiap 0,5 detik dan menampilkan 64 catatan terak
 | 9 | D11 | LED hijau (auth OK) |
 | 10 | B11 | LED merah (lock/error) |
 
-Urutan SCL di pin 1 dan SDA di pin 2 sama dengan Cmod S7, sehingga kabel tidak perlu dipindah. Pmod 3 adalah pemilih sumber, bukan tombol pemicu; Pmod 4 dipakai untuk reset. Tidak ada LED heartbeat di peta pin ini. Wiring lengkap, cek clock `pl0_ref`, dan prosedur `fpgautil` ada di [RUNBOOK KV260](../../fpga/kv260/RUNBOOK.md).
+Urutan SCL di pin 1 dan SDA di pin 2 sama dengan Cmod S7, sehingga kabel tidak perlu dipindah. Pmod 3 adalah pemilih sumber, bukan tombol pemicu; Pmod 4 dipakai untuk LED heartbeat (berkedip = clock PL hidup). Tidak ada tombol reset, karena reset mengembalikan seq ke 0 dan stasiun akan melaporkan `HISTORY_ROLLBACK`; mulai ulang dengan memuat ulang bitstream dan mengosongkan anchor stasiun. Wiring lengkap, cek clock `pl0_ref`, dan prosedur `fpgautil` ada di [RUNBOOK KV260](../../fpga/kv260/RUNBOOK.md).
 
 ## 14. Vektor Uji
 

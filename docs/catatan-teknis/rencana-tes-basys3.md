@@ -147,10 +147,11 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 
 ## 5. Fase 4 — Tanpa Board (sore / sambil menunggu)
 
-- [x] Build penuh `xck26` (port KV260): **21 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +0,687 ns, 5 611 LUT / 6 130 FF; multi-driver `sg_req*` fixed; bitstream + `.bit.bin` + runbook di `fpga/kv260/`; uji board belum
+- [x] Build penuh `xck26` (port KV260): **21 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +1,466 ns, 5 633 LUT / 6 201 FF; fix multi-driver `sg_req*`, dump race, CRC, parser resync; bitstream + `.bit.bin` + runbook + paket demo di `fpga/kv260/`; uji board belum
 - [ ] SD image Ubuntu untuk KV260 + kenalan update BOOT.BIN
 - [ ] Loopback CP2102: jumper TX–RX, kirim/terima via pyserial
-- [ ] `fpga/kv260/`: constraint PMOD asli (nama pin dari carrier KV260), `shell.json`, `.bif` + `bootgen` untuk `.bit → .bit.bin`; timing-only check sudah ada
+- [x] `fpga/kv260/`: constraint Pmod J2 asli (H12/E10/D10/C11, B10/E12/D11/B11), `build.tcl`, `.bit.bin` dari Vivado, dan paket demo `demo/` (`preflight.sh`, `load.sh`, `run_station.sh`); timing-only check ada
+- [ ] `shell.json` + BIF bootgen hanya kalau memilih jalur `xmutil loadapp`; untuk `fpgautil` tidak perlu
 
 ## 6. Aturan Stop (keras)
 
