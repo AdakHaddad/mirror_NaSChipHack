@@ -3,23 +3,30 @@
 Dashboard browser untuk demo stasiun penukaran baterai SeBatt. Dua mode
 tersedia:
 
-- **Simulasi** (default) — data dari `web/demo.py`, tanpa board.
 - **FPGA** — data autentikasi, riwayat, dan kesehatan berasal dari KV260
   melalui UART; serangan “BMS curang” dilakukan di sisi host dengan mengubah
   salinan dump sebelum verifikasi.
+- **Simulasi** — data dari `web/demo.py`, tanpa board.
+
+Saat dijalankan tanpa opsi, server mencari adapter USB-UART (CP2102/CH340)
+secara otomatis dan langsung memakai mode FPGA bila ditemukan. Bila tidak ada
+board, dashboard jatuh ke simulasi dengan pesan di terminal. Paksa salah satu
+mode dengan `--fpga PORT` atau `--sim`.
 
 Tidak memerlukan Flask, FastAPI, atau koneksi internet.
 
 ## Menjalankan simulasi
 
+Untuk latihan tanpa board:
+
 ```bash
-python3 web/server.py
+python3 web/server.py --sim
 ```
 
 Buka <http://127.0.0.1:8000>. Opsi:
 
 ```bash
-python3 web/server.py --host 0.0.0.0 --port 8080 --open
+python3 web/server.py --sim --host 0.0.0.0 --port 8080 --open
 ```
 
 - `/` — dashboard stasiun
@@ -32,7 +39,7 @@ Pastikan bitstream sudah termuat dan UART board tersambung ke laptop
 (`fpga/kv260/demo/load.sh`, lalu `run_station.sh` untuk uji terminal).
 
 ```bash
-# auto-deteksi USB-UART
+# auto-deteksi USB-UART (juga berlaku tanpa --fpga)
 python3 web/server.py --fpga
 
 # port eksplisit

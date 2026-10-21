@@ -156,34 +156,47 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000, help="Port HTTP (default 8000)")
     parser.add_argument("--open", action="store_true", help="Buka browser otomatis")
     parser.add_argument(
-        "--fpga", nargs="?", const="auto", metavar="PORT",
-        help="Hubungkan ke FPGA lewat UART (auto-deteksi bila PORT kosong)",
+        "--fpga", nargs="?", const="auto", metavar="PORT", default=None,
+        help="Hubungkan ke FPGA lewat UART (auto-deteksi bila PORT kosong). "
+             "Tanpa opsi ini FPGA dicari otomatis, lalu simulasi dipakai bila "
+             "tidak ada board.",
     )
+    parser.add_argument("--sim", action="store_true",
+                        help="Paksa mode simulasi, jangan cari FPGA")
     parser.add_argument("--baud", type=int, default=115200,
                         help="Baud UART FPGA (default 115200)")
     args = parser.parse_args()
 
     global STATE
-    if args.fpga:
+    if args.sim:
+        STATE = DemoState()
+        print("Mode simulasi dipaksa (--sim).")
+    else:
         port = args.fpga
-        if port == "auto":
+        explicit = args.fpga is not None
+        if port in (None, "auto"):
             port = find_uart_port()
-        if not port:
+        if port:
+            try:
+                station = Station(port, args.baud)
+                STATE = HardwareState(station, port, args.baud)
+            except Exception as exc:
+                if explicit:
+                    print(f"Gagal membuka FPGA di {port}: {exc}")
+                    sys.exit(1)
+                print(f"FPGA di {port} gagal dibuka ({exc}); memakai simulasi.")
+                STATE = DemoState()
+            else:
+                error = STATE.state().get("hardware", {}).get("error")
+                print(f"Mode FPGA: {port} @ {args.baud} baud")
+                if error:
+                    print(f"  Peringatan: {error}")
+        elif explicit:
             print("Tidak ada USB-UART terdeteksi. Pasang adapter atau beri --fpga PORT.")
             sys.exit(2)
-        try:
-            station = Station(port, args.baud)
-            STATE = HardwareState(station, port, args.baud)
-        except Exception as exc:
-            print(f"Gagal membuka FPGA di {port}: {exc}")
-            sys.exit(1)
-        error = STATE.state().get("hardware", {}).get("error")
-        print(f"Mode FPGA: {port} @ {args.baud} baud")
-        if error:
-            print(f"  Peringatan: {error}")
-    else:
-        STATE = DemoState()
-        print("Mode simulasi (tanpa FPGA).")
+        else:
+            STATE = DemoState()
+            print("Mode simulasi (FPGA tidak terdeteksi; pakai --fpga PORT untuk memaksa).")
 
     url = f"http://{args.host}:{args.port}"
     server = ThreadingHTTPServer((args.host, args.port), Handler)
