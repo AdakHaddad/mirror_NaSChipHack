@@ -1,16 +1,23 @@
 # RTL
 
-Kode Verilog/SystemVerilog IP SeBatt. Kode pihak ketiga disimpan di rtl/third_party/ beserta lisensinya.
+Kode Verilog IP SeBatt untuk Flow B, tanpa prosesor lunak. Belum ada kode pihak ketiga. Kalau nanti ada, kode itu disimpan di folder third_party beserta lisensinya.
 
-| File | Isi |
-|---|---|
-| `sha256_core.v` | Mesin kompresi SHA-256 |
-| `hmac_sha256.v` | HMAC-SHA-256 + slave AXI4-Lite |
-| `key_vault.v` | Penyimpan kunci tetap (tahap 1) |
-| `ro_puf.v` | RO-PUF (tahap 2) |
-| `i2c_master.v` | Master I2C 100 kHz untuk ADS1115 (tulis 16-bit / baca 16-bit) |
-| `ads1115_ctrl.v` | FSM single-shot ADS1115: config 0xC383, AIN0, keluaran mV |
-| `uart_if.v` | UART 8N1, sampling tengah bit, `BIT_CYCLES = CLK_HZ/BAUD` |
-| `axil_master.v` | Master AXI4-Lite sederhana untuk akses register HMAC |
-| `auth_ctrl.v` | Sampling ADS1115 periodik (`SAMPLE_INTERVAL_MS`, default 1000 ms); parser frame + CRC-8; ring buffer 64 catatan `seq(4)+V(2)+tag(32)` dengan tag HMAC per sampel; AUTH_REQ/RESULT/LOCK/UNLOCK/STATUS/READ_HIST_REQ; lock setelah 3 RESULT gagal; pesan berprefiks 0x41/0x53/0x48 |
-| `sebatt_top.v` | Top-level Flow B: UART, I2C/ADS1115, auth_ctrl, LED (hijau=OK, merah=locked/error), `sw`/`src_sel` untuk pemilih sumber. Wrapper Cmod mengikat `src_sel=0` dan tidak membawa LED hijau/merah |
+| File | Isi | Status |
+|---|---|---|
+| sha256_core.v | Mesin kompresi SHA-256, 113 siklus per blok | Dipakai |
+| hmac_sha256.v | HMAC-SHA-256 dengan slave AXI4-Lite, pesan maksimal 55 byte | Dipakai |
+| axil_master.v | Master AXI4-Lite sederhana untuk register HMAC | Dipakai |
+| uart_if.v | UART 8N1, sampling tengah bit | Dipakai |
+| i2c_master.v | Master I2C 100 kHz, tulis dan baca 16 bit | Dipakai |
+| ads1115_ctrl.v | Pembacaan single-shot ADS1115 (config 0xC383, AIN0), keluaran mV | Dipakai |
+| auth_ctrl.v | Sampling periodik 1 detik, buffer 64 catatan bertanda tangan (prefiks 0x53), AUTH (0x41), READ_HIST dengan tanda tangan ringkasan (0x48), RESULT, LOCK, UNLOCK, STATUS, kunci setelah 3 kali gagal | Dipakai |
+| sebatt_top.v | Top level Flow B: UART, I2C, auth_ctrl, LED, pemilih sumber (sw, src_sel) | Dipakai |
+| key_vault.v | Penyimpan kunci tetap tahap 1. Kunci saat ini masih ditulis auth_ctrl | Belum dipasang |
+| ro_puf.v | RO-PUF tahap 2 | Belum dipasang |
+
+Top level per board ada di [fpga/kv260](../fpga/kv260/) dan [fpga/cmod_s7](../fpga/cmod_s7/). Testbench ada di [sim](../sim/).
+
+## Catatan
+
+- Mengubah file .v di folder ini, termasuk komentarnya saja, membuat preflight KV260 menganggap bitstream usang. Kumpulkan perubahan lalu bangun ulang sekali.
+- Apabila ADS1115 gagal dibaca, AUTH tetap menandatangani tegangan valid terakhir dan LED merah menyala. Catatan riwayat baru tidak disimpan selama pembacaan gagal.

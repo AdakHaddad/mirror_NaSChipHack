@@ -31,7 +31,7 @@ the sample path; ADC, HMAC, history and UART stay in the PL.
 |---|---|---|---|
 | 1 | H12 | `scl` | ADS1115 SCL, pull-up (module + internal) |
 | 2 | E10 | `sda` | ADS1115 SDA, pull-up (module + internal) |
-| 3 | D10 | `src_sel` | 0 = ADS1115, 1 = fixed 3000 mV; internal pulldown |
+| 3 | D10 | `src_sel` | GND = ADS1115, 3V3 = fixed 3000 mV. Do not leave open: it read 1 on the board despite the internal pull-down |
 | 4 | C11 | `led_hb` | heartbeat LED (`led[0]`), blinks ~6 Hz when the PL runs |
 | 5, 11 | — | GND | ADS1115/CP2102/LED ground |
 | 6, 12 | — | 3V3 | ADS1115 VDD and pot top |

@@ -52,7 +52,7 @@ GND/3V3 di 5/6 dan 11/12.
 KV260 Pmod J2                         Perangkat
 1  (H12) SCL   ─────────────────────  ADS1115 SCL
 2  (E10) SDA   ─────────────────────  ADS1115 SDA
-3  (D10) src_sel  ── terbuka = 0      (0 = ADS1115, 3V3 = sumber tetap 3000 mV)
+3  (D10) src_sel  ── GND             (GND = ADS1115, 3V3 = sumber tetap 3000 mV)
 4  (C11) hb    ─── 330 Ω ── LED ────  GND        (berkedip = PL hidup)
 5  (GND)       ─────────────────────  ADS1115 GND, CP2102 GND, katoda LED
 6  (3V3)       ─────────────────────  ADS1115 VDD, ujung atas pot
@@ -77,8 +77,10 @@ Catatan:
 - **Tidak ada tombol reset.** Reset membuat seq kembali ke 0, sehingga stasiun
   melaporkan HISTORY_ROLLBACK sampai seq melewati anchor. Untuk mulai ulang,
   muat ulang bitstream dan kosongkan anchor di stasiun.
-- **Pmod 3**: ini pemilih sumber, bukan tombol pemicu. Biarkan terbuka untuk
-  ADS1115; hubungkan ke 3V3 hanya kalau ingin sumber tetap 3000 mV (tanpa ADC).
+- **Pmod 3**: pemilih sumber. **Sambungkan ke GND** untuk ADS1115, ke 3V3 untuk
+  sumber tetap 3000 mV (tanpa ADC). **Jangan dibiarkan terbuka**: pada uji 21 Okt
+  pin terbuka terbaca 1 walaupun ada pull-down internal, sehingga chip memakai
+  sumber tetap 3000 mV. Pin dibaca terus, jadi boleh dipindah tanpa memuat ulang.
 - Konsol serial PS KV260 memakai micro-USB tersendiri; itu **bukan** UART
   aplikasi. UART aplikasi hanya lewat CP2102 di Pmod 7/8.
 

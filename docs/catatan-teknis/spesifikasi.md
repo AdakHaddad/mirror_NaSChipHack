@@ -181,7 +181,7 @@ Stasiun mengirim READ_HIST_REQ setiap 0,5 detik dan menampilkan 64 catatan terak
 |---|---|---|
 | 1 | H12 | I2C SCL ke ADS1115 |
 | 2 | E10 | I2C SDA ke ADS1115 |
-| 3 | D10 | Pemilih sumber: terbuka/0 = ADS1115, 3V3 = sumber tetap 3000 mV |
+| 3 | D10 | Pemilih sumber: GND = ADS1115, 3V3 = sumber tetap 3000 mV. Jangan dibiarkan terbuka, karena pada uji 21 Okt pin terbuka terbaca 1 |
 | 4 | C11 | LED heartbeat (berkedip = logika PL hidup). Tidak ada tombol reset, karena reset membuat seq kembali ke 0 |
 | 5, 11 | — | GND |
 | 6, 12 | — | 3,3 V |
@@ -209,6 +209,7 @@ RTL diuji dengan cocotb terhadap vektor yang sama, seperti test_auth_ctrl.py saa
 - Kunci simetris juga tersimpan di basis data, dan stasiun harus terhubung ke server.
 - Kunci uji sama untuk semua chip.
 - Apabila sumber ROM dipakai, input berupa data rekaman, bukan sensor live.
+- Apabila ADS1115 gagal dibaca, AUTH tetap menandatangani tegangan valid terakhir. Kegagalan hanya terlihat dari LED merah dan berhentinya catatan riwayat baru, belum dari isi AUTH_RESP.
 - Chip tidak memiliki sumber waktu tepercaya. `seq` membuktikan urutan catatan yang dikirim, tetapi tidak membuktikan bahwa sampel benar-benar diambil setiap interval.
 - Jangkar stasiun hanya mendeteksi rollback apabila stasiun pernah melihat `seq` yang lebih tinggi.
 

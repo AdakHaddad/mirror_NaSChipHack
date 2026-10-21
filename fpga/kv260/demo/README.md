@@ -27,7 +27,7 @@ Harus berakhir `GO`. Kalau `NO-GO`, jangan lanjut ke board.
 |---|---|---|---|
 | 1 | H12 | `scl` | ADS1115 SCL |
 | 2 | E10 | `sda` | ADS1115 SDA |
-| 3 | D10 | `src_sel` | biarkan terbuka (0 = ADS1115) |
+| 3 | D10 | `src_sel` | GND = ADS1115, 3V3 = tetap 3000 mV. Jangan dibiarkan terbuka (terbaca 1) |
 | 4 | C11 | `led_hb` | LED heartbeat + 330 Ω ke GND (berkedip = PL hidup) |
 | 5, 11 | — | GND | GND ADS1115, CP2102, katoda LED |
 | 6, 12 | — | 3V3 | VDD ADS1115, pot |
