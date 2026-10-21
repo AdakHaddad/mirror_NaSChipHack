@@ -64,33 +64,89 @@ def verdict(status: AuthStatus) -> str:
     return "DITERIMA" if status in ACCEPTED else "DITOLAK"
 
 
-def health_card(records, deep_mv: int, scale: float = 1.0) -> list:
+# Battery profiles. The chip signs the millivolts at the ADC pin; the station
+# converts them to battery millivolts with `scale` and judges health there.
+# One set of rules for the CLI and the dashboard.
+PROFILES = {
+    # Knob straight on A0 standing in for one Li-ion cell: 0-3.3 V at the pin
+    # is read as 0-4.2 V. Deep discharge below 2.5 V; a charge cycle is a dip
+    # below 3.0 V followed by a rise above 4.0 V.
+    "sel": {
+        "name": "sel",
+        "label": "sel Li-ion (kenop 0-3,3 V di A0 dibaca 0-4,2 V)",
+        "scale": 4200 / 3300,
+        "deep_mv": 2500,
+        "arm_mv": 3000,
+        "full_mv": 4000,
+    },
+    # 12 V lead-acid battery behind the 47k/10k divider in the casing.
+    "aki12v": {
+        "name": "aki12v",
+        "label": "aki 12 V lewat pembagi 47k/10k (pin × 5,7)",
+        "scale": 5.7,
+        "deep_mv": 10500,
+        "arm_mv": 11800,
+        "full_mv": 12600,
+    },
+}
+DEFAULT_PROFILE = "sel"
+
+
+def to_battery_mv(pin_mv: int, profile: dict) -> int:
+    return int(round(pin_mv * profile["scale"]))
+
+
+def to_pin_mv(battery_mv: int, profile: dict) -> int:
+    return int(round(battery_mv / profile["scale"]))
+
+
+def health_summary(records, profile: dict) -> Optional[dict]:
     """Battery health from an already verified history (station side only).
 
-    A run of consecutive samples below deep_mv counts as one deep-discharge
-    event. Voltages are shown at the ADC pin and, when scale != 1, as the
-    battery voltage behind the divider.
+    All values are battery millivolts. A run of consecutive samples below
+    deep_mv counts as one deep-discharge event.
     """
     if not records:
+        return None
+    pts = [(r.seq, to_battery_mv(r.mv, profile)) for r in sorted(records, key=lambda r: r.seq)]
+    events, below, cycles, armed = 0, False, 0, False
+    for _, mv in pts:
+        if mv < profile["deep_mv"] and not below:
+            events += 1
+        below = mv < profile["deep_mv"]
+        if mv < profile["arm_mv"]:
+            armed = True
+        elif mv > profile["full_mv"] and armed:
+            cycles += 1
+            armed = False
+    low_seq, low_mv = min(pts, key=lambda p: p[1])
+    return {
+        "min_mv": low_mv,
+        "min_seq": low_seq,
+        "max_mv": max(mv for _, mv in pts),
+        "last_mv": pts[-1][1],
+        "deep_events": events,
+        "cycles": cycles,
+        "samples": len(pts),
+    }
+
+
+def health_card(records, profile: dict) -> list:
+    """Health summary as text lines for the CLI."""
+    h = health_summary(records, profile)
+    if h is None:
         return ["Kesehatan: belum ada catatan"]
 
-    def fmt(mv):
-        pin = f"{mv} mV"
-        return pin if scale == 1.0 else f"{pin} (baterai {mv * scale / 1000:.2f} V)"
+    def v(mv):
+        return f"{mv / 1000:.2f} V".replace(".", ",")
 
-    low = min(records, key=lambda r: r.mv)
-    events, below = 0, False
-    for r in records:
-        if r.mv < deep_mv and not below:
-            events += 1
-        below = r.mv < deep_mv
-    lines = [f"Kesehatan: terendah {fmt(low.mv)} pada seq {low.seq}, "
-             f"terbaru {fmt(records[-1].mv)}"]
-    if events:
-        lines.append(f"PERHATIAN: terkuras dalam {events} kali "
-                     f"(di bawah {fmt(deep_mv)}). Riwayat asli, baterai perlu diperiksa.")
+    lines = [f"Kesehatan ({profile['label']}): terendah {v(h['min_mv'])} pada seq "
+             f"{h['min_seq']}, terbaru {v(h['last_mv'])}, siklus {h['cycles']}"]
+    if h["deep_events"]:
+        lines.append(f"PERHATIAN: terkuras dalam {h['deep_events']} kali "
+                     f"(di bawah {v(profile['deep_mv'])}). Riwayat asli, baterai perlu diperiksa.")
     else:
-        lines.append(f"Tidak ada kejadian di bawah {fmt(deep_mv)}.")
+        lines.append(f"Tidak ada kejadian di bawah {v(profile['deep_mv'])}.")
     return lines
 
 
@@ -142,11 +198,8 @@ class Station:
         # Tell the chip each verdict (RESULT) so its fail counter and lock
         # follow the station, as in spec sections 10 and 11.
         self.report_results = True
-        # Health card: a sample below deep_mv counts as a deep discharge.
-        # scale converts the ADC-pin millivolts to battery volts (1.0 for a
-        # knob straight on A0, 5.7 for the 47k/10k divider in the casing).
-        self.deep_mv = 1000
-        self.scale = 1.0
+        # Battery profile for the health card (see PROFILES).
+        self.profile = PROFILES[DEFAULT_PROFILE]
         # (seq_last, time first seen) to notice a sensor that stopped sampling
         self._last_seen: Optional[tuple] = None
 
@@ -346,6 +399,8 @@ class Station:
         mode: 'tamper' (change one voltage), 'delete' (drop records in the
         middle), 'cut' (drop the newest records and shrink the range),
         'replay' (answer a new nonce with a dump signed for an old one).
+        For 'tamper', mv is the forged battery voltage in the station's
+        profile (default 3.6 V); it is converted back to ADC-pin millivolts.
         Returns (status, description).
         """
         nonce = os.urandom(32)
@@ -367,8 +422,11 @@ class Station:
 
         if mode == 'tamper':
             old = recs[idx]
-            recs[idx] = HistoryRecord(seq=old.seq, mv=mv, tag=old.tag)
-            desc = f"seq {old.seq}: {old.mv} mV diubah menjadi {mv} mV"
+            forged = to_pin_mv(mv, self.profile)
+            recs[idx] = HistoryRecord(seq=old.seq, mv=forged, tag=old.tag)
+            old_v = to_battery_mv(old.mv, self.profile) / 1000
+            desc = (f"seq {old.seq}: {old_v:.2f} V diubah menjadi {mv / 1000:.2f} V "
+                    f"(pin {old.mv} -> {forged} mV)").replace(".", ",")
         elif mode == 'delete':
             count = max(1, min(count, len(recs) - 2))
             idx = max(1, min(idx, len(recs) - count - 1))
@@ -413,8 +471,7 @@ class Station:
             lines.append("  Riwayat: TIDAK DAPAT DIPERCAYA, kartu kesehatan tidak ditampilkan")
             return lines
 
-        lines.extend("  " + l for l in health_card(dump.records, self.deep_mv,
-                                                    self.scale))
+        lines.extend("  " + l for l in health_card(dump.records, self.profile))
 
         now = time.monotonic()
         if self._last_seen and self._last_seen[0] == dump.seq_last:
@@ -730,10 +787,9 @@ def main():
     parser.add_argument('--count', type=int, default=100, help='Benchmark count')
     parser.add_argument('--offline', action='store_true', help='Run offline test (no hardware)')
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
-    parser.add_argument('--deep-mv', type=int, default=1000,
-                        help='Health card: ADC-pin mV below which a sample counts as deep discharge')
-    parser.add_argument('--scale', type=float, default=1.0,
-                        help='ADC-pin mV to battery volts factor (1.0 knob on A0, 5.7 casing divider)')
+    parser.add_argument('--profil', choices=sorted(PROFILES), default=DEFAULT_PROFILE,
+                        help='Battery profile for the health card: sel (knob on A0 as one '
+                             'Li-ion cell) or aki12v (12 V battery through the casing divider)')
     args = parser.parse_args()
 
     if args.offline:
@@ -759,8 +815,7 @@ def main():
         print("Cek kabel CP2102, nomor COM di Device Manager, dan pastikan "
               "PuTTY atau station lain tidak sedang memakai port itu.")
         sys.exit(1)
-    station.deep_mv = args.deep_mv
-    station.scale = args.scale
+    station.profile = PROFILES[args.profil]
 
     try:
         if args.demo:
@@ -787,7 +842,7 @@ def interactive_mode(station: Station):
     """Interactive CLI for demo."""
     print("SeBatt Interactive Station")
     print("Commands: auth, history, status, lock, unlock, reset-anchor, bench, quit")
-    print("BMS curang: attack tamper [seq] [mV] | attack delete [n] | "
+    print("BMS curang: attack tamper [seq] [mV baterai] | attack delete [n] | "
           "attack cut [n] | attack replay")
 
     while True:
@@ -815,8 +870,9 @@ def _run_command(station: Station, cmd: str):
             print(f"  Battery: {bid}  Chip terkunci → BATTERY_LOCKED (DITOLAK). "
                   "Ketik unlock untuk membuka.")
         else:
-            print(f"  Battery: {bid}  Voltage: {voltage}mV  → {status.name} "
-                  f"({verdict(status)})")
+            batt_v = f"{to_battery_mv(voltage, station.profile) / 1000:.2f}".replace(".", ",")
+            print(f"  Battery: {bid}  Voltage: {batt_v} V (pin {voltage} mV)  "
+                  f"→ {status.name} ({verdict(status)})")
     elif cmd == 'lock':
         station.lock_battery(b'BAT\x01')
         print("  Battery locked")
@@ -832,7 +888,7 @@ def _run_command(station: Station, cmd: str):
     elif cmd.startswith('attack'):
         parts = cmd.split()
         if len(parts) < 2 or parts[1] not in ('tamper', 'delete', 'cut', 'replay'):
-            print("  Usage: attack tamper [seq] [mV] | attack delete [n] | "
+            print("  Usage: attack tamper [seq] [mV baterai] | attack delete [n] | "
                   "attack cut [n] | attack replay")
             return
         mode, args = parts[1], [int(x) for x in parts[2:] if x.isdigit()]

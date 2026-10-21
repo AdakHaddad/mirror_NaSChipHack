@@ -407,6 +407,7 @@
 
     el.healthCycles.textContent = trusted ? fmtInt.format(health.cycles) : "—";
     el.healthDeep.textContent = trusted ? fmtInt.format(health.deep) : "—";
+    el.healthDeep.parentElement.classList.toggle("alert", Boolean(trusted && health.deep > 0));
     el.healthMin.textContent = trusted ? fmtV(health.min_mv) : "—";
     el.healthMax.textContent = trusted ? fmtV(health.max_mv) : "—";
     el.healthSamples.textContent = trusted
@@ -525,14 +526,14 @@
     el.btnUnlock.disabled = app.busy;
     el.btnPowerCycle.disabled = app.busy || fpga;
     el.btnPowerCycle.title = fpga
-      ? "Mode FPGA: cabut daya dilakukan di board, bukan lewat dashboard."
+      ? "Mode FPGA: untuk mengulang chip dari nol, program ulang bitstream lewat Vivado."
       : "";
     el.btnReset.disabled = app.busy;
 
     el.voltageControl.hidden = fpga;
     el.autoRow.hidden = fpga;
     el.voltageHint.textContent = fpga
-      ? "FPGA membaca tegangan dari ADS1115; slider tidak dipakai."
+      ? `FPGA membaca ADS1115; slider tidak dipakai. Profil: ${data.profile || "sel Li-ion"}.`
       : "Putar kenop atau geser nilai";
     el.chartSub.textContent = fpga
       ? "Sampling FPGA ±1 detik · buffer 64 catatan"

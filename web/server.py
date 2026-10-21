@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from model.station import Station, find_uart_port
+from model.station import DEFAULT_PROFILE, PROFILES, Station, find_uart_port
 from web.demo import DemoState
 from web.hardware import HardwareState
 
@@ -161,6 +161,9 @@ def main() -> None:
     )
     parser.add_argument("--baud", type=int, default=115200,
                         help="Baud UART FPGA (default 115200)")
+    parser.add_argument("--profil", choices=sorted(PROFILES), default=DEFAULT_PROFILE,
+                        help="Profil baterai mode FPGA: sel (kenop di A0 = satu sel "
+                             "Li-ion) atau aki12v (aki 12 V lewat pembagi casing)")
     args = parser.parse_args()
 
     global STATE
@@ -173,12 +176,13 @@ def main() -> None:
             sys.exit(2)
         try:
             station = Station(port, args.baud)
+            station.profile = PROFILES[args.profil]
             STATE = HardwareState(station, port, args.baud)
         except Exception as exc:
             print(f"Gagal membuka FPGA di {port}: {exc}")
             sys.exit(1)
         error = STATE.state().get("hardware", {}).get("error")
-        print(f"Mode FPGA: {port} @ {args.baud} baud")
+        print(f"Mode FPGA: {port} @ {args.baud} baud, profil {PROFILES[args.profil]['label']}")
         if error:
             print(f"  Peringatan: {error}")
     else:

@@ -26,188 +26,176 @@
   </header>
 
   <main class="wrap">
-    <section class="banner" id="result-banner" data-status="idle" aria-live="polite">
-      <div class="banner-main">
+    <section class="verdict" id="result-banner" data-status="idle" aria-live="polite">
+      <div class="verdict-main">
         <div class="eyebrow" id="result-kicker">Stasiun penukaran</div>
         <h1 id="result-title">SIAP</h1>
         <p id="result-message">Tekan “Tukar baterai” untuk memverifikasi riwayat tegangan paket.</p>
-      </div>
-      <div class="banner-stats">
-        <div class="mini-stat">
-          <span>Seq terverifikasi</span>
-          <strong id="stat-seq">0</strong>
-        </div>
-        <div class="mini-stat">
-          <span>Catatan baru</span>
-          <strong id="stat-pending">0</strong>
-        </div>
-        <div class="mini-stat">
-          <span>Gagal berturut</span>
-          <strong id="stat-fail">0<span class="muted">/3</span></strong>
-        </div>
         <div class="lock-chip" id="lock-chip">Chip terkunci</div>
       </div>
+      <dl class="verdict-stats">
+        <div>
+          <dt>Seq terverifikasi</dt>
+          <dd id="stat-seq">0</dd>
+        </div>
+        <div>
+          <dt>Catatan baru</dt>
+          <dd id="stat-pending">0</dd>
+        </div>
+        <div>
+          <dt>Penolakan berturut-turut</dt>
+          <dd id="stat-fail">0<span class="muted">/3</span></dd>
+        </div>
+      </dl>
     </section>
 
-    <section class="grid">
-      <article class="card chart-card">
-        <div class="card-head">
-          <div>
-            <h2>Riwayat tegangan</h2>
-            <p id="chart-sub">1 titik = 3 jam pemakaian · buffer 64 catatan</p>
-          </div>
-          <div class="chart-legend">
-            <span><i class="swatch green"></i>Sah</span>
-            <span><i class="swatch red"></i>Diubah</span>
-            <span><i class="swatch dashed"></i>Dihapus</span>
-          </div>
-        </div>
-        <div class="chart" id="chart"></div>
-        <div class="chart-foot">
-          <span>Batas aman sel Li-ion: 2,5–4,2 V</span>
-          <span id="chart-note">Menunggu verifikasi</span>
-        </div>
-      </article>
+    <div class="layout">
+      <div class="col-main">
+        <section class="panel">
+          <header class="panel-head">
+            <div>
+              <h2>Riwayat tegangan</h2>
+              <p id="chart-sub">1 titik = 3 jam pemakaian · buffer 64 catatan</p>
+            </div>
+            <ul class="legend">
+              <li><i class="key key-ok"></i>Sah</li>
+              <li><i class="key key-bad"></i>Diubah</li>
+              <li><i class="key key-gone"></i>Dihapus</li>
+            </ul>
+          </header>
+          <div class="chart" id="chart"></div>
+          <footer class="panel-foot">
+            <span>Batas aman sel Li-ion 2,5–4,2 V</span>
+            <span id="chart-note">Menunggu verifikasi</span>
+          </footer>
+        </section>
 
-      <aside class="side">
-        <article class="card health-card" id="health-card" data-status="unverified">
-          <div class="card-head">
+        <section class="panel">
+          <header class="panel-head">
+            <div>
+              <h2>Catatan dari chip</h2>
+              <p id="records-count">0 catatan</p>
+            </div>
+            <span class="tag-mono" id="seq-pill">seq 0</span>
+          </header>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Seq</th>
+                  <th>Tegangan</th>
+                  <th>Tanda tangan (HMAC)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="records-body"></tbody>
+            </table>
+            <div class="empty" id="records-empty">Belum ada catatan. Tekan “Catat sampel”.</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-side">
+        <section class="panel">
+          <header class="panel-head">
+            <div>
+              <h2>Stasiun</h2>
+              <p id="voltage-hint">Putar kenop atau geser nilai</p>
+            </div>
+            <div class="readout"><span id="voltage-value">3,70</span><small>V</small></div>
+          </header>
+          <div class="panel-body">
+            <div id="voltage-control">
+              <input class="slider" id="voltage-slider" type="range" min="2000" max="4200" step="10" value="3700" aria-label="Tegangan paket">
+              <div class="slider-scale"><span>2,0 V</span><span>3,7 V</span><span>4,2 V</span></div>
+              <div class="presets">
+                <button type="button" class="chip-btn" data-mv="4200">Penuh</button>
+                <button type="button" class="chip-btn" data-mv="3700">Normal</button>
+                <button type="button" class="chip-btn danger-text" data-mv="2000">Terkuras</button>
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button type="button" class="btn primary" id="btn-swap">Tukar baterai</button>
+              <button type="button" class="btn secondary" id="btn-record">Catat sampel</button>
+            </div>
+            <label class="switch-row" id="auto-row" for="auto-record">
+              <span class="switch">
+                <input type="checkbox" id="auto-record">
+                <span class="switch-track"></span>
+              </span>
+              <span>Rekam otomatis</span>
+              <span class="auto-state" id="auto-state">nonaktif</span>
+            </label>
+            <p class="hint" id="action-hint">Satu sampel mewakili 3 jam pemakaian. Demo memakai satu titik per beberapa detik.</p>
+          </div>
+        </section>
+
+        <section class="panel health" id="health-card" data-status="unverified">
+          <header class="panel-head">
             <div>
               <h2>Kesehatan baterai</h2>
               <p id="health-id">BAT-0001</p>
             </div>
             <span class="badge" id="health-badge">BELUM DIVERIFIKASI</span>
-          </div>
-          <div class="health-grid">
-            <div class="health-item">
-              <span>Siklus pengisian</span>
-              <strong id="health-cycles">—</strong>
+          </header>
+          <dl class="health-grid">
+            <div>
+              <dt>Siklus pengisian</dt>
+              <dd id="health-cycles">—</dd>
             </div>
-            <div class="health-item">
-              <span>Terkuras dalam</span>
-              <strong id="health-deep">—</strong>
+            <div class="deep">
+              <dt>Terkuras dalam</dt>
+              <dd id="health-deep">—</dd>
             </div>
-            <div class="health-item">
-              <span>Tegangan terendah</span>
-              <strong id="health-min">—</strong>
+            <div>
+              <dt>Tegangan terendah</dt>
+              <dd id="health-min">—</dd>
             </div>
-            <div class="health-item">
-              <span>Tegangan tertinggi</span>
-              <strong id="health-max">—</strong>
+            <div>
+              <dt>Tegangan tertinggi</dt>
+              <dd id="health-max">—</dd>
             </div>
-          </div>
+          </dl>
           <div class="health-foot">
             <span id="health-samples">0 catatan</span>
             <span id="health-pending"></span>
           </div>
-          <div class="health-note" id="health-note">Angka muncul setelah riwayat dinyatakan valid.</div>
-        </article>
+          <p class="hint health-note" id="health-note">Angka muncul setelah riwayat dinyatakan valid.</p>
+        </section>
 
-        <article class="card action-card">
-          <div class="card-head">
+        <section class="panel attack">
+          <header class="panel-head">
             <div>
-              <h2>Tegangan paket</h2>
-              <p id="voltage-hint">Putar kenop atau geser nilai</p>
+              <h2 id="attack-title">Simulasi BMS curang</h2>
+              <p id="attack-copy">Ubah data di jalur sebelum stasiun memeriksa.</p>
             </div>
-            <div class="voltage-readout"><span id="voltage-value">3,70</span><small>V</small></div>
-          </div>
-          <div id="voltage-control">
-            <input class="slider" id="voltage-slider" type="range" min="2000" max="4200" step="10" value="3700" aria-label="Tegangan paket">
-            <div class="slider-scale"><span>2,0 V</span><span>3,7 V</span><span>4,2 V</span></div>
-            <div class="presets">
-              <button type="button" class="chip-btn" data-mv="4200">Penuh</button>
-              <button type="button" class="chip-btn" data-mv="3700">Normal</button>
-              <button type="button" class="chip-btn danger-text" data-mv="2000">Terkuras</button>
-            </div>
-          </div>
-          <div class="action-buttons">
-            <button type="button" class="btn primary" id="btn-swap">Tukar baterai</button>
-            <button type="button" class="btn secondary" id="btn-record">Catat sampel</button>
-          </div>
-          <label class="switch-row" id="auto-row" for="auto-record">
-            <span class="switch">
-              <input type="checkbox" id="auto-record">
-              <span class="switch-track"></span>
-            </span>
-            <span>Rekam otomatis</span>
-            <span class="auto-state" id="auto-state">nonaktif</span>
-          </label>
-          <p class="action-hint" id="action-hint">Satu sampel mewakili 3 jam pemakaian. Demo memakai satu titik per beberapa detik.</p>
-        </article>
-      </aside>
-
-      <article class="card records-card">
-        <div class="card-head">
-          <div>
-            <h2>Catatan riwayat</h2>
-            <p id="records-count">0 catatan</p>
-          </div>
-          <span class="seq-pill" id="seq-pill">seq 0</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Seq</th>
-                <th>Tegangan</th>
-                <th>Tanda tangan</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="records-body"></tbody>
-          </table>
-          <div class="empty" id="records-empty">Belum ada catatan. Tekan “Catat sampel”.</div>
-        </div>
-      </article>
-
-      <article class="card attack-card">
-        <div class="card-head">
-          <div>
-            <h2 id="attack-title">Simulasi BMS curang</h2>
-            <p id="attack-copy">Ubah data di jalur sebelum stasiun memeriksa.</p>
-          </div>
-          <span class="attack-pill">BMS → stasiun</span>
-        </div>
-        <div class="attack-body">
-          <div class="attack-main">
+          </header>
+          <div class="panel-body">
             <div class="attack-buttons">
               <button type="button" class="btn danger" id="btn-delete">Hapus catatan</button>
               <button type="button" class="btn danger" id="btn-tamper">Ubah angka</button>
-              <button type="button" class="btn secondary" id="btn-restore">Pulihkan catatan</button>
+              <button type="button" class="btn secondary" id="btn-restore">Pulihkan</button>
             </div>
-            <p class="attack-hint" id="attack-hint">Serangan berlaku pada catatan baru setelah verifikasi terakhir.</p>
+            <p class="hint" id="attack-hint">Serangan berlaku pada catatan baru setelah verifikasi terakhir.</p>
             <div class="utility-row">
               <button type="button" class="link-btn" id="btn-unlock" hidden>Buka kunci chip</button>
               <button type="button" class="link-btn" id="btn-power-cycle">Cabut daya chip (emulasi)</button>
-              <button type="button" class="link-btn danger-text" id="btn-reset">Reset demo</button>
+              <button type="button" class="link-btn" id="btn-reset">Reset tampilan</button>
             </div>
           </div>
-          <div class="attack-flow" aria-hidden="true">
-            <span class="flow-label">Jalur serangan</span>
-            <div class="flow-row">
-              <span class="flow-node">BMS curang</span>
-              <span class="flow-arrow">→</span>
-              <span class="flow-node">Hapus / ubah</span>
-              <span class="flow-arrow">→</span>
-              <span class="flow-node bad">Tag tidak cocok</span>
-              <span class="flow-arrow">→</span>
-              <span class="flow-node bad">DITOLAK</span>
-            </div>
-            <p class="flow-caption">Serangan hanya mengubah salinan di jalur data. Kunci K tidak diketahui, jadi tag HMAC tidak dapat dibuat ulang.</p>
-          </div>
-        </div>
-      </article>
+        </section>
 
-      <article class="card log-card">
-        <div class="card-head">
-          <div>
-            <h2>Log pemeriksaan</h2>
-            <p>Hasil verifikasi terakhir</p>
-          </div>
-        </div>
-        <div class="log" id="log-list"></div>
-      </article>
-    </section>
+        <section class="panel">
+          <header class="panel-head">
+            <div>
+              <h2>Log pemeriksaan</h2>
+              <p>Hasil verifikasi terakhir</p>
+            </div>
+          </header>
+          <div class="log" id="log-list"></div>
+        </section>
+      </div>
+    </div>
 
     <footer class="footer">
       <span id="footer-source">SeBatt · chip diemulasikan oleh model protokol Python, belum terhubung ke FPGA</span>

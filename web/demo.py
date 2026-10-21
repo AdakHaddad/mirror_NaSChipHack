@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from model.hmac import hmac_sha256
+from model.station import PROFILES, health_summary
 
 BATTERY_ID = b"BAT\x01"
 BATTERY_LABEL = "BAT-0001"
@@ -16,6 +17,7 @@ LOW_MV = 2500
 HIGH_MV = 4000
 ARM_MV = 3000
 RECORD_PREFIX = 0x53
+SIM_PROFILE = dict(PROFILES["sel"], scale=1.0)
 
 SEED_MV = [
     4160, 4120, 4080, 4020, 3970, 3910, 3860, 3800,
@@ -94,23 +96,18 @@ class DemoState:
         return None
 
     def _health(self) -> Optional[dict]:
+        # Same rules as the station CLI and FPGA mode (model.station), with
+        # the simulated values already in cell millivolts (scale 1).
         samples = [rec for rec in self.records if not rec.deleted]
-        if not samples:
+        h = health_summary(samples, SIM_PROFILE)
+        if h is None:
             return None
-        cycles = 0
-        armed = False
-        for rec in sorted(samples, key=lambda r: r.seq):
-            if rec.mv < ARM_MV:
-                armed = True
-            elif rec.mv > HIGH_MV and armed:
-                cycles += 1
-                armed = False
         return {
-            "cycles": cycles,
-            "deep": sum(1 for rec in samples if rec.mv < LOW_MV),
-            "min_mv": min(rec.mv for rec in samples),
-            "max_mv": max(rec.mv for rec in samples),
-            "samples": len(samples),
+            "cycles": h["cycles"],
+            "deep": h["deep_events"],
+            "min_mv": h["min_mv"],
+            "max_mv": h["max_mv"],
+            "samples": h["samples"],
             "verified_seq": self.next_seq - 1,
         }
 

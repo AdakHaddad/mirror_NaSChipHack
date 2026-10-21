@@ -8,6 +8,11 @@ The FPGA samples the ADS1115 itself. ``refresh_live`` reads the signed history
 without verifying it (so the chart can show new samples); ``swap`` performs the
 real authentication and history verification and only then moves the database
 anchor.
+
+The chip signs millivolts at the ADC pin. Everything shown in the dashboard
+(chart, table, voltage, health card) is converted to battery millivolts with
+the station's profile (model.station.PROFILES), the same rules the CLI uses.
+Verification always runs on the untouched pin values.
 """
 
 from __future__ import annotations
@@ -17,15 +22,15 @@ import time
 from typing import Optional
 
 from model.protocol import AuthStatus, HistoryDump, HistoryRecord
-from model.station import Station
-from web.demo import (
-    ARM_MV,
-    BATTERY_ID,
-    BATTERY_LABEL,
-    BUFFER_SIZE,
-    HIGH_MV,
-    LOW_MV,
+from model.station import (
+    DEFAULT_PROFILE,
+    PROFILES,
+    Station,
+    health_summary,
+    to_battery_mv,
+    to_pin_mv,
 )
+from web.demo import BATTERY_ID, BATTERY_LABEL, BUFFER_SIZE
 
 
 def _fmt_v(mv: int) -> str:
@@ -50,6 +55,7 @@ class HardwareState:
 
     def __init__(self, station: Station, port: str = "", baud: int = 115200):
         self.station = station
+        self.profile = getattr(station, "profile", PROFILES[DEFAULT_PROFILE])
         self.port = port
         self.baud = baud
         self._lock = threading.RLock()
@@ -95,24 +101,20 @@ class HardwareState:
             return 0
         return seq_last
 
-    @staticmethod
-    def _health_from(records: list[HistoryRecord], verified_seq: int) -> Optional[dict]:
-        if not records:
+    def _batt(self, pin_mv: int) -> int:
+        return to_battery_mv(pin_mv, self.profile)
+
+    def _health_from(self, records: list[HistoryRecord],
+                     verified_seq: int) -> Optional[dict]:
+        h = health_summary(records, self.profile)
+        if h is None:
             return None
-        cycles = 0
-        armed = False
-        for rec in sorted(records, key=lambda item: item.seq):
-            if rec.mv < ARM_MV:
-                armed = True
-            elif rec.mv > HIGH_MV and armed:
-                cycles += 1
-                armed = False
         return {
-            "cycles": cycles,
-            "deep": sum(1 for rec in records if rec.mv < LOW_MV),
-            "min_mv": min(rec.mv for rec in records),
-            "max_mv": max(rec.mv for rec in records),
-            "samples": len(records),
+            "cycles": h["cycles"],
+            "deep": h["deep_events"],
+            "min_mv": h["min_mv"],
+            "max_mv": h["max_mv"],
+            "samples": h["samples"],
             "verified_seq": verified_seq,
         }
 
@@ -147,11 +149,11 @@ class HardwareState:
                            and rec.seq == attack_seq)
             tampered = bool(self._attack and self._attack["kind"] == "tamper"
                             and rec.seq == attack_seq)
-            mv = self._attack["mv"] if tampered else rec.mv
+            mv = self._attack["shown_mv"] if tampered else self._batt(rec.mv)
             display.append({
                 "seq": rec.seq,
                 "mv": mv,
-                "original_mv": rec.mv,
+                "original_mv": self._batt(rec.mv),
                 "tag": rec.tag.hex()[:16],
                 "deleted": deleted,
                 "tampered": tampered,
@@ -206,7 +208,7 @@ class HardwareState:
             self._last_dump = dump
             self._chip_seq = self._display_chip_seq(dump)
             if dump.records:
-                self._voltage_mv = int(dump.records[-1].mv)
+                self._voltage_mv = self._batt(int(dump.records[-1].mv))
             self._last_seq = self._read_anchor()
             self._last_error = None
             self._query_status()
@@ -275,7 +277,8 @@ class HardwareState:
 
             self._last_dump = dump
             self._chip_seq = self._display_chip_seq(dump)
-            self._voltage_mv = int(dump.records[-1].mv) if dump.records else int(voltage)
+            self._voltage_mv = self._batt(
+                int(dump.records[-1].mv) if dump.records else int(voltage))
             verify_dump = self._apply_attack(dump)
 
             try:
@@ -365,12 +368,16 @@ class HardwareState:
                 return {"ok": False,
                         "message": "Tidak ada catatan baru. Tunggu sampling FPGA dulu."}
             target = max(candidates, key=lambda rec: rec.seq)
-            new_mv = 3600 if target.mv != 3600 else 4200
-            self._attack = {"kind": "tamper", "seq": target.seq, "mv": new_mv}
+            # Forge a healthy-looking battery voltage, then convert it back to
+            # the pin millivolts that the chip actually signs.
+            shown = 3600 if abs(self._batt(target.mv) - 3600) > 50 else 4000
+            forged = to_pin_mv(shown, self.profile)
+            self._attack = {"kind": "tamper", "seq": target.seq,
+                            "mv": forged, "shown_mv": shown}
             return {
                 "ok": True,
                 "message": (f"BMS curang mengubah seq {target.seq} dari "
-                            f"{_fmt_v(target.mv)} menjadi {_fmt_v(new_mv)}."),
+                            f"{_fmt_v(self._batt(target.mv))} menjadi {_fmt_v(shown)}."),
                 "state": self.state(),
             }
 
@@ -414,7 +421,8 @@ class HardwareState:
         return {
             "ok": False,
             "message": "Mode FPGA: cabut daya tidak tersedia lewat dashboard. "
-                       "Muat ulang bitstream atau tekan tombol reset board.",
+                       "Untuk mengulang chip dari nol, program ulang bitstream "
+                       "lewat Vivado, lalu tekan Reset tampilan.",
         }
 
     def state(self) -> dict:
@@ -439,6 +447,7 @@ class HardwareState:
                 "last_seq": self._last_seq,
                 "chip_seq": self._chip_seq,
                 "voltage_mv": self._voltage_mv,
+                "profile": self.profile["label"],
                 "pending": pending,
                 "buffer_size": BUFFER_SIZE,
                 "records": self._display_records(),
