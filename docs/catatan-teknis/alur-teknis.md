@@ -68,7 +68,9 @@ Catatan **sudah ditandatangani saat diambil**. Buffer berada di dalam chip dan t
 
 > **Status implementasi 21 Oktober:** sampling periodik 1 detik, penomoran `seq`,
 > buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`;
-> regresi cocotb 23/23. Bitstream Cmod S7 dibangun ulang; uji board belum.
+> regresi cocotb 23/23. Bitstream Cmod S7 dan KV260 sudah dibangun ulang
+> (KV260 WNS +1,466 ns); bitstream, `.bit.bin`, dan paket demo KV260 siap;
+> uji board belum.
 
 ## Langkah 2. Baterai Masuk Stasiun
 
