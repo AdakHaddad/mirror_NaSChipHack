@@ -26,7 +26,23 @@
   </header>
 
   <main class="wrap">
+    <ol class="flow" aria-label="Cara kerja">
+      <li class="flow-1">
+        <span class="step">1</span>
+        <div><strong>Chip mencatat</strong><span>Tiap sampel tegangan diberi nomor urut dan tanda tangan.</span></div>
+      </li>
+      <li class="flow-2">
+        <span class="step">2</span>
+        <div><strong>Stasiun memeriksa</strong><span>Saat baterai ditukar, semua tanda tangan dan nomor urut dicek.</span></div>
+      </li>
+      <li class="flow-3">
+        <span class="step">3</span>
+        <div><strong>Hasil</strong><span>Riwayat utuh diterima. Diubah, dihapus, atau diputar balik ditolak.</span></div>
+      </li>
+    </ol>
+
     <section class="verdict" id="result-banner" data-status="idle" aria-live="polite">
+      <div class="verdict-icon" aria-hidden="true"></div>
       <div class="verdict-main">
         <div class="eyebrow" id="result-kicker">Stasiun penukaran</div>
         <h1 id="result-title">SIAP</h1>
@@ -43,7 +59,7 @@
           <dd id="stat-pending">0</dd>
         </div>
         <div>
-          <dt>Penolakan berturut-turut</dt>
+          <dt>Gagal berturut-turut</dt>
           <dd id="stat-fail">0<span class="muted">/3</span></dd>
         </div>
       </dl>
@@ -51,10 +67,11 @@
 
     <div class="layout">
       <div class="col-main">
-        <section class="panel">
+        <section class="panel tone-data">
           <header class="panel-head">
-            <div>
-              <h2>Riwayat tegangan</h2>
+            <span class="step">1</span>
+            <div class="panel-title">
+              <h2>Riwayat tegangan dari chip</h2>
               <p id="chart-sub">1 titik = 3 jam pemakaian · buffer 64 catatan</p>
             </div>
             <ul class="legend">
@@ -65,15 +82,16 @@
           </header>
           <div class="chart" id="chart"></div>
           <footer class="panel-foot">
-            <span id="chart-limits">Batas aman sel Li-ion 2,5–4,2 V</span>
+            <span class="zone-key"><i class="swatch swatch-safe"></i><span id="chart-limits">Batas aman sel Li-ion 2,5–4,2 V</span></span>
             <span id="chart-note">Menunggu verifikasi</span>
           </footer>
         </section>
 
-        <section class="panel">
+        <section class="panel tone-data">
           <header class="panel-head">
-            <div>
-              <h2>Catatan dari chip</h2>
+            <span class="step">1</span>
+            <div class="panel-title">
+              <h2>Catatan bertanda tangan</h2>
               <p id="records-count">0 catatan</p>
             </div>
             <span class="tag-mono" id="seq-pill">seq 0</span>
@@ -96,9 +114,10 @@
       </div>
 
       <div class="col-side">
-        <section class="panel">
+        <section class="panel tone-station">
           <header class="panel-head">
-            <div>
+            <span class="step">2</span>
+            <div class="panel-title">
               <h2>Stasiun</h2>
               <p id="voltage-hint">Putar kenop atau geser nilai</p>
             </div>
@@ -130,9 +149,10 @@
           </div>
         </section>
 
-        <section class="panel health" id="health-card" data-status="unverified">
+        <section class="panel health tone-result" id="health-card" data-status="unverified">
           <header class="panel-head">
-            <div>
+            <span class="step">3</span>
+            <div class="panel-title">
               <h2>Kesehatan baterai</h2>
               <p id="health-id">BAT-0001</p>
             </div>
@@ -163,9 +183,10 @@
           <p class="hint health-note" id="health-note">Angka muncul setelah riwayat dinyatakan valid.</p>
         </section>
 
-        <section class="panel attack">
+        <section class="panel attack tone-attack">
           <header class="panel-head">
-            <div>
+            <span class="step step-attack">!</span>
+            <div class="panel-title">
               <h2 id="attack-title">Simulasi BMS curang</h2>
               <p id="attack-copy">Ubah data di jalur sebelum stasiun memeriksa.</p>
             </div>
@@ -185,9 +206,9 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel tone-log">
           <header class="panel-head">
-            <div>
+            <div class="panel-title">
               <h2>Log pemeriksaan</h2>
               <p>Hasil verifikasi terakhir</p>
             </div>
