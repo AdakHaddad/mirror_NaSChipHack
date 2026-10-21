@@ -3,15 +3,13 @@
 Dashboard browser untuk demo stasiun penukaran baterai SeBatt. Dua mode
 tersedia:
 
+- **Simulasi** (default) — data dari `web/demo.py`, tanpa board.
 - **FPGA** — data autentikasi, riwayat, dan kesehatan berasal dari KV260
   melalui UART; serangan “BMS curang” dilakukan di sisi host dengan mengubah
   salinan dump sebelum verifikasi.
-- **Simulasi** — data dari `web/demo.py`, tanpa board.
 
-Saat dijalankan tanpa opsi, server mencari adapter USB-UART (CP2102/CH340)
-secara otomatis dan langsung memakai mode FPGA bila ditemukan. Bila tidak ada
-board, dashboard jatuh ke simulasi dengan pesan di terminal. Paksa salah satu
-mode dengan `--fpga PORT` atau `--sim`.
+Tanpa opsi, server berjalan dalam mode simulasi. Mode FPGA dipilih dengan
+`--fpga` (auto-deteksi port) atau `--fpga PORT`.
 
 Tidak memerlukan Flask, FastAPI, atau koneksi internet.
 
@@ -20,13 +18,13 @@ Tidak memerlukan Flask, FastAPI, atau koneksi internet.
 Untuk latihan tanpa board:
 
 ```bash
-python3 web/server.py --sim
+python3 web/server.py
 ```
 
 Buka <http://127.0.0.1:8000>. Opsi:
 
 ```bash
-python3 web/server.py --sim --host 0.0.0.0 --port 8080 --open
+python3 web/server.py --host 0.0.0.0 --port 8080 --open
 ```
 
 - `/` — dashboard stasiun
@@ -39,7 +37,7 @@ Pastikan bitstream sudah termuat dan UART board tersambung ke laptop
 (`fpga/kv260/demo/load.sh`, lalu `run_station.sh` untuk uji terminal).
 
 ```bash
-# auto-deteksi USB-UART (juga berlaku tanpa --fpga)
+# auto-deteksi USB-UART
 python3 web/server.py --fpga
 
 # port eksplisit
@@ -57,8 +55,8 @@ Carrier Card” biasanya console PS, bukan UART Pmod. Jika hanya port itu yang
 terlihat, sambungkan adapter CP2102 atau beri `--fpga /dev/ttyUSBx` secara
 eksplisit. Cek dulu dengan `python3 -m model.station --port /dev/ttyUSBx`.
 
-Saat start, server menjalankan self-check STATUS + AUTH + READ_HIST dan
-mencetak `[OK]`/`[FAIL]` per baris. Cek yang sama bisa dijalankan manual:
+Sebelum menjalankan dashboard, cek board dengan self-check STATUS + AUTH +
+READ_HIST. Setiap baris dicetak `[OK]` atau `[FAIL]`:
 
 ```bash
 python3 -m model.station --check

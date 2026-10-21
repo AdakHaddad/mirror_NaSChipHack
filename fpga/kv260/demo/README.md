@@ -85,13 +85,13 @@ Kalau ada lebih dari satu `/dev/ttyUSB*`, pilih port CP2102:
 fpga/kv260/demo/run_station.sh --port /dev/ttyUSB1 --demo
 ```
 
-Untuk dashboard web (grafik, kartu kesehatan, tombol serangan), jalankan tanpa
-opsi: server mencari adapter USB-UART sendiri dan langsung memakai mode FPGA.
+Untuk dashboard web (grafik, kartu kesehatan, tombol serangan), jalankan
+self-check dulu, lalu server dengan `--fpga`. Tanpa `--fpga` server memakai simulasi.
 
 ```bash
-.venv/bin/python web/server.py                    # auto-deteksi
+.venv/bin/python web/server.py --fpga             # auto-deteksi
 .venv/bin/python web/server.py --fpga /dev/ttyUSB1 # pilih port
-.venv/bin/python web/server.py --sim               # latihan tanpa board
+.venv/bin/python web/server.py                    # latihan tanpa board
 .venv/bin/python -m model.station --check          # cek board sebelum demo
 ```
 
