@@ -417,6 +417,7 @@ python -m model.station --offline
 
 | Tes | Perintah | Lulus kalau |
 |---|---|---|
+| T0 Self-check | `python -m model.station --check` | STATUS/AUTH/READ_HIST semua `[OK]` (tanpa RESULT, lock tidak berubah) |
 | T6 Program | `sudo fpgautil -b ~/kv260_top.bit.bin` | load sukses, `dmesg` bersih, `pl0_ref` aktif |
 | T7 Auth | `python -m model.station --port /dev/ttyUSB0` | `VALID`, voltage wajar |
 | T7 Variasi | putar pot, tunggu ≥1 detik, auth lagi | voltage berubah, tetap `VALID` |
