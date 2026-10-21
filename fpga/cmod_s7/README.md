@@ -54,8 +54,8 @@ Outputs:
 - `build/timing.rpt`
 - `build/utilization.rpt`
 
-Verified on 21 Oct 2026: WNS **+55.646 ns** (all constraints met), 5 358 LUTs
-(36.7 %), 6 022 FFs (20.6 %), 1 BUFG, 0 DSP, 0 Block RAM. The 64-record
+Verified on 21 Oct 2026: WNS **+55.788 ns** (all constraints met), 5 235 LUTs
+(35.9 %), 6 024 FFs (20.6 %), 1 BUFG, 0 DSP, 0 Block RAM. The 64-record
 buffer and tag memory infer as distributed RAM/registers.
 
 ## Program

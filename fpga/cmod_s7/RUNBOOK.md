@@ -63,7 +63,7 @@ Output:
 - `build/timing.rpt`
 - `build/utilization.rpt`
 
-Hasil 21 Okt: WNS **+55,646 ns**, 5 358 LUT, 6 022 FF, 0 BRAM/DSP, semua constraint met.
+Hasil 21 Okt: WNS **+55,788 ns**, 5 235 LUT, 6 024 FF, 0 BRAM/DSP, semua constraint met.
 Build ulang hanya perlu kalau RTL berubah.
 
 ---

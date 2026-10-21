@@ -29,7 +29,7 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
 
-Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,646 ns, 5.358 LUT, 6.022 FF. KV260 (xck26, 100 MHz) WNS +1,028 ns, 5.220 LUT, 6.011 FF. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 sudah dibangun ulang; uji di board belum.
+Hasil sintesis 21 Okt: Cmod S7 (xc7s25, clock 12 MHz) WNS +55,788 ns, 5.235 LUT, 6.024 FF. KV260 (xck26, 100 MHz) WNS +1,475 ns, 5.204 LUT, 5.988 FF. Buffer dan tag tersimpan di distributed RAM/register, 0 Block RAM, 0 DSP. Bitstream Cmod S7 dan KV260 (`.bit` + `.bit.bin`) sudah dibangun; uji di board belum.
 
 Di KV260, blok Zynq UltraScale+ MPSoC hanya dipakai sebagai sumber clock PL (pl_clk0). Prosesor tidak membaca maupun menulis sampel.
 
@@ -175,20 +175,22 @@ Stasiun mengirim READ_HIST_REQ setiap 0,5 detik dan menampilkan 64 catatan terak
 | ADS1115 SCL / SDA | JA1 (J2) / JA2 (H2) |
 | LED | E2, K1, J1, E1 |
 
-**Pmod KV260 [Usulan].** Nama pin paket diambil dari master XDC KV260.
+**Pmod KV260 [Sudah ada]** (dari `fpga/kv260/kv260.xdc`; nama pin paket dari master XDC KV260 / Kria K26 SOM):
 
-| Pin Pmod | Sinyal |
-|---|---|
-| 1 | I2C SCL ke ADS1115 |
-| 2 | I2C SDA ke ADS1115 |
-| 3 | Tombol pemicu atau pemilih sumber |
-| 4 | Bebas |
-| 7 | UART TX ke adaptor CP2102 |
-| 8 | UART RX dari adaptor CP2102 |
-| 9, 10 | LED hijau, merah |
-| 5, 11 / 6, 12 | GND / 3,3 V |
+| Pin Pmod | Paket | Sinyal |
+|---|---|---|
+| 1 | H12 | I2C SCL ke ADS1115 |
+| 2 | E10 | I2C SDA ke ADS1115 |
+| 3 | D10 | Pemilih sumber: terbuka/0 = ADS1115, 3V3 = sumber tetap 3000 mV |
+| 4 | C11 | Reset, aktif rendah (tombol ke GND; pull-up internal) |
+| 5, 11 | — | GND |
+| 6, 12 | — | 3,3 V |
+| 7 | B10 | UART TX ke adaptor CP2102 |
+| 8 | E12 | UART RX dari adaptor CP2102 |
+| 9 | D11 | LED hijau (auth OK) |
+| 10 | B11 | LED merah (lock/error) |
 
-Urutan SCL di pin 1 dan SDA di pin 2 sama dengan Cmod S7, sehingga kabel tidak perlu dipindah.
+Urutan SCL di pin 1 dan SDA di pin 2 sama dengan Cmod S7, sehingga kabel tidak perlu dipindah. Pmod 3 adalah pemilih sumber, bukan tombol pemicu; Pmod 4 dipakai untuk reset. Tidak ada LED heartbeat di peta pin ini. Wiring lengkap, cek clock `pl0_ref`, dan prosedur `fpgautil` ada di [RUNBOOK KV260](../../fpga/kv260/RUNBOOK.md).
 
 ## 14. Vektor Uji
 

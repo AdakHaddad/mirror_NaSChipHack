@@ -51,7 +51,7 @@ module auth_ctrl #(
     parameter integer CLK_HZ = 100_000_000,
     parameter integer BAUD   = 115200,
     parameter [31:0]  BATTERY_ID = 32'h42415401,
-    parameter integer SAMPLE_INTERVAL_MS = 100,
+    parameter integer SAMPLE_INTERVAL_MS = 1000,
     parameter integer SAMPLE_CYCLES = (CLK_HZ / 1000) * SAMPLE_INTERVAL_MS,
     parameter [15:0]  ROM_MV = 16'd0,       // recorded-set mV until ROM playback exists
     parameter [1:0]   SAMPLE_SOURCE = 2'd0  // 0 ADS1115 (primary), 1 ROM, 2 switch
@@ -623,6 +623,16 @@ module auth_ctrl #(
             // -------------------------------------------------------------
             sg_axi_start <= 1'b0;
 
+            // A completed sample becomes a pending signer request. This
+            // lives in the same always block as the signer so sg_req* have
+            // exactly one driver in synthesis.
+            if (sample_busy && adc_valid) begin
+                sg_req      <= 1'b1;
+                sg_req_seq  <= seq_next;
+                sg_req_mv   <= mv_source;
+                sg_req_phys <= buf_wr;
+            end
+
             // Claim the signer (and the bus) when free; cmd_reserve is set
             // by M_WAIT before the command FSM owns the bus.
             if (sg_req && !sg_busy && cmd_bus_free && !cmd_reserve) begin
@@ -1046,10 +1056,6 @@ module auth_ctrl #(
             seq_next     <= 32'd0;
             buf_wr       <= 6'd0;
             buf_cnt      <= 7'd0;
-            sg_req       <= 1'b0;
-            sg_req_seq   <= 32'd0;
-            sg_req_mv    <= 16'd0;
-            sg_req_phys  <= 6'd0;
         end else begin
             adc_start <= 1'b0;
 
@@ -1069,12 +1075,9 @@ module auth_ctrl #(
 
             if (sample_busy) begin
                 if (adc_valid) begin
-                    // Store the record and hand its tag to the signer.
+                    // Store the record; the command/signer block requests
+                    // its tag on the same edge.
                     buf_mem[buf_wr] <= {seq_next, mv_source};
-                    sg_req          <= 1'b1;
-                    sg_req_seq      <= seq_next;
-                    sg_req_mv       <= mv_source;
-                    sg_req_phys     <= buf_wr;
                     seq_next        <= seq_next + 32'd1;
                     buf_wr          <= buf_wr + 6'd1;
                     if (buf_cnt < 7'd64)

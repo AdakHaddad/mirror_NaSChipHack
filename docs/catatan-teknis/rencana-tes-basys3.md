@@ -126,7 +126,7 @@ Tabel pin (verified dari Digilent Basys-3-Master.xdc; W5/U18/B18/A18 sudah ada d
 
 | # | Tes | Perintah | Ekspektasi |
 |---|---|---|---|
-| T5 | Build bitstream RTL | Cmod S7: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl`; part `xc7s25csga225-1`, top `cmod_s7_top` | **PASS 21 Okt:** bitstream dibangun ulang, WNS +55,646 ns (semua constraint met), 5 358 LUT / 6 022 FF |
+| T5 | Build bitstream RTL | Cmod S7: `cd fpga/cmod_s7 && vivado -mode batch -source build.tcl`; part `xc7s25csga225-1`, top `cmod_s7_top` | **PASS 21 Okt:** bitstream dibangun ulang, WNS +55,788 ns (semua constraint met), 5 235 LUT / 6 024 FF |
 | T6 | Program | `cd fpga/cmod_s7 && vivado -mode batch -source program.tcl` (atau Hardware Manager) | LED heartbeat berkedip |
 | T7 | Auth RTL | `python3 -m model.station --port /dev/ttyUSB1 --interactive` → AUTH | VALID; putar pot ADS1115, tunggu ≥1 detik → AUTH → VALID dengan V baru |
 | T8 | LED status (opsional) | – | LED valid/reject saat T7 |
@@ -147,7 +147,7 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 
 ## 5. Fase 4 — Tanpa Board (sore / sambil menunggu)
 
-- [x] Sim/synth `xck26` (port KV260): **21 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +1,028 ns, 5 220 LUT / 6 011 FF; lihat `fpga/kv260/`
+- [x] Build penuh `xck26` (port KV260): **21 Okt** part `xck26-sfvc784-2LV-c`, 100 MHz, WNS +1,475 ns, 5 204 LUT / 5 988 FF; bitstream + `.bit.bin` + runbook di `fpga/kv260/`; uji board belum
 - [ ] SD image Ubuntu untuk KV260 + kenalan update BOOT.BIN
 - [ ] Loopback CP2102: jumper TX–RX, kirim/terima via pyserial
 - [ ] `fpga/kv260/`: constraint PMOD asli (nama pin dari carrier KV260), `shell.json`, `.bif` + `bootgen` untuk `.bit → .bit.bin`; timing-only check sudah ada
@@ -165,7 +165,7 @@ Usulan untuk diratifikasi Muqtada + Budi hari ini, lalu ditulis:
 | | T2 | | |
 | | T3 | | |
 | | T4 | | |
-| 21 Okt | T5 | PASS | `cmod_s7_top.bit` dibangun ulang; WNS +55,646 ns; 5 358 LUT / 6 022 FF |
+| 21 Okt | T5 | PASS | `cmod_s7_top.bit` dibangun ulang; WNS +55,788 ns; 5 235 LUT / 6 024 FF |
 | | T6 | | |
 | | T7 | | |
 | | T8 | | |

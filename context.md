@@ -8,6 +8,10 @@
 > passes.
 > Hardware results are marked separately.
 >
+> **Update 21 Oct 2026 (KV260):** Pmod pin map, PS clock-only block design, full
+> bitstream and `.bit.bin` are built (WNS +1.475 ns, 5 204 LUT / 5 988 FF);
+> physical KV260 tests are still pending.
+>
 > **Revision 19 Oct 2026 (hardware session):** the demo ADC changed from an
 > SPI MCP3202 to an **ADS1115 over I2C** (no SPI ADC available). Practice board
 > is the **Cmod S7**; demo-day board remains the **Kria KV260**. The Flow A
@@ -489,7 +493,7 @@ sebatt/
 │   ├── basys_3/              Basys 3 Vivado project
 │   ├── nexys_a7/             Nexys A7 Vivado project
 │   ├── cmod_s7/              Flow B Cmod S7 build + bitstream
-│   └── kv260/                KV260 100 MHz timing/fit check
+│   └── kv260/                KV260 PS clock BD + Pmod bitstream + RUNBOOK
 ├── bisnis/                   Business model and lean canvas
 ├── pitch/                    Pitch deck and comparison notes
 └── tools/preflight_basys3.sh Preflight script (optional)
@@ -1024,7 +1028,7 @@ The station trusts only the value inside the signed frame.
 5. **T4**: record 60–90 s fallback video. Back it up in two places. This is
    mandatory.
 6. **T5**: ~~build the RTL bitstream.~~ Rebuilt 21 Oct for the Cmod S7
-   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +55.646 ns.
+   (`xc7s25csga225-1`, top `cmod_s7_top`); WNS +55.788 ns.
 7. **T6**: program `fpga/cmod_s7/build/cmod_s7_top.bit`; heartbeat LED blinks.
 8. **T7**: station `--interactive` → `auth` → VALID; turn the ADS1115 pot
    (or flip switches) → `auth` → VALID with the new voltage. **T7 PASS is the
@@ -1040,17 +1044,21 @@ Hard stops from the test plan:
 
 ### 9.3 KV260 notes
 
+- Built 21 Oct: `kv260_top.v` + `kv260.xdc` + `build.tcl` (PS clock-only block
+  design, `pl_clk0` 100 MHz from IOPLL) + `RUNBOOK.md`. Bitstream
+  `build/kv260_top.bit`, boot image `build/kv260_top.bit.bin`.
 - Logic clock comes from the PS (`pl_clk0`), so the Zynq UltraScale+ block stays
-  in the block design as a clock source.
-- The onboard UART belongs to the PS. The SeBatt UART must leave through a
-  **PMOD + CP2102/CH340/FT232** adapter.
-- One PMOD (8 pins) is enough for ADS1115 I2C (2) + UART (2) + LED (1) +
-  spare.
-- Take PMOD pin names from the KV260 master XDC; do not guess.
-- Load the bitstream with `xmutil loadapp` or `fpgautil`; unload the stock
-  `k26-starter-kits` app first.
-- Verify in order: `xmutil listapps` → load → PING → one valid history → one
-  modified history rejected.
+  in the block design as a clock source. There is no PL oscillator on the KV260.
+- **Verify `pl0_ref` at ~99.999 MHz and enabled before trusting UART.** Stock
+  firmware may use RPLL (96.97 MHz) or gate the clock; see RUNBOOK §5.
+- The onboard UART belongs to the PS. The SeBatt UART leaves through Pmod J2
+  7/8 + **CP2102/CH340/FT232** (3.3 V logic).
+- All 8 Pmod data pins are used: I2C (1/2), `src_sel` (3), reset (4), UART
+  (7/8), green/red LEDs (9/10). Package pins: H12/E10/D10/C11/B10/E12/D11/B11.
+- Load with `fpgautil -b kv260_top.bit.bin` (or JTAG `program.tcl`); unload the
+  stock `k26-starter-kits` app first.
+- Verify in order: clock check -> load/`dmesg` -> auth valid (green LED) ->
+  history -> modified history rejected.
 
 ---
 
@@ -1145,8 +1153,8 @@ sees that the attacker is between the battery and the station.
 | Flow A FPGA | Artifacts built; 19 Oct session found Basys 3 reset-polarity / debug-reset blockers |
 | ADS1115 I2C RTL | Done 20 Oct: `i2c_master.v` + `ads1115_ctrl.v` + cocotb model, 2/2 tests pass |
 | Flow B auth RTL | Done 20–21 Oct: `uart_if.v`, `axil_master.v`, `auth_ctrl.v`, `sebatt_top.v`; periodic sampling (1 s default), signed 64-record history, READ_HIST, RESULT/LOCK/UNLOCK/STATUS, lock; cocotb `make auth` 9/9 pass |
-| Cmod S7 bitstream | Rebuilt 21 Oct: `xc7s25csga225-1`, WNS +55.646 ns, 5 358 LUT / 6 022 FF, 0 BRAM/DSP; hardware run pending |
-| KV260 timing check | 21 Oct: `xck26-sfvc784-2LV-c` at 100 MHz, WNS +1.028 ns, 5 220 LUT / 6 011 FF, 0 BRAM/DSP; pins/bit.bin pending |
+| Cmod S7 bitstream | Rebuilt 21 Oct: `xc7s25csga225-1`, WNS +55.788 ns, 5 235 LUT / 6 024 FF, 0 BRAM/DSP; hardware run pending |
+| KV260 port | Done 21 Oct: PS `pl_clk0` 100 MHz block design, Pmod XDC, full bitstream + `.bit.bin`, RUNBOOK; WNS +1.475 ns, 5 204 LUT / 5 988 FF, 0 BRAM/DSP; physical T6/T7/T9/T10 pending |
 | Test plan | Written; preflight passes, Flow A blocked by reset bug |
 | Periodic ADS1115 sampling | Done: 1 s default demo (`SAMPLE_INTERVAL_MS`), every sample stored and tagged; AUTH_REQ signs the latest sample |
 | Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 9/9 auth suite |
@@ -1160,7 +1168,7 @@ sees that the attacker is between the battery and the station.
 | key_vault integration | `auth_ctrl` still writes the key through `axil_master` |
 | BMS attacker proxy | Demo scenes 2–3 |
 | Cmod S7 hardware run | Program the built bitstream, run T7/T9 on the board |
-| KV260 port | Real carrier/PMOD XDC, `.bit.bin`, boot (100 MHz timing check already passes) |
+| KV260 hardware run | Program the bitstream, verify `pl0_ref`, run T6/T7/T9/T10 on the board |
 | Fallback video | Insurance for demo day |
 
 ### 11.3 Known discrepancies and risks
@@ -1173,8 +1181,8 @@ sees that the attacker is between the battery and the station.
 
 2. **MILESTONES says M3 demo is done.**
    That refers to Flow A (MicroBlaze). After the 18 October pivot, Flow A is only
-   a fallback. Flow B RTL is built and sim-verified; the board run and KV260 port
-   are still pending.
+   a fallback. Flow B RTL is built and sim-verified; the Cmod board run and
+   KV260 physical tests are still pending (KV260 bitstream is built).
 
 3. **Basys 3 XDC mismatch.**
    `fpga/basys_3/nexys_a7.xdc` contains Nexys pins. The Basys 3 project points
@@ -1193,6 +1201,13 @@ sees that the attacker is between the battery and the station.
 6. **Key handling in Flow A.**
    The key is written over AXI from firmware. That is a demo shortcut. The
    target path must use `key_vault`/PUF and remove software access.
+
+7. **KV260 PL clock ownership.**
+   `pl_clk0` is configured by the PS boot firmware and Linux, not by the
+   bitstream. Stock Kria Ubuntu may leave it at the RPLL default (96.97 MHz) or
+   gate it. The RTL UART/I2C timing assumes 100 MHz; verify `pl0_ref` first
+   (RUNBOOK §5). `clk_ignore_unused` handles gating; a wrong rate needs a
+   BOOT.BIN or a rebuild for the actual clock.
 
 7. **Lock semantics.**
    Firmware `locked` does not block authentication. The station's DB lock is the
@@ -1245,9 +1260,8 @@ Ordered by critical path.
 7. **~~Write the cocotb TB for `auth_ctrl`.~~** Done 21 Oct: `make auth`
    passes 9/9 against `model.hmac`/`model.protocol` (auth, lock, STATUS,
    READ_HIST, periodic sampling interval).
-8. **KV260 prep.** Cmod S7 bitstream built; `xck26` 100 MHz timing/fit check
-   passes (WNS +1.028 ns). Next: real PMOD/carrier pins, `.bit` → `.bit.bin`,
-   Ubuntu SD/BOOT.BIN.
+8. **~~KV260 prep.~~** Done 21 Oct: Pmod XDC, PS clock-only block design,
+   full bitstream + `.bit.bin`, runbook. Physical T6/T7/T9/T10 still pending.
 
 ### When a board is available
 

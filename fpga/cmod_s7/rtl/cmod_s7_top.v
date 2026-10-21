@@ -38,7 +38,7 @@ module cmod_s7_top (
         .CLK_HZ            (12_000_000),
         .BAUD              (115200),
         .BATTERY_ID        (32'h42415401),
-        .SAMPLE_INTERVAL_MS(100),
+        .SAMPLE_INTERVAL_MS(1000),
         .SAMPLE_SOURCE     (2'd0)
     ) u_top (
         .clk       (clk),

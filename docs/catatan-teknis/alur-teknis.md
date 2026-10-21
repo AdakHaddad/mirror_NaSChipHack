@@ -215,8 +215,8 @@ Riwayat juga tidak wajib disimpan utuh. Setelah dinyatakan valid, basis data dap
 | ads1115_ctrl + i2c_master | Ada, lolos 2/2 uji cocotb (20 Okt); lihat `sim/test_ads1115.py` |
 | uart_if versi RTL | Ada, termasuk dalam 9/9 uji auth (21 Okt) |
 | auth_ctrl + axil_master + sebatt_top | Ada; sampling periodik 1 detik, riwayat 64 record, READ_HIST, dan lock; lolos 9/9 uji `make auth` (21 Okt) |
-| Bitstream Cmod S7 | Dibangun ulang 21 Okt, timing WNS +55,646 ns, 5.358 LUT / 6.022 FF; uji board T6/T7/T9 belum |
+| Bitstream Cmod S7 | Dibangun ulang 21 Okt, timing WNS +55,788 ns, 5.235 LUT / 6.024 FF; uji board T6/T7/T9 belum |
 | Nomor urut, buffer riwayat, penguncian di chip | Ada, 9/9 uji auth (21 Okt) |
 | Permintaan riwayat dan pemeriksaan urutan di stasiun | Ada di `model/protocol.py` dan `model/station.py`; 52/52 uji model |
 | Kartu kesehatan baterai di dashboard | Model web ada; belum terhubung ke FPGA |
-| Port ke KV260 | Timing 100 MHz PASS (WNS +1,028 ns); pin PMOD/bit.bin belum |
+| Port ke KV260 | Build penuh PASS (WNS +1,475 ns); bitstream + `.bit.bin` + runbook sudah ada; uji board belum |

@@ -1,56 +1,104 @@
-# KV260 — Flow B port
+# KV260 — Flow B demo
 
-Status: **internal 100 MHz timing/fit check passes (21 Oct 2026), including the
-signed history/lock RTL**. Carrier pin map, PS clock setup, and `.bit.bin` boot
-are still TODO.
+Status: **bitstream built and timing clean; Pmod pin map, PS clock design and
+`.bit.bin` are in place (21 Oct 2026)**. Physical T6/T7/T9/T10 on the KV260 are
+still pending.
 
-## What was checked
+- Part: `xck26-sfvc784-2LV-c`
+- Top: `kv260_top` → `sebatt_top` + `design_1` PS block design
+- Clock: PS `pl_clk0`, 100 MHz requested (actual 99.999001 MHz)
+- UART: 115200 8N1 on Pmod J2 pins 7/8 via CP2102
+- Sampling: 1 s (`SAMPLE_INTERVAL_MS=1000`)
+- Pin map: `kv260.xdc`
+- Artifacts: `build/kv260_top.bit`, `build/kv260_top.bit.bin`,
+  `build/timing.rpt`, `build/utilization.rpt`
+- Runbook: `RUNBOOK.md`
 
-- Part: `xck26-sfvc784-2LV-c` (Kria KV260)
-- Top: `sebatt_top`, `CLK_HZ=100_000_000`, `BAUD=115200`
-- Constraint: `timing_only.xdc` (10 ns `pl_clk`; no board pins yet)
+## Architecture
 
-Result:
+The PS is used only as the clock/reset source. `design_1` instantiates
+`zynq_ultra_ps_e` with all AXI, interrupt and PL1–PL3 ports disabled; `pl_clk0`
+comes from the IOPLL at 100 MHz and `pl_resetn0` is exported. No PL oscillator
+is available on the KV260, so the PS is mandatory. The processor never touches
+the sample path; ADC, HMAC, history and UART stay in the PL.
 
-| Metric | Value |
-|---|---|
-| WNS | **+1.028 ns** |
-| TNS / failing endpoints | 0 / 0 |
-| CLB LUTs | 5 220 (4.46 %) |
-| CLB registers | 6 011 (2.57 %) |
-| BRAM / DSP | 0 / 0 |
+`kv260_top` synchronises the active-low reset button and instantiates
+`sebatt_top` with `CLK_HZ` set to the actual PS clock and 1 s sampling.
 
-The critical path is the SHA-256 `w` expansion (`cnt_reg[0] -> w_reg[*]`), the
-same path that limits the Cmod S7 run. At 100 MHz on the KV260 it has 1.0 ns of
-margin, so **do not raise `pl_clk0` above 100 MHz** without re-timing.
+## Pin map (Pmod J2, Digilent Type 1A numbering)
 
-## Run the check
+| Pmod | Package | Signal | Notes |
+|---|---|---|---|
+| 1 | H12 | `scl` | ADS1115 SCL, pull-up (module + internal) |
+| 2 | E10 | `sda` | ADS1115 SDA, pull-up (module + internal) |
+| 3 | D10 | `src_sel` | 0 = ADS1115, 1 = fixed 3000 mV; internal pulldown |
+| 4 | C11 | `btn` | reset to GND, internal pull-up |
+| 5, 11 | — | GND | ADS1115/CP2102/LED/button ground |
+| 6, 12 | — | 3V3 | ADS1115 VDD and pot top |
+| 7 | B10 | `uart_tx` | to CP2102 RXD |
+| 8 | E12 | `uart_rx` | from CP2102 TXD |
+| 9 | D11 | `led_green` | auth OK (`led[2] & ~led[3]`) |
+| 10 | B11 | `led_red` | locked/error (`led[3]`) |
+
+Package pins match the Kria K26 SOM pinout / KV260 master constraints
+(`kv260_ispMipiRx` `pin.xdc`, Kria-PYNQ `base.xdc`), bank 45 at 3.3 V.
+
+## Build
 
 ```bash
 cd fpga/kv260
+vivado -mode batch -source build.tcl
+```
+
+Full build takes roughly 20–25 minutes: PS block design + wrapper, synthesis,
+place/route, bitstream, `.bin`, XSA. Outputs are copied to `build/`. The script
+stops if WNS is negative or the implementation fails.
+
+For a quick pre-pin timing/fit check only:
+
+```bash
 vivado -mode batch -source build_synth.tcl
 ```
 
-Outputs in `build/`: `timing.rpt`, `utilization.rpt`,
-`sebatt_kv260_routed.dcp`.
+That older flow uses `timing_only.xdc`, writes no bitstream, and overwrites
+`build/timing.rpt` / `build/utilization.rpt`; rerun `build.tcl` for the final
+reports.
 
-No bitstream is written because the carrier pin assignments are not defined.
-`place_design`/`route_design` still place internal logic and report meaningful
-internal timing; unconstrained I/O is ignored.
+## Result (21 Oct 2026, full build)
+
+| Metric | Value |
+|---|---|
+| WNS | **+1.475 ns** |
+| TNS / failing endpoints | 0 / 0 |
+| CLB LUTs | 5 204 (4.44 %) |
+| CLB registers | 5 988 (2.56 %) |
+| BRAM / DSP | 0 / 0 |
+| Clock | `clk_pl_0`, 10.000 ns, 100.000 MHz |
+
+The critical path is still the SHA-256 `w` expansion. **Do not raise `pl_clk0`
+above 100 MHz** without pipelining it and re-running timing.
+
+## Program
+
+Primary: boot Kria Ubuntu, check the PL clock, then
+
+```bash
+sudo fpgautil -b kv260_top.bit.bin
+```
+
+JTAG fallback (PS already booted):
+
+```bash
+vivado -mode batch -source program.tcl
+```
+
+The full wiring, clock check (`pl0_ref`), demo commands and troubleshooting are
+in `RUNBOOK.md`.
 
 ## Remaining work
 
-1. Get the KV260 carrier pin map (PMOD for `scl`/`sda`, UART, reset, LEDs) and
-   write the real XDC.
-2. Decide how `clk` is driven: PS `pl_clk0` at 100 MHz, or a slower clock.
-   `sebatt_top` must get the matching `CLK_HZ`.
-3. Build the bitstream and verify T6/T7/T9 on the KV260.
-4. Convert `.bit` to `.bit.bin` and prepare the boot flow (`bootgen`/overlay).
-5. Re-check timing after pin/clock constraints are real.
-
-## Why 100 MHz matters
-
-At 12 MHz on the Spartan-7 the same design has >55 ns of setup margin. On the
-KV260 the fabric is faster, but the SHA-256 expansion is still the limiter; the
-100 MHz check is the useful data point. If the final carrier clock is 150 MHz,
-pipeline the `w` expansion or use a slower PL clock.
+1. Physical T6/T7/T9/T10 on the KV260 (same host commands as Cmod S7).
+2. Confirm `pl0_ref` is enabled at 99.999 MHz by the stock Kria boot firmware.
+   If it runs at the RPLL default (96.97 MHz) or is gated, fix the PS clock
+   before testing (see RUNBOOK §5); the UART baud assumes 100 MHz.
+3. If a higher PL clock is ever needed, pipeline the `w` expansion first.

@@ -98,33 +98,36 @@ Urutan uji fungsional: PING/loopback → vektor HMAC → alur demo penuh (valid,
 
 ## 7. Runbook KV260 (Hari-H)
 
-1. Boot Ubuntu dari SD card (ikuti panduan Kria; firmware lama perlu update BOOT.BIN agar Ubuntu 22.04 mau boot).
-2. Saat boot, app bawaan `k26-starter-kits` memuat bitstream bawaan. Lepas dulu:
-   ```
-   sudo xmutil unloadapp
-   sudo xmutil listapps
-   ```
-3. Muat bitstream SeBatt, pilih salah satu:
-   - Paket: taruh di `/lib/firmware/sebatt/` (`sebatt.bit.bin` + `shell.json`), lalu `sudo xmutil loadapp sebatt`.
-   - Langsung: `sudo fpgautil -b sebatt.bit.bin`.
-   - Konversi `.bit` → `.bit.bin` sesuai format Kria (cek saat bring-up).
-4. Clock: PS Zynq UltraScale+ di block design sebagai sumber `pl_clk0` (keputusan 18 Okt). PL hanya berisi logika SeBatt + pin PMOD.
-5. UART: PMOD + CP2102 ke laptop. **CP2102 wajib** — UART onboard KV260 milik PS, bukan PL; tidak ada jalur lain tanpa menulis bridge software di PS (yang merusak cerita demo). **Cek tegangan bank PMOD di skematik KV260 sebelum menyambung.**
-6. ADS1115: VDD 3,3 V, GND, SCL/SDA ke 2 pin PMOD; ADDR→GND (`0x48`); AIN0 ke potensiometer. Pull-up modul biasanya cukup.
-7. Constraint PMOD: ambil nama pin dari master XDC KV260 — jangan menebak.
-8. Verifikasi berurutan: `xmutil listapps` → load sukses → PING di terminal serial → satu riwayat valid → satu modifikasi ditolak. Baru demo penuh.
+Prosedur lengkap (wiring, build, cek clock, `fpgautil`, demo, troubleshooting)
+ada di **[RUNBOOK KV260](../../fpga/kv260/RUNBOOK.md)**. Bitstream penuh dan
+`.bit.bin` sudah dibangun di `fpga/kv260/build/`. Ringkasnya:
 
-PMOD 2×6 KV260: 8 pin data — cukup untuk UART (2) + LED (1) + ADS1115 I2C (2) + spare.
+1. Boot Kria Ubuntu dari SD card. Lepas app bawaan supaya PL bebas:
+   `sudo xmutil unloadapp` lalu `sudo xmutil listapps`.
+2. **Cek clock PL sebelum percaya UART:**
+   `sudo grep -i pl0 /sys/kernel/debug/clk/clk_summary`.
+   `pl0_ref` harus ~99,999 MHz dan enabled. Kalau 96,97 MHz, firmware stock
+   memakai RPLL dan bitstream 100 MHz tidak akan berjalan benar; lihat
+   RUNBOOK §5 (`clk_ignore_unused` / BOOT.BIN / build ulang untuk clock aktual).
+3. Wiring Pmod J2: SCL H12, SDA E10 (ADS1115); src_sel D10; reset C11 (tombol
+   ke GND); TX B10 / RX E12 (CP2102); green D11 / red B11; 5/11 GND; 6/12 3V3.
+   Tidak ada pin bebas di Pmod ini.
+4. Muat bitstream: `sudo fpgautil -b kv260_top.bit.bin`. Cadangan JTAG:
+   `vivado -mode batch -source program.tcl` (PS harus sudah boot).
+5. UART aplikasi lewat CP2102 (`/dev/ttyUSB0`), **bukan** konsol serial PS
+   KV260. CP2102 wajib karena UART onboard milik PS.
+6. Verifikasi berurutan: load sukses + `dmesg` bersih → auth valid (LED hijau)
+   → lock (LED merah) → riwayat valid → modifikasi ditolak. Baru demo penuh.
 
 ## 8. Checklist Port Basys/Nexys → KV260
 
-- [ ] Top RTL sama; hanya wrapper pin + constraint yang berubah
-- [ ] Clock: W5/E3 → `pl_clk0` dari PS di BD
-- [ ] UART: FTDI onboard → PMOD + CP2102 (nomor pin baru)
-- [ ] Input: ADS1115 I2C / switch → scripted ramp + tombol
-- [ ] ADS1115 terdeteksi di `0x48` (scan I2C) dan membaca AIN0
-- [ ] Target device `xck26` terbaca di Vivado
-- [ ] `bit` → `bit.bin`, muat via xmutil/fpgautil
+- [x] Top RTL sama; wrapper `kv260_top.v` + `kv260.xdc`
+- [x] Clock: `pl_clk0` dari PS di BD (100 MHz; cek `pl0_ref` saat bring-up)
+- [x] UART: Pmod J2 7/8 + CP2102 (pin map selesai; uji fisik belum)
+- [x] Input: ADS1115 di Pmod 1/2, `src_sel` Pmod 3, reset Pmod 4
+- [ ] ADS1115 terdeteksi di `0x48` dan membaca AIN0 (uji fisik)
+- [x] Target `xck26`; bitstream + `.bit.bin` sudah dibangun
+- [ ] Muat via `fpgautil`/JTAG di board (uji fisik)
 - [ ] Video fallback sudah direkam sebelum berangkat
 - [ ] PING + 1 riwayat valid + 1 modifikasi ditolak, sebelum demo penuh
 

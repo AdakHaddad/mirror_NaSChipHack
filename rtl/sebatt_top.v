@@ -19,7 +19,7 @@ module sebatt_top #(
     parameter integer CLK_HZ = 12_000_000,
     parameter integer BAUD   = 115200,
     parameter [31:0]  BATTERY_ID = 32'h42415401,
-    parameter integer SAMPLE_INTERVAL_MS = 100,
+    parameter integer SAMPLE_INTERVAL_MS = 1000,
     parameter [15:0]  ROM_MV = 16'd0,
     parameter [1:0]   SAMPLE_SOURCE = 2'd0
 )(
