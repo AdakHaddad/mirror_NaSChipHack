@@ -31,9 +31,9 @@ fungsional sampai KV260 diuji.
 | CP2102 / CH340 / FT232 3,3 V | **Wajib** untuk UART PL; siapkan satu cadangan |
 | Modul ADS1115 | Alamat `0x48` (ADDR ke GND) |
 | Potensiometer 10 kΩ | Ujung ke 3V3/GND, wiper ke AIN0 |
-| Tombol momentary | Reset, aktif rendah |
+| LED ketiga + resistor 330 Ω | Heartbeat di Pmod 4 (berkedip = logika PL hidup) |
 | LED hijau + merah + resistor 220–330 Ω | Indikator auth/lock |
-| Kabel jumper | Pmod J2 ke ADS1115, CP2102, LED, tombol |
+| Kabel jumper | Pmod J2 ke ADS1115, CP2102, LED |
 | Laptop | Vivado 2024.2, Python + `.venv` repo ini |
 
 Jangan memberi VDD ADS1115 5 V. Pakai **3V3** dari Pmod (pin 6/12). Jangan
@@ -51,8 +51,8 @@ KV260 Pmod J2                         Perangkat
 1  (H12) SCL   ─────────────────────  ADS1115 SCL
 2  (E10) SDA   ─────────────────────  ADS1115 SDA
 3  (D10) src_sel  ── terbuka = 0      (0 = ADS1115, 3V3 = sumber tetap 3000 mV)
-4  (C11) btn   ──── tombol ─────────  GND        (tekan = reset)
-5  (GND)       ─────────────────────  ADS1115 GND, CP2102 GND, katoda LED, tombol
+4  (C11) hb    ─── 330 Ω ── LED ────  GND        (berkedip = PL hidup)
+5  (GND)       ─────────────────────  ADS1115 GND, CP2102 GND, katoda LED
 6  (3V3)       ─────────────────────  ADS1115 VDD, ujung atas pot
 7  (B10) TX    ─────────────────────  CP2102 RXD
 8  (E12) RX    ─────────────────────  CP2102 TXD
@@ -70,8 +70,11 @@ Catatan:
 - **ADS1115**: modul ungu biasanya sudah punya pull-up 10 kΩ. Kalau tidak,
   tambahkan 4,7–10 kΩ dari SCL dan SDA ke 3V3. ADDR ke GND.
 - **LED**: anoda ke pin Pmod lewat resistor, katoda ke GND. Pin aktif tinggi.
-- **Tombol**: satu sisi ke Pmod 4, sisi lain ke GND. Pull-up internal aktif;
-  tekan = reset (tahan untuk menahan reset).
+- **Heartbeat (Pmod 4)**: LED berkedip sekitar 6 Hz begitu bitstream termuat dan
+  pl_clk0 jalan. Tidak berkedip berarti masalah clock/bitstream, bukan UART.
+- **Tidak ada tombol reset.** Reset membuat seq kembali ke 0, sehingga stasiun
+  melaporkan HISTORY_ROLLBACK sampai seq melewati anchor. Untuk mulai ulang,
+  muat ulang bitstream dan kosongkan anchor di stasiun.
 - **Pmod 3**: ini pemilih sumber, bukan tombol pemicu. Biarkan terbuka untuk
   ADS1115; hubungkan ke 3V3 hanya kalau ingin sumber tetap 3000 mV (tanpa ADC).
 - Konsol serial PS KV260 memakai micro-USB tersendiri; itu **bukan** UART

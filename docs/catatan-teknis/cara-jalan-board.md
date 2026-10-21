@@ -109,8 +109,8 @@ ada di **[RUNBOOK KV260](../../fpga/kv260/RUNBOOK.md)**. Bitstream penuh dan
    `pl0_ref` harus ~99,999 MHz dan enabled. Kalau 96,97 MHz, firmware stock
    memakai RPLL dan bitstream 100 MHz tidak akan berjalan benar; lihat
    RUNBOOK §5 (`clk_ignore_unused` / BOOT.BIN / build ulang untuk clock aktual).
-3. Wiring Pmod J2: SCL H12, SDA E10 (ADS1115); src_sel D10; reset C11 (tombol
-   ke GND); TX B10 / RX E12 (CP2102); green D11 / red B11; 5/11 GND; 6/12 3V3.
+3. Wiring Pmod J2: SCL H12, SDA E10 (ADS1115); src_sel D10; LED heartbeat C11
+   (tanpa tombol reset); TX B10 / RX E12 (CP2102); green D11 / red B11; 5/11 GND; 6/12 3V3.
    Tidak ada pin bebas di Pmod ini.
 4. Muat bitstream: `sudo fpgautil -b kv260_top.bit.bin`. Cadangan JTAG:
    `vivado -mode batch -source program.tcl` (PS harus sudah boot).

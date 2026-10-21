@@ -16,7 +16,7 @@ Paket singkat untuk demo SeBatt di Kria KV260. Detail lengkap ada di
 
 ```bash
 fpga/kv260/demo/preflight.sh          # cepat
-fpga/kv260/demo/preflight.sh --full   # + cocotb 20/20
+fpga/kv260/demo/preflight.sh --full   # + cocotb 23/23
 ```
 
 Harus berakhir `GO`. Kalau `NO-GO`, jangan lanjut ke board.
@@ -28,8 +28,8 @@ Harus berakhir `GO`. Kalau `NO-GO`, jangan lanjut ke board.
 | 1 | H12 | `scl` | ADS1115 SCL |
 | 2 | E10 | `sda` | ADS1115 SDA |
 | 3 | D10 | `src_sel` | biarkan terbuka (0 = ADS1115) |
-| 4 | C11 | `btn` | tombol ke GND (tekan = reset) |
-| 5, 11 | — | GND | GND ADS1115, CP2102, katoda LED, tombol |
+| 4 | C11 | `led_hb` | LED heartbeat + 330 Ω ke GND (berkedip = PL hidup) |
+| 5, 11 | — | GND | GND ADS1115, CP2102, katoda LED |
 | 6, 12 | — | 3V3 | VDD ADS1115, pot |
 | 7 | B10 | `uart_tx` | CP2102 RXD |
 | 8 | E12 | `uart_rx` | CP2102 TXD |

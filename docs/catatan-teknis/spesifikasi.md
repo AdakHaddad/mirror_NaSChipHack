@@ -3,7 +3,7 @@
 Kontrak teknis antara RTL (Muqtada), program stasiun (Budi), dan perangkat keras (Guntur) untuk demo di Kria KV260. Dokumen ini memuat keputusan protokol riwayat. Peta lengkap kode dan cara menjalankannya ada di [context.md](../../context.md), prosedur board di [cara-jalan-board.md](cara-jalan-board.md) dan [RUNBOOK Cmod S7](../../fpga/cmod_s7/RUNBOOK.md). Apabila ada perbedaan soal protokol, dokumen ini yang dipakai.
 
 Penanda status (keadaan repo per 21 Oktober 2026):
-- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (20/20 pada 21 Okt: 5 sha256, 4 hmac, 2 ads1115, 9 auth). Model Python 52/52. Uji di board disebut terpisah.
+- **[Sudah ada]** sudah diimplementasikan dan lolos simulasi cocotb (23/23 pada 21 Okt: 5 sha256, 4 hmac, 2 ads1115, 12 auth). Model Python 52/52. Uji di board disebut terpisah.
 - **[Disepakati]** sudah disetujui, belum diimplementasikan.
 - **[Usulan]** menunggu persetujuan Muqtada dan Budi.
 
@@ -23,8 +23,8 @@ Riwayat tegangan yang ditandatangani di dalam chip tidak dapat diubah, dihapus, 
 | i2c_master, ads1115_ctrl | Membaca ADS1115 (I2C 100 kHz, alamat 0x48), keluaran milivolt | [Sudah ada], lolos 2/2 uji cocotb. Uji board (T9) belum |
 | uart_if | UART 115200 8N1 | [Sudah ada] |
 | axil_master | Menulis kunci dan pesan ke register hmac_sha256 | [Sudah ada] |
-| auth_ctrl | Pembaca frame, CRC-8, AUTH_REQ → ADC → HMAC → AUTH_RESP | [Sudah ada], lolos 9/9 uji cocotb |
-| auth_ctrl, tambahan | Pengambil sampel berkala, seq, buffer, READ_HIST, RESULT, LOCK, UNLOCK, STATUS, lock | [Sudah ada] di RTL, lolos 9/9 uji cocotb (21 Okt); STATUS_RESP memakai payload `locked(1) ‖ fail_cnt(1)` sementara, menunggu persetujuan |
+| auth_ctrl | Pembaca frame, CRC-8, AUTH_REQ → ADC → HMAC → AUTH_RESP | [Sudah ada], lolos 12/12 uji cocotb |
+| auth_ctrl, tambahan | Pengambil sampel berkala, seq, buffer, READ_HIST, RESULT, LOCK, UNLOCK, STATUS, lock | [Sudah ada] di RTL, lolos 12/12 uji cocotb (21 Okt; termasuk dump saat buffer penuh, sumber switch tanpa ADC, dan parser pulih dari frame rusak); STATUS_RESP memakai payload `locked(1) ‖ fail_cnt(1)` sementara, menunggu persetujuan |
 | sumber_sampel | Pemilih sumber: ADS1115, ROM rekaman, atau switch | [Usulan], RTL sudah punya port `sw`/`src_sel` |
 | key_vault | Kunci 256 bit | Ada sebagai modul, belum dipakai di Flow B. Kunci saat ini ditulis auth_ctrl melalui axil_master |
 | sebatt_top | Top level: clock, reset, UART, I2C, LED | [Sudah ada] |
@@ -182,7 +182,7 @@ Stasiun mengirim READ_HIST_REQ setiap 0,5 detik dan menampilkan 64 catatan terak
 | 1 | H12 | I2C SCL ke ADS1115 |
 | 2 | E10 | I2C SDA ke ADS1115 |
 | 3 | D10 | Pemilih sumber: terbuka/0 = ADS1115, 3V3 = sumber tetap 3000 mV |
-| 4 | C11 | Reset, aktif rendah (tombol ke GND; pull-up internal) |
+| 4 | C11 | LED heartbeat (berkedip = logika PL hidup). Tidak ada tombol reset, karena reset membuat seq kembali ke 0 |
 | 5, 11 | — | GND |
 | 6, 12 | — | 3,3 V |
 | 7 | B10 | UART TX ke adaptor CP2102 |

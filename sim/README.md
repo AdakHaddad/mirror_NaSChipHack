@@ -9,7 +9,7 @@ make sha256     # SHA-256 core
 make hmac       # HMAC-SHA-256
 make ads1115    # i2c_master + ads1115_ctrl (model ADS1115)
 make auth       # auth_ctrl + uart_if + axil_master + hmac (9 tes)
-make all        # semua target: 5 sha256 + 4 hmac + 2 ads1115 + 9 auth
+make all        # semua target: 5 sha256 + 4 hmac + 2 ads1115 + 12 auth
 ```
 
 Tes auth juga memverifikasi sampling periodik (`adc_start` setiap `SAMPLE_CYCLES`),

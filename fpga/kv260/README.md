@@ -22,7 +22,7 @@ comes from the IOPLL at 100 MHz and `pl_resetn0` is exported. No PL oscillator
 is available on the KV260, so the PS is mandatory. The processor never touches
 the sample path; ADC, HMAC, history and UART stay in the PL.
 
-`kv260_top` synchronises the active-low reset button and instantiates
+`kv260_top` synchronises `pl_resetn0` to `pl_clk0` and instantiates
 `sebatt_top` with `CLK_HZ` set to the actual PS clock and 1 s sampling.
 
 ## Pin map (Pmod J2, Digilent Type 1A numbering)
@@ -32,8 +32,8 @@ the sample path; ADC, HMAC, history and UART stay in the PL.
 | 1 | H12 | `scl` | ADS1115 SCL, pull-up (module + internal) |
 | 2 | E10 | `sda` | ADS1115 SDA, pull-up (module + internal) |
 | 3 | D10 | `src_sel` | 0 = ADS1115, 1 = fixed 3000 mV; internal pulldown |
-| 4 | C11 | `btn` | reset to GND, internal pull-up |
-| 5, 11 | — | GND | ADS1115/CP2102/LED/button ground |
+| 4 | C11 | `led_hb` | heartbeat LED (`led[0]`), blinks ~6 Hz when the PL runs |
+| 5, 11 | — | GND | ADS1115/CP2102/LED ground |
 | 6, 12 | — | 3V3 | ADS1115 VDD and pot top |
 | 7 | B10 | `uart_tx` | to CP2102 RXD |
 | 8 | E12 | `uart_rx` | from CP2102 TXD |

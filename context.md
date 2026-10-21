@@ -3,7 +3,7 @@
 > Concept, code, protocol, hardware, and demo in one document.
 >
 > Written 19 October 2026; updated 21 October 2026 after the signed-history
-> implementation. Python model 52/52 tests pass, RTL simulation 20/20 tests pass
+> implementation. Python model 52/52 tests pass, RTL simulation 23/23 tests pass
 > (sha256 + hmac + ads1115 + auth/history; see Section 6.3), offline station demo
 > passes.
 > Hardware results are marked separately.
@@ -484,7 +484,7 @@ sebatt/
 │   ├── test_hmac.py          4 tests
 │   ├── test_ads1115.py       ADS1115 I2C model + controller tests
 │   ├── tb_auth.v             12 MHz wrapper for the auth tests
-│   └── test_auth_ctrl.py     9 auth/history tests (UART, lock, READ_HIST)
+│   └── test_auth_ctrl.py     12 auth/history tests (UART, lock, READ_HIST, dump race, parser resync)
 ├── fpga/
 │   ├── README.md             Flow A build/run guide
 │   ├── create_bd.tcl         MicroBlaze + AXI UART Lite + HMAC BD
@@ -758,7 +758,7 @@ make clean
 make auth     # TESTS=9 PASS=9
 ```
 
-Total: 20/20.
+Total: 23/23.
 
 ### 6.4 FPGA Flow A (`fpga/`)
 
@@ -1055,7 +1055,7 @@ Hard stops from the test plan:
   firmware may use RPLL (96.97 MHz) or gate the clock; see RUNBOOK §5.
 - The onboard UART belongs to the PS. The SeBatt UART leaves through Pmod J2
   7/8 + **CP2102/CH340/FT232** (3.3 V logic).
-- All 8 Pmod data pins are used: I2C (1/2), `src_sel` (3), reset (4), UART
+- All 8 Pmod data pins are used: I2C (1/2), `src_sel` (3), heartbeat LED (4), UART
   (7/8), green/red LEDs (9/10). Package pins: H12/E10/D10/C11/B10/E12/D11/B11.
 - Load with `fpgautil -b kv260_top.bit.bin` (or JTAG `program.tcl`); unload the
   stock `k26-starter-kits` app first.
@@ -1159,7 +1159,7 @@ sees that the attacker is between the battery and the station.
 | KV260 port | Done 21 Oct: PS `pl_clk0` 100 MHz block design, Pmod XDC, full bitstream + `.bit.bin`, RUNBOOK; multi-driver `sg_req*` fixed; WNS +0.687 ns, 5 611 LUT / 6 130 FF, 0 BRAM/DSP; physical T6/T7/T9/T10 pending |
 | Test plan | Written; preflight passes, Flow A blocked by reset bug |
 | Periodic ADS1115 sampling | Done: 1 s default demo (`SAMPLE_INTERVAL_MS`), every sample stored and tagged; AUTH_REQ signs the latest sample |
-| Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 9/9 auth suite |
+| Flow B history | Done 21 Oct: seq counter, ring buffer, per-record 0x53 tags, 0x48 summary tag; verified against Python in the 12/12 auth suite |
 | Business/pitch | Drafts exist |
 
 ### 11.2 What is missing (Flow B)
@@ -1179,7 +1179,7 @@ sees that the attacker is between the battery and the station.
    The RTL performs AUTH_REQ -> HMAC -> AUTH_RESP, periodic signed history,
    READ_HIST, lock after three failed RESULTs, and prefixes 0x41/0x53/0x48; the
    Python model verifies the history (gaps/rollback/truncation). The cocotb
-   suite passes 20/20. Do not claim board verification (T6/T7/T9) yet.
+   suite passes 23/23. Do not claim board verification (T6/T7/T9) yet.
 
 2. **MILESTONES says M3 demo is done.**
    That refers to Flow A (MicroBlaze). After the 18 October pivot, Flow A is only
