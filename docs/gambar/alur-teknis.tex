@@ -31,7 +31,7 @@
   \node[ip] (adcif) at (7.4,0.2) {\texttt{ads1115\_ctrl}\\{\footnotesize sampel tiap 1 detik}};
   \node[ip] (ctrl) at (11.6,0.2) {\texttt{auth\_ctrl}\\{\footnotesize nomor urut, buffer, lock}};
   \node[ip] (hmac) at (11.6,2.4) {\texttt{hmac\_sha256}\\{\footnotesize tanda tangan}};
-  \node[ip] (key)  at (7.4,2.4) {\texttt{key\_vault}\\{\footnotesize kunci K}};
+  \node[ip] (key)  at (7.4,2.4) {kunci K\\{\footnotesize tahap 1: tetap}};
   \node[ip] (uart) at (15.4,0.2) {\texttt{uart\_if}\\{\footnotesize pengganti CAN}};
   \node[font=\bfseries, text=orange!60!black] (iplbl) at (13.2,3.55) {SeBatt IP di FPGA (Kria KV260)};
 
@@ -44,7 +44,7 @@
     {\textbf{Stasiun (PC Python)}\\{\footnotesize emulator stasiun}\\{\footnotesize basis data: ID, K,}\\{\footnotesize seq terakhir}};
 
   \node[blk=gray, minimum width=34mm, align=left, minimum height=22mm] (dec) at (20.8,4.0)
-    {\textbf{Keputusan}\\{\footnotesize VALID}\\{\footnotesize INVALID\_HMAC, REPLAY}\\{\footnotesize HISTORY\_GAP, ROLLBACK}\\{\footnotesize BATTERY\_LOCKED}};
+    {\textbf{Keputusan}\\{\footnotesize VALID, HISTORY\_TRUNCATED}\\{\footnotesize INVALID\_HMAC, REPLAY}\\{\footnotesize HISTORY\_GAP, ROLLBACK}\\{\footnotesize BATTERY\_LOCKED}};
 
   \draw[->] (bat) -- (div);
   \draw[->] (div) -- (adc);
@@ -76,16 +76,16 @@
   \def\xs{16}
 
   \draw[msg] (\xs,-5.8) -- node[lbl, above=1pt]{\textbf{1} AUTH\_REQ: \textit{nonce} acak 32 byte} (\xc,-5.8);
-  \draw[msg] (\xc,-6.9) -- node[lbl, above=1pt]{\textbf{2} AUTH\_RESP: ID, seq terakhir, v, tag HMAC} (\xs,-6.9);
-  \draw[msg] (\xs,-8.0) -- node[lbl, above=1pt]{\textbf{3} HIST\_REQ: mulai dari seq terakhir di basis data + 1} (\xc,-8.0);
-  \draw[msg] (\xc,-9.1) -- node[lbl, above=1pt]{\textbf{4} HIST\_ITEM $\times$ n: seq, v, tag HMAC, lalu HIST\_END} (\xs,-9.1);
-  \draw[msg] (\xs,-11.3) -- node[lbl, above=1pt]{\textbf{6} RESULT: diterima atau ditolak} (\xc,-11.3);
+  \draw[msg] (\xc,-6.9) -- node[lbl, above=1pt]{\textbf{2} AUTH\_RESP: ID, v, tag atas 0x41\,$\|$\,\textit{nonce}\,$\|$\,ID\,$\|$\,v} (\xs,-6.9);
+  \draw[msg] (\xs,-8.0) -- node[lbl, above=1pt]{\textbf{3} READ\_HIST\_REQ: \textit{nonce} baru 32 byte} (\xc,-8.0);
+  \draw[msg] (\xc,-9.1) -- node[lbl, above=1pt, align=center]{\textbf{4} READ\_HIST\_RESP: N, seq tertua--terakhir, N $\times$ (seq, v, tag 0x53),\\ lalu tag ringkasan 0x48 atas \textit{nonce} dan rentang seq} (\xs,-9.1);
+  \draw[msg] (\xs,-11.3) -- node[lbl, above=1pt]{\textbf{6} RESULT: status. Tiga kali gagal berturut-turut mengunci chip} (\xc,-11.3);
 
   \node[blk=blue, minimum width=46mm, minimum height=9mm, align=left, font=\footnotesize] at (\xs+0.2,-10.15)
-    {\textbf{5} Hitung ulang setiap HMAC dengan K,\\ cek \textit{nonce} baru dan seq berurutan};
+    {\textbf{5} Cek tag ringkasan dengan \textit{nonce}, rollback,\\ seq berurutan, lalu hitung ulang tag tiap catatan};
 
   \node[ip, minimum width=40mm, align=left, font=\footnotesize] at (\xc-0.4,-10.15)
-    {Tag dihitung di dalam IP\\ dari isi buffer riwayat};
+    {Tag catatan dibuat saat sampel diambil.\\ Buffer dibekukan selama riwayat dikirim};
 
 \end{tikzpicture}
 \end{document}
