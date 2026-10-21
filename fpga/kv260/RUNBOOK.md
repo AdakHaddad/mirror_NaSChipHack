@@ -8,7 +8,7 @@ Status 21 Okt 2026: bitstream penuh sudah dibangun ulang setelah perbaikan
 multi-driver `sg_req*`, dump race, CRC, parser resync, dan adc-free source
 (WNS +1,466 ns, 5 633 LUT, 6 201 FF), peta pin Pmod dan block design clock PS
 sudah ada. **Uji fisik T6/T7/T9/T10 di KV260 belum dilakukan.** Uji RTL cocotb
-24/24 dan uji board Cmod S7 tetap menjadi bukti fungsional sampai KV260 diuji.
+26/26 dan uji board Cmod S7 tetap menjadi bukti fungsional sampai KV260 diuji.
 
 - Bitstream: `fpga/kv260/build/kv260_top.bit`
 - Boot image: `fpga/kv260/build/kv260_top.bit.bin`

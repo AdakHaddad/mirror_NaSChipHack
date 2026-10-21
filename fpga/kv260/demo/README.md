@@ -16,7 +16,7 @@ Paket singkat untuk demo SeBatt di Kria KV260. Detail lengkap ada di
 
 ```bash
 fpga/kv260/demo/preflight.sh          # cepat
-fpga/kv260/demo/preflight.sh --full   # + cocotb 24/24
+fpga/kv260/demo/preflight.sh --full   # + cocotb 26/26
 ```
 
 Harus berakhir `GO`. Kalau `NO-GO`, jangan lanjut ke board.

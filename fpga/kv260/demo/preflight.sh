@@ -115,7 +115,7 @@ fi
 if [[ "$FULL" -eq 1 ]]; then
     echo "-- RTL cocotb suite"
     if PATH="$ROOT/.venv/bin:$PATH" make -C sim all >/tmp/sebatt_cocotb.log 2>&1; then
-        ok "cocotb 24/24 (sha256 5, hmac 4, ads1115 2, auth 13)"
+        ok "cocotb 26/26 (sha256 5, hmac 4, ads1115 4, auth 13)"
     else
         bad "cocotb suite failed (see /tmp/sebatt_cocotb.log)"
     fi

@@ -3,7 +3,7 @@
 > Concept, code, protocol, hardware, and demo in one document.
 >
 > Written 19 October 2026; updated 21 October 2026 after the signed-history
-> implementation. Python model 52/52 tests pass, RTL simulation 24/24 tests pass
+> implementation. Python model 52/52 tests pass, RTL simulation 26/26 tests pass
 > (sha256 + hmac + ads1115 + auth/history; see Section 6.3), offline station demo
 > passes.
 > Hardware results are marked separately.
@@ -758,7 +758,7 @@ make clean
 make auth     # TESTS=9 PASS=9
 ```
 
-Total: 24/24.
+Total: 26/26.
 
 ### 6.4 FPGA Flow A (`fpga/`)
 
@@ -1179,7 +1179,7 @@ sees that the attacker is between the battery and the station.
    The RTL performs AUTH_REQ -> HMAC -> AUTH_RESP, periodic signed history,
    READ_HIST, lock after three failed RESULTs, and prefixes 0x41/0x53/0x48; the
    Python model verifies the history (gaps/rollback/truncation). The cocotb
-   suite passes 24/24. Do not claim board verification (T6/T7/T9) yet.
+   suite passes 26/26. Do not claim board verification (T6/T7/T9) yet.
 
 2. **MILESTONES says M3 demo is done.**
    That refers to Flow A (MicroBlaze). After the 18 October pivot, Flow A is only

@@ -112,8 +112,8 @@ Penguncian otomatis setelah tiga RESULT gagal berturut-turut sudah lolos simulas
 
 - **Pmod 3 yang dibiarkan terbuka terbaca 1.** Pull-down internal FPGA kalah, sehingga chip memakai sumber tetap 3000 mV. Pmod 3 harus disambung ke GND untuk ADS1115 dan ke 3V3 untuk sumber tetap. Aturan ini sudah dicatat di RUNBOOK dan spesifikasi.
 - **AUTH menandatangani tegangan valid terakhir saat ADS1115 gagal dibaca.** Tanda kegagalan adalah berhentinya catatan riwayat baru dan LED merah, bukan isi AUTH_RESP. Ini dicatat sebagai batasan.
-- **LED merah tidak pernah padam setelah satu penolakan.** Flag error di auth_ctrl hanya dibersihkan saat reset, dan LED hijau menyala setiap chip selesai membalas, bukan saat stasiun menerima. Sudah diperbaiki di RTL: LED kini mengikuti putusan RESULT terakhir, dan merah padam setelah RESULT VALID atau UNLOCK. Uji cocotb baru (24/24) lolos. Perbaikan ini menunggu build ulang bitstream dan belum diuji di board.
-- **Pmod 2 (SDA) yang tersambung ke GND membuat pembacaan I2C bernilai 0 mV.** Kabel SDA harus terpisah dari GND.
+- **LED merah tidak pernah padam setelah satu penolakan.** Flag error di auth_ctrl hanya dibersihkan saat reset, dan LED hijau menyala setiap chip selesai membalas, bukan saat stasiun menerima. Sudah diperbaiki di RTL: LED kini mengikuti putusan RESULT terakhir, dan merah padam setelah RESULT VALID atau UNLOCK. Uji cocotb baru (26/26) lolos. Perbaikan ini menunggu build ulang bitstream dan belum diuji di board.
+- **Pmod 2 (SDA) yang tersambung ke GND membuat pembacaan I2C bernilai 0 mV.** SDA yang tertahan rendah terbaca sebagai ACK dan data 0x0000, sehingga 0 mV tersimpan dan ditandatangani seolah hasil ukur asli. Akibatnya kabel yang korsleting bisa memunculkan kejadian terkuras dalam palsu. Sudah diperbaiki di RTL: i2c_master hanya memulai transaksi bila SDA dan SCL sedang tinggi, dan melaporkan error bila tidak. Dua uji cocotb baru (26/26) lolos. Perbaikan ini menunggu build ulang bitstream.
 - **HISTORY_TRUNCATED muncul pada dump pertama setelah stasiun dijalankan ulang.** Jangkar stasiun kembali ke 0 sementara catatan lama di chip sudah tertimpa. Status ini diterima dengan peringatan, dan dump berikutnya VALID.
 - **Ubuntu Kria tidak perlu login untuk memprogram lewat JTAG**, karena clock PL sudah menyala setelah boot. Login tetap diperlukan untuk mengecek atau memperbaiki clock pl0_ref. Kata sandi board diminta ke panitia.
 
@@ -161,7 +161,12 @@ py -3.14 -m model.station --port COM8 --benchmark --count 100
 
 # Uji tanpa board (model Python)
 py -3.14 -m model.station --offline --demo
+
+# Kartu kesehatan untuk baterai 12 V di casing (pembagi 47k/10k)
+py -3.14 -m model.station --port COM8 --interactive --scale 5.7 --deep-mv 1842
 ```
+
+Opsi kartu kesehatan: --deep-mv adalah batas terkuras dalam di pin ADC (bawaan 1000 mV), dan --scale adalah pengali dari pin ADC ke tegangan baterai (bawaan 1,0 untuk potensiometer langsung, 5,7 untuk casing 12 V). Dengan --scale 5.7, batas 1842 mV setara 10,5 V aki.
 
 Ganti COM8 dengan nomor port CP2102 di laptop yang dipakai.
 
@@ -171,7 +176,7 @@ Ganti COM8 dengan nomor port CP2102 di laptop yang dipakai.
 |---|---|---|
 | status | Status kunci dan penghitung gagal di chip | Chip: unlocked, fail_cnt=0 |
 | auth | Autentikasi dengan nonce baru | Voltage: ... mV → VALID |
-| history | Membaca dan memverifikasi riwayat | 64 records ... → VALID (dump pertama setelah station dijalankan bisa HISTORY_TRUNCATED) |
+| history | Membaca dan memverifikasi riwayat, lalu menampilkan kartu kesehatan (tegangan terendah, jumlah kejadian terkuras dalam) | 64 catatan ... → VALID (DITERIMA). Dump pertama setelah station dijalankan bisa HISTORY_TRUNCATED, juga diterima. Muncul PERINGATAN kalau tidak ada catatan baru selama 3 detik |
 | attack tamper [seq] [mV] | Mengubah satu catatan (bawaan 3600 mV) | INVALID_HMAC → DITOLAK |
 | attack delete [n] | Membuang n catatan di tengah | HISTORY_GAP → DITOLAK |
 | attack cut [n] | Membuang n catatan terbaru dan memalsukan rentang | INVALID_HMAC → DITOLAK |

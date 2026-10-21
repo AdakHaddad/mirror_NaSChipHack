@@ -68,7 +68,7 @@ Catatan **sudah ditandatangani saat diambil**. Buffer berada di dalam chip dan t
 
 > **Status implementasi 21 Oktober:** sampling periodik 1 detik, penomoran `seq`,
 > buffer 64 catatan bertag, `READ_HIST`, dan lock sudah ada di `auth_ctrl`.
-> Regresi cocotb 24/24. Bitstream KV260 dibangun ulang (WNS +1,466 ns), dan di
+> Regresi cocotb 26/26. Bitstream KV260 dibangun ulang (WNS +1,466 ns), dan di
 > KV260 sudah diuji 21 Okt: AUTH dan READ_HIST VALID, riwayat yang diubah,
 > dihapus, dipotong, atau diputar ulang ditolak.
 
