@@ -72,6 +72,7 @@ melaporkan `HISTORY_ROLLBACK`.
 ## 4. Jalankan demo di laptop
 
 ```bash
+fpga/kv260/demo/run_station.sh --check         # cek cepat board (STATUS/AUTH/READ_HIST)
 fpga/kv260/demo/run_station.sh                 # satu autentikasi
 fpga/kv260/demo/run_station.sh --demo          # suite 8 transaksi
 fpga/kv260/demo/run_station.sh --interactive   # demo manual untuk juri
