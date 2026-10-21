@@ -174,3 +174,42 @@ async def test_ads1115_rejects_negative_raw(dut):
     assert int(dut.raw.value) == 0x8000
     assert int(dut.mv.value) == 0
     assert not state["errors"], state["errors"]
+
+
+async def expect_error_without_sample(dut):
+    """A start on a stuck bus must end in error, not in a valid 0 mV sample."""
+    valid_seen = {"v": False}
+
+    async def watch_valid():
+        while True:
+            await RisingEdge(dut.valid)
+            valid_seen["v"] = True
+
+    cocotb.start_soon(watch_valid())
+    await pulse_start(dut)
+    for _ in range(2000):
+        await RisingEdge(dut.clk)
+        if int(dut.error.value) == 1 and int(dut.busy.value) == 0:
+            break
+    assert int(dut.error.value) == 1, "stuck bus was not reported"
+    await ClockCycles(dut.clk, 200)
+    assert not valid_seen["v"], "a sample was produced from a stuck bus"
+
+
+@cocotb.test()
+async def test_ads1115_sda_stuck_low_is_error(dut):
+    """SDA shorted to GND (Pmod 2 to GND) used to read as ACK + 0x0000."""
+    await bring_up(dut)
+    dut.sda.value = Force(0)
+    await ClockCycles(dut.clk, 5)
+    await expect_error_without_sample(dut)
+    dut.sda.value = Release()
+
+
+@cocotb.test()
+async def test_ads1115_scl_stuck_low_is_error(dut):
+    await bring_up(dut)
+    dut.scl.value = Force(0)
+    await ClockCycles(dut.clk, 5)
+    await expect_error_without_sample(dut)
+    dut.scl.value = Release()

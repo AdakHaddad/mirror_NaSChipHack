@@ -9,7 +9,8 @@ from .protocol import (
     AuthRequest, AuthStatus, Command, HistoryDump, SeBattChip,
     Station as ModelStation, WireProtocol,
 )
-from .station import IdentityDB, Station as WireStation
+from .protocol import HistoryRecord
+from .station import IdentityDB, Station as WireStation, health_card
 from .gen_vectors import sebatt_protocol_vectors
 
 
@@ -43,6 +44,9 @@ def _wire_station(reply=b''):
     station.log = []
     station.last_battery_id = None
     station.report_results = True
+    station.deep_mv = 1000
+    station.scale = 1.0
+    station._last_seen = None
     return station
 
 
@@ -227,3 +231,40 @@ def test_wire_station_auth_uses_0x41_prefix():
     assert status == AuthStatus.VALID
     assert voltage == 3600
     assert battery_id == BID.hex()
+
+
+def _records(mvs, start=0):
+    return [HistoryRecord(seq=start + i, mv=mv, tag=b'') for i, mv in enumerate(mvs)]
+
+
+def test_health_card_counts_deep_discharge_events():
+    lines = health_card(_records([3000, 900, 800, 3000, 950, 3000]), deep_mv=1000)
+    assert "terendah 800 mV pada seq 2" in lines[0]
+    assert "terkuras dalam 2 kali" in lines[1]
+
+
+def test_health_card_scales_to_battery_volts():
+    lines = health_card(_records([2210, 1840]), deep_mv=1842, scale=5.7)
+    assert "baterai 10.49 V" in lines[0]
+    assert "terkuras dalam 1 kali" in lines[1]
+
+
+def test_history_report_hides_health_when_rejected():
+    station = _wire_station()
+    dump = HistoryDump(battery_id=BID, seq_oldest=0, seq_last=1,
+                       records=_records([500, 3000]), summary_tag=b'')
+    text = " ".join(station.history_report(AuthStatus.HISTORY_GAP, dump))
+    assert "DITOLAK" in text and "TIDAK DAPAT DIPERCAYA" in text
+    assert "Kesehatan" not in text
+
+
+def test_history_report_warns_when_sampling_stops():
+    station = _wire_station()
+    dump = HistoryDump(battery_id=BID, seq_oldest=0, seq_last=4,
+                       records=_records([3000] * 5), summary_tag=b'')
+    with patch('model.station.time.monotonic', return_value=100.0):
+        first = " ".join(station.history_report(AuthStatus.VALID, dump))
+    with patch('model.station.time.monotonic', return_value=105.0):
+        later = " ".join(station.history_report(AuthStatus.VALID, dump))
+    assert "PERINGATAN" not in first
+    assert "PERINGATAN" in later and "5 s" in later
