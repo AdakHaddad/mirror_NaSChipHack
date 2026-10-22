@@ -101,6 +101,21 @@ station rejects the battery as a rollback. That is fail-safe, not fail-open,
 but a product needs a non-volatile monotonic counter. We list this as a known
 limitation.
 
+**Q: Does the station need to be online?**
+A: The demo does not: the laptop holds the key and the anchor locally. In the
+production HMAC architecture the kiosk must reach the server on every swap,
+because the key and anchor live there; our documented ECDSA variant removes
+that by letting the station verify with public data only. We are explicit that
+the offline claim belongs to that variant, not to the stage-1 HMAC demo.
+
+**Q: How much power does it draw?**
+A: Vivado's vectorless estimate for the KV260 is 2.56 W total at 100 MHz, but
+2.21 W of that is the processing-system model; the programmable logic is only
+about 0.35 W. It is an estimate with most I/O activity unspecified, and it is
+not the ASIC. The signing block runs only during sampling and authentication,
+so the product target is much smaller; we will measure it on silicon instead
+of quoting a number now.
+
 **Q: Your HMAC target was 300 cycles; you say 452. Why?**
 A: The proposal target assumed a more parallel SHA-256 datapath. The current
 core is an iterative single-round design: 113 cycles per block × 4 blocks,
@@ -139,6 +154,13 @@ and lets us iterate during the hackathon. An ASIC is needed for unit cost,
 on-die ADC, PUF, and a non-volatile counter. Our MPW path is chipIgnite on
 SKY130 at about USD 14,950 per shuttle; the timeline depends on funding.
 
+**Q: The KV260 has an ARM core — why not run the protocol there?**
+A: That would put a CPU back in the trust path, which is the thing we are
+removing. On the KV260 the PS boots Linux and supplies pl_clk0 and reset; no
+sample or tag passes through it. The ADC, control logic, HMAC, and sequence
+counter are RTL in the PL, and the UART goes straight from the PL to the Pmod
+pins. The ASIC has no CPU at all.
+
 **Q: What about side-channel and fault-injection attacks?**
 A: Out of scope for the PoC. HMAC is a standard symmetric construction, but a
 production secure IC needs SCA/FI evaluation, shielding, and likely a
@@ -162,6 +184,13 @@ physically unclonable, and never leaves the die. In the demo the key is fixed,
 so the demo is cloneable — that is exactly why stage 2 exists and why we state
 it openly.
 
+**Q: Can I just reflash the FPGA bitstream and bypass the check?**
+A: In the stage-1 demo, yes: the bitstream is loaded over JTAG and contains the
+fixed key, so the FPGA is a functional PoC, not the production root of trust.
+A production ASIC has no bitstream to reflash; the key is derived from the
+RO-PUF on die and the signing path is fixed in silicon. Secure provisioning and
+key lifecycle are productization work we list openly.
+
 **Q: Can I replay an old history?**
 A: No. The station sends a new 32-byte nonce every swap; the summary tag covers
 that nonce, so an old dump fails as INVALID_HMAC. This was tested on the board.
@@ -171,6 +200,19 @@ A: The chip proves identity and history, not ownership. If a battery is
 reported stolen, the operator marks it in the database and the station returns
 BATTERY_LOCKED; the chip also has a local lock after three consecutive failed
 results. Policy stays with the operator.
+
+**Q: Can I move a good chip into a bad pack?**
+A: The chip signs its own measurements and carries its own ID and anchor, so
+moving it moves that identity with it. If the operator has bound chip ID to
+pack serial at commissioning, the station sees a mismatch; that binding is an
+operator workflow in the product, and the PoC registers IDs but does not
+enforce a physical pack serial. The chip proves the history of that chip, not
+which pack it is bolted into.
+
+**Q: What if the attacker removes the chip or bypasses it entirely?**
+A: Then there is no signed history to present, and the station has nothing to
+verify; the swap is refused rather than accepted on trust. Removal does not
+produce a fake good history, it produces a missing one.
 
 **Q: What if the operator is malicious?**
 A: The station is the verifier and anchor, so a fully colluding operator can
@@ -334,6 +376,7 @@ pilot results.
 | READ_HIST, 64 records | 292.5 ms | Includes 65 tag verifications |
 | HMAC core | ~452 cycles (113/block × 4) | Above the 300-cycle proposal target |
 | KV260 build | WNS +0.749 ns @ 100 MHz, 5,607 LUT, 6,207 FF | Latest build; board re-test pending |
+| KV260 power (vectorless) | 2.56 W total (2.21 W PS, ~0.35 W PL) | Vivado estimate 22 Oct, `../fpga/kv260/build/power.rpt`; not measured; 25 °C, 250 LFM, medium heatsink |
 | Tests | 86 Python, 26 RTL (cocotb) | Plus board attack tests |
 | History | 64 signed records, 32-bit sequence | 3 consecutive failures → lock |
 | Attacks rejected on board | tamper, delete, cut, replay | VALID on unmodified dumps |
