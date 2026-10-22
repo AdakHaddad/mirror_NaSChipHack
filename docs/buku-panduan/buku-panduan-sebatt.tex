@@ -47,6 +47,18 @@
 \definecolor{covergold}{HTML}{B8923A}
 \definecolor{covernavylight}{HTML}{3D5A80}
 \definecolor{covergray}{HTML}{6B7280}
+\definecolor{okgreen}{HTML}{1E6E45}
+
+% Gaya bersama untuk gambar konsep di Bab 2
+\tikzset{
+  kotak/.style={draw, rounded corners=2pt, minimum height=0.7cm, inner xsep=5pt,
+    align=center, fill=white},
+  kunci/.style={kotak, draw=covergold, fill=covergold!15},
+  proses/.style={kotak, fill=covernavy!8},
+  terima/.style={kotak, draw=okgreen, fill=okgreen!10, text=okgreen},
+  tolak/.style={kotak, draw=accentred, fill=accentred!8, text=accentred},
+  catatan/.style={draw, minimum width=0.85cm, minimum height=0.6cm, font=\footnotesize\ttfamily},
+}
 
 \setlist{itemsep=3pt, topsep=4pt}
 % Ruang tambahan agar baris dengan nama modul \texttt panjang tidak menonjol keluar margin
@@ -418,9 +430,49 @@ atas satu byte prefiks \texttt{0x53}, identitas baterai 4 byte, nomor urut 4 byt
 Stasiun menghitung ulang persamaan~\eqref{eq:tagcatatan} untuk setiap catatan yang diterimanya.
 Apabila sebuah tegangan diubah setelah keluar dari chip, tag hasil hitungan stasiun tidak lagi
 cocok dengan tag di catatan, sehingga riwayat ditolak dengan status \texttt{INVALID\_HMAC}.
-Prefiks \texttt{0x53} membedakan pesan catatan dari dua pesan bertanda tangan lain pada
-Bab~\ref{sec:arsitektur}, sehingga tag dari satu jenis pesan tidak dapat dipakai sebagai tag
-jenis pesan lainnya.
+Gambar~\ref{fig:hmac} memperlihatkan kedua kemungkinan tersebut. Prefiks \texttt{0x53} membedakan
+pesan catatan dari dua pesan bertanda tangan lain pada Bab~\ref{sec:arsitektur}, sehingga tag
+dari satu jenis pesan tidak dapat dipakai sebagai tag jenis pesan lainnya.
+
+\begin{figure}[H]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[>=stealth, font=\footnotesize]
+    % chip
+    \node[kotak] (msg) at (0,0) {\texttt{0x53}\,|\,ID\,|\,seq\,|\,$V$};
+    \node[proses] (h1) at (2.9,0) {HMAC};
+    \node[kunci] (k1) at (2.9,1.15) {$K$};
+    \node[kotak] (tag) at (4.6,0) {tag};
+    \draw[->] (msg) -- (h1);
+    \draw[->] (k1) -- (h1);
+    \draw[->] (h1) -- (tag);
+    \begin{scope}[on background layer]
+      \node[draw=gray!50, fill=gray!6, rounded corners, inner sep=6pt,
+        fit=(msg)(h1)(k1)(tag)] (chip) {};
+    \end{scope}
+    \node[font=\small\bfseries, text=covernavy, anchor=south] at (chip.north) {Chip};
+    % saluran
+    \node[kotak] (r1) at (7.6,0) {seq, $V$, tag};
+    \node[kotak] (r2) at (7.6,-1.9) {seq, \textcolor{accentred}{$V'$}, tag};
+    \draw[->] (tag) -- (r1);
+    \draw[->] (tag.south) |- (r2);
+    \node[text=accentred, font=\scriptsize, anchor=south, align=center] at (5.6,-1.85)
+      {BMS curang\\mengubah $V$};
+    \node[font=\small\bfseries, text=covernavy] at (7.6,1.9) {Saluran};
+    % stasiun
+    \node[proses] (s1) at (10.9,0) {HMAC dengan $K$\\dari basis data};
+    \node[proses] (s2) at (10.9,-1.9) {HMAC dengan $K$\\dari basis data};
+    \node[terima] (v1) at (14.1,0) {tag cocok\\\texttt{VALID}};
+    \node[tolak] (v2) at (14.1,-1.9) {tag tidak cocok\\\texttt{INVALID\_HMAC}};
+    \draw[->] (r1) -- (s1);
+    \draw[->] (r2) -- (s2);
+    \draw[->] (s1) -- (v1);
+    \draw[->] (s2) -- (v2);
+    \node[font=\small\bfseries, text=covernavy] at (12.5,1.9) {Stasiun};
+  \end{tikzpicture}}
+  \caption{Penandatanganan dan pemeriksaan tag catatan.}
+  \label{fig:hmac}
+\end{figure}
 
 \subsection{Nonce dan Serangan \textit{Replay}}
 \label{subsec:nonce}
@@ -433,9 +485,37 @@ riwayat yang terjadi sesudah rekaman dibuat. Serangan semacam ini disebut \texti
 Untuk mencegahnya, stasiun membuat nonce, yaitu bilangan acak 32 byte yang baru untuk setiap
 pemeriksaan. Nonce dikirim ke chip dan ikut ditandatangani di dalam balasan. Balasan hasil
 rekaman memuat nonce lama, sehingga tag-nya tidak cocok dengan nonce baru yang sedang diperiksa
-stasiun dan balasan tersebut ditolak dengan status \texttt{INVALID\_HMAC}. Stasiun juga
-mencatat setiap nonce yang sudah dipakai. Pemeriksaan yang memakai nonce yang sama untuk kedua
-kalinya ditolak dengan status \texttt{REPLAY\_DETECTED}.
+stasiun dan balasan tersebut ditolak dengan status \texttt{INVALID\_HMAC}, seperti pada
+Gambar~\ref{fig:replay}. Stasiun juga mencatat setiap nonce yang sudah dipakai. Pemeriksaan yang
+memakai nonce yang sama untuk kedua kalinya ditolak dengan status \texttt{REPLAY\_DETECTED}.
+
+\begin{figure}[H]
+  \centering
+  \resizebox{0.9\textwidth}{!}{%
+  \begin{tikzpicture}[>=stealth, font=\footnotesize]
+    % lifeline
+    \foreach \x/\nama in {0/Chip, 4.5/Penyerang, 9/Stasiun} {
+      \node[kotak, font=\small\bfseries, text=covernavy, minimum width=2.2cm] at (\x,0) {\nama};
+      \draw[gray!60, dashed] (\x,-0.4) -- (\x,-5.6);
+    }
+    % pemeriksaan sebelumnya, direkam penyerang
+    \node[font=\scriptsize\itshape, text=covergray, anchor=west] at (-1.2,-0.85)
+      {Pemeriksaan sebelumnya};
+    \draw[->] (9,-1.3) -- node[above] {AUTH\_REQ, nonce $A$} (0,-1.3);
+    \draw[->] (0,-2.0) -- node[above, pos=0.25] {tag untuk $A$} (9,-2.0);
+    \fill[covergold] (4.5,-2.0) circle (0.09);
+    \node[font=\scriptsize, text=covergold!80!black, anchor=north west] at (4.6,-2.05) {direkam};
+    \draw[gray!50] (-1.2,-2.65) -- (10.2,-2.65);
+    % pemeriksaan sekarang, dijawab penyerang
+    \node[font=\scriptsize\itshape, text=covergray, anchor=west] at (-1.2,-2.95)
+      {Pemeriksaan sekarang};
+    \draw[->] (9,-3.4) -- node[above] {AUTH\_REQ, nonce $B$} (4.5,-3.4);
+    \draw[->] (4.5,-4.1) -- node[above] {tag untuk $A$ (rekaman)} (9,-4.1);
+    \node[tolak, anchor=north] at (9,-4.4) {dihitung untuk $B$: tidak cocok\\\texttt{INVALID\_HMAC}};
+  \end{tikzpicture}}
+  \caption{Serangan \textit{replay}.}
+  \label{fig:replay}
+\end{figure}
 
 \subsection{Nomor Urut Monoton}
 \label{subsec:seq}
@@ -462,6 +542,45 @@ setiap baterai. Dari dua informasi tersebut, stasiun membedakan empat keadaan be
     tertua dapat tertimpa sebelum stasiun sempat membacanya. Selama sisa catatan berurutan dan
     seluruh tag cocok, riwayat tetap diterima dengan status \texttt{HISTORY\_TRUNCATED}.
 \end{itemize}
+Gambar~\ref{fig:seq} memperlihatkan keempat keadaan tersebut untuk basis data yang terakhir
+memverifikasi seq 42. Kotak abu-abu adalah riwayat yang sudah diverifikasi, kotak putus-putus
+merah adalah catatan yang hilang, dan kotak putus-putus abu-abu adalah catatan yang tertimpa
+sebelum dibaca.
+
+\begin{figure}[H]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[font=\footnotesize]
+    \def\w{0.95}
+    % baris: y, label
+    \foreach \y/\judul in {0/Deret utuh, -1/Celah di tengah, -2/Mundur, -3/Tertimpa buffer} {
+      \node[anchor=east, font=\footnotesize\bfseries, text=covernavy] at (-0.6,\y) {\judul};
+      \node[catatan, fill=gray!15, text=covergray] at (0,\y) {\dots42};
+    }
+    % deret utuh
+    \foreach \i/\s in {1/43,2/44,3/45,4/46,5/47}
+      \node[catatan, draw=okgreen, fill=okgreen!10] at (\i*\w,0) {\s};
+    \node[terima, anchor=west] at (6.3,0) {\texttt{VALID}};
+    % celah
+    \foreach \i/\s in {1/43,2/44,4/46,5/47}
+      \node[catatan] at (\i*\w,-1) {\s};
+    \node[catatan, draw=accentred, dashed, text=accentred] at (3*\w,-1) {45};
+    \node[tolak, anchor=west] at (6.3,-1) {\texttt{HISTORY\_GAP}};
+    % mundur
+    \foreach \i/\s in {1/1,2/2,3/3}
+      \node[catatan, draw=accentred, text=accentred] at (\i*\w,-2) {\s};
+    \node[font=\scriptsize, text=accentred, anchor=west] at (3.5*\w,-2) {terbaru 3 $<$ 42};
+    \node[tolak, anchor=west] at (6.3,-2) {\texttt{HISTORY\_ROLLBACK}};
+    % tertimpa
+    \foreach \i/\s in {1/43,2/44,3/45}
+      \node[catatan, draw=gray!50, dashed, text=gray!60] at (\i*\w,-3) {\s};
+    \foreach \i/\s in {4/46,5/47}
+      \node[catatan, draw=okgreen, fill=okgreen!10] at (\i*\w,-3) {\s};
+    \node[terima, anchor=west] at (6.3,-3) {\texttt{HISTORY\_TRUNCATED}};
+  \end{tikzpicture}}
+  \caption{Empat keadaan riwayat berdasarkan nomor urut.}
+  \label{fig:seq}
+\end{figure}
 Memotong catatan terbaru juga terdeteksi. Seq terbaru ikut ditandatangani di dalam tag
 ringkasan, sehingga rentang yang dipersempit membuat tag ringkasan tidak cocok dan riwayat
 ditolak dengan status \texttt{INVALID\_HMAC}.
@@ -480,7 +599,34 @@ Dengan potensiometer di ujung atas, tegangan yang masuk ke ADC adalah
   \label{eq:pembagi}
 \end{equation}
 sehingga tegangan 9,0--12,6~V menjadi 1,55--2,17~V di masukan ADC. Memutar potensiometer ke
-bawah memperkecil rasio pembagi sampai $15/145$. Cara ini dipakai untuk memperagakan baterai
+bawah memperkecil rasio pembagi sampai $15/145$, seperti pada Gambar~\ref{fig:pembagi}.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[>=stealth, font=\footnotesize]
+    \tikzset{res/.style={draw, fill=white, minimum width=0.38cm, minimum height=1.0cm}}
+    \draw (0,4.4) -- (0,0.35);
+    \node[res] (r1) at (0,3.5) {};
+    \node[res] (p) at (0,2.1) {};
+    \node[res] (r2) at (0,0.95) {};
+    \node[anchor=south] at (0,4.4) {$+V_{\mathrm{bat}}$ (LiPo 3S, 9,0--12,6~V)};
+    \node[anchor=east] at (-0.35,3.5) {$R_1$ = 120~k$\Omega$};
+    \node[anchor=east] at (-0.35,2.1) {$P$ = 10~k$\Omega$ (kenop)};
+    \node[anchor=east] at (-0.35,0.95) {$R_2$ = 15~k$\Omega$};
+    % ground
+    \draw (-0.3,0.35) -- (0.3,0.35) (-0.2,0.25) -- (0.2,0.25) (-0.1,0.15) -- (0.1,0.15);
+    % wiper
+    \draw[->, thick, covernavy] (1.1,2.1) -- (0.22,2.1);
+    \draw[covernavy] (1.1,2.1) -- (4.6,2.1);
+    \node[proses, anchor=west] at (4.6,2.1) {A0 ADS1115\\1,3--2,17~V};
+    \node[anchor=west, text=covergray, font=\scriptsize] at (0.35,2.75)
+      {ujung atas: $V_{A0} = V_{\mathrm{bat}}/5{,}8$};
+    \node[anchor=west, text=covergray, font=\scriptsize] at (0.35,1.45)
+      {ujung bawah: rasio $15/145$, simulasi terkuras};
+  \end{tikzpicture}
+  \caption{Pembagi tegangan dengan kenop.}
+  \label{fig:pembagi}
+\end{figure} Cara ini dipakai untuk memperagakan baterai
 yang terkuras tanpa benar-benar menguras sel LiPo, sebagaimana dijelaskan pada
 Bab~\ref{sec:rakit}.
 
@@ -504,6 +650,7 @@ tanpa mengubah rancangan di FPGA.
 \label{sec:arsitektur}
 
 \subsection{Komponen Sistem}
+\label{subsec:komponen}
 
 Purwarupa SeBatt terdiri atas tiga bagian, yaitu perangkat keras di sisi baterai, IP SeBatt
 yang berjalan di FPGA, dan perangkat lunak stasiun di laptop. Gambar~\ref{fig:alurteknis}
@@ -584,39 +731,280 @@ Bab~\ref{sec:panduan}.
 
 \subsection{Format Frame dan Perintah}
 
-\isi{Format [CMD][LEN big-endian][PAYLOAD][CRC-8 poly 0x31] dan tabel perintah 0x01--0x09
-beserta isi payload. Prefiks tanda tangan: 0x41 autentikasi, 0x53 catatan, 0x48 ringkasan.}
-
-\subsection{Alur Penukaran Baterai}
-\label{subsec:alur}
-
-\isi{Empat tahap: pencatatan sampel setiap 1 detik, AUTH\_REQ dengan nonce, READ\_HIST\_REQ
-dengan tag ringkasan, lalu verifikasi di stasiun dan RESULT. Tiga RESULT gagal berturut-turut
-mengunci chip.}
-
-\subsection{Kode Hasil Pemeriksaan}
+Stasiun dan chip berkomunikasi melalui UART 115200~8N1 dengan frame biner. Stasiun selalu memulai
+pertukaran, sedangkan chip hanya menjawab. Stasiun mengirim satu frame lalu menunggu balasannya
+sebelum mengirim frame berikutnya. Setiap frame tersusun atas empat bagian seperti pada
+Tabel~\ref{tab:frame}.
 
 \begin{table}[H]
   \centering
   \small
   \begin{tabularx}{\textwidth}{l l X}
     \toprule
-    Kode & Status & Arti \\
+    Bagian & Panjang & Isi \\
     \midrule
-    0x00 & VALID & Tanda tangan cocok dan riwayat utuh \\
-    0x01 & INVALID\_HMAC & Isi catatan atau balasan tidak cocok dengan tanda tangannya \\
-    0x02 & REPLAY\_DETECTED & Nonce yang sama dipakai untuk kedua kalinya \\
-    0x03 & BATTERY\_LOCKED & Chip terkunci setelah tiga kegagalan \\
-    0x05 & HISTORY\_GAP & Ada nomor urut yang hilang di tengah riwayat \\
-    0x06 & HISTORY\_ROLLBACK & Nomor urut chip lebih kecil dari catatan basis data \\
-    0x07 & HISTORY\_TRUNCATED & Catatan lama tertimpa buffer 64, sisa riwayat sah \\
+    CMD & 1 byte & Kode perintah (Tabel~\ref{tab:perintah}) \\
+    LEN & 2 byte & Panjang PAYLOAD dalam byte, \textit{big-endian} \\
+    PAYLOAD & LEN byte & Isi perintah, boleh kosong \\
+    CRC & 1 byte & CRC-8 atas CMD, LEN, dan PAYLOAD \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Susunan frame.}
+  \label{tab:frame}
+\end{table}
+
+CRC-8 memakai polinomial \texttt{0x31} ($x^8 + x^5 + x^4 + 1$) dengan nilai awal \texttt{0x00}
+dan bit paling signifikan diproses lebih dulu. CRC hanya berfungsi mendeteksi galat transmisi
+pada kabel. CRC dapat dihitung ulang oleh siapa pun, sehingga keamanan data tetap bergantung pada
+tanda tangan HMAC di dalam PAYLOAD. Sebagai contoh, permintaan STATUS tanpa PAYLOAD dikirim
+sebagai empat byte \texttt{06 00 00 A5}, dan chip yang tidak terkunci dengan satu kegagalan
+menjawab \texttt{06 00 02 00 01 35}.
+
+Tabel~\ref{tab:perintah} merangkum seluruh perintah, dengan angka dalam kurung menyatakan panjang
+dalam byte. Kode \texttt{0x01}, \texttt{0x07}, dan
+\texttt{0x06} meminta balasan dari chip, sedangkan RESULT, LOCK, dan UNLOCK hanya mengubah
+keadaan chip tanpa dibalas.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l X X}
+    \toprule
+    Kode & Perintah & PAYLOAD dari stasiun & Balasan chip \\
+    \midrule
+    \texttt{0x01} & AUTH\_REQ & nonce (32) & \texttt{0x02} AUTH\_RESP: ID (4), $V$ (2), tag (32) \\
+    \texttt{0x07} & READ\_HIST\_REQ & nonce (32) & \texttt{0x08} READ\_HIST\_RESP, lihat
+      Tabel~\ref{tab:riwayat} \\
+    \texttt{0x06} & STATUS & kosong & \texttt{0x06}: status kunci (1), jumlah gagal (1) \\
+    \texttt{0x03} & RESULT & kode status (1) & tidak ada \\
+    \texttt{0x04} & LOCK & kosong & tidak ada \\
+    \texttt{0x05} & UNLOCK & kosong & tidak ada \\
+    \midrule
+    \texttt{0x09} & CHIP\_LOCKED & -- & Pengganti AUTH\_RESP atau READ\_HIST\_RESP saat chip
+      terkunci: ID (4) \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Perintah dan balasan.}
+  \label{tab:perintah}
+\end{table}
+
+RESULT membawa kode status dari Tabel~\ref{tab:status} setelah stasiun selesai memeriksa.
+Status \texttt{VALID} dan \texttt{HISTORY\_TRUNCATED} mengosongkan penghitung kegagalan di chip,
+sedangkan status lain menambahkannya satu. Pada kegagalan ketiga berturut-turut chip terkunci dan
+hanya menjawab AUTH\_REQ maupun READ\_HIST\_REQ dengan CHIP\_LOCKED sampai menerima UNLOCK atau
+dayanya dicabut.
+
+Balasan READ\_HIST\_RESP memuat seluruh isi buffer beserta tag ringkasan dengan susunan pada
+Tabel~\ref{tab:riwayat}. Buffer yang penuh berisi 64 catatan, sehingga PAYLOAD terpanjang adalah
+$1 + 8 + 64 \times 38 + 32 = 2.473$ byte. Dengan 10 bit per byte pada 115200~bit/s, pengiriman
+frame sepanjang itu memerlukan sekitar 0,21~detik.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l X}
+    \toprule
+    Bagian & Panjang & Isi \\
+    \midrule
+    $N$ & 1 byte & Jumlah catatan, 0--64 \\
+    seq tertua & 4 byte & Nomor urut catatan pertama di buffer \\
+    seq terbaru & 4 byte & Nomor urut catatan terakhir di buffer \\
+    catatan & $N \times 38$ byte & Untuk setiap catatan: seq (4), $V$ (2), tag (32) \\
+    tag ringkasan & 32 byte & HMAC yang mengikat nonce, ID, seq tertua, dan seq terbaru \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Susunan PAYLOAD READ\_HIST\_RESP.}
+  \label{tab:riwayat}
+\end{table}
+
+Chip membuat tiga jenis pesan bertanda tangan. Prefiks satu byte di awal setiap pesan memisahkan
+ketiganya, sehingga tag dari satu jenis pesan tidak dapat dipakai sebagai tag jenis lain.
+Tabel~\ref{tab:pesan} merangkum susunannya.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l X r}
+    \toprule
+    Pesan & Prefiks & Susunan & Panjang \\
+    \midrule
+    Autentikasi & \texttt{0x41} & prefiks, nonce (32), ID (4), $V$ (2) & 39 byte \\
+    Catatan & \texttt{0x53} & prefiks, ID (4), seq (4), $V$ (2) & 11 byte \\
+    Ringkasan & \texttt{0x48} & prefiks, nonce (32), ID (4), seq tertua (4), seq terbaru (4)
+      & 45 byte \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Pesan yang ditandatangani dengan HMAC-SHA-256.}
+  \label{tab:pesan}
+\end{table}
+
+Ketiga pesan lebih pendek dari 56 byte, sehingga setiap pemanggilan hash pada
+persamaan~\eqref{eq:hmac} cukup memproses dua blok SHA-256. Akibatnya, satu tanda tangan selalu
+memerlukan empat blok SHA-256, berapa pun jenis pesannya. Sifat ini dimanfaatkan pada
+Bab~\ref{sec:rtl} untuk merancang \texttt{hmac\_sha256} dengan waktu proses yang tetap.
+
+Chip juga menjaga agar frame yang rusak tidak mengacaukan keadaan. Frame dengan CRC salah dibuang
+tanpa balasan. Frame dengan LEN lebih dari 64 byte tidak dibaca isinya. Frame yang terputus di
+tengah jalan dibuang setelah saluran diam selama 5~milidetik, sehingga frame berikutnya kembali
+dibaca dari awal. Frame yang datang saat chip masih memproses perintah sebelumnya juga dibuang.
+Pada setiap kejadian tersebut LED merah menyala, dan stasiun yang tidak menerima balasan
+menganggapnya sebagai kegagalan komunikasi.
+
+\subsection{Alur Penukaran Baterai}
+\label{subsec:alur}
+
+SeBatt menjalankan dua kegiatan yang terpisah. Chip mencatat sampel tegangan secara berkala
+tanpa menunggu stasiun, sedangkan pemeriksaan hanya terjadi saat baterai ditukar.
+Gambar~\ref{fig:alurteknis} bagian B memperlihatkan urutan pesan pada pemeriksaan tersebut.
+
+\subsubsection*{Pencatatan sampel}
+
+Pada purwarupa, \texttt{auth\_ctrl} mengambil satu sampel setiap 1~detik. Selang ini diatur oleh
+parameter \texttt{SAMPLE\_INTERVAL\_MS}, sehingga pada produk dapat diperpanjang sesuai kebutuhan.
+Setiap sampel melalui tiga langkah berikut.
+\begin{enumerate}
+  \item ADS1115 mengubah tegangan A0 menjadi milivolt, lalu nilainya diteruskan ke
+    \texttt{auth\_ctrl} melalui I2C.
+  \item Sampel diberi seq berikutnya, kemudian ditandatangani dengan
+    persamaan~\eqref{eq:tagcatatan} saat itu juga.
+  \item Seq, tegangan, dan tag disimpan di buffer 64 catatan. Apabila buffer penuh, catatan
+    tertua ditimpa, sedangkan penghitung seq terus bertambah.
+\end{enumerate}
+Karena setiap catatan sudah ditandatangani saat disimpan, chip tidak perlu menandatangani ulang
+seluruh riwayat ketika diminta. Satu pembacaan riwayat cukup memerlukan satu tanda tangan
+tambahan, yaitu tag ringkasan.
+
+\subsubsection*{Pemeriksaan saat penukaran}
+
+Saat baterai ditukar, stasiun menjalankan lima langkah berurutan.
+\begin{enumerate}
+  \item \textbf{Autentikasi.} Stasiun membuat nonce baru dan mengirim AUTH\_REQ. Chip menjawab
+    dengan identitas baterai, tegangan sampel terakhir, dan tag berprefiks \texttt{0x41}. Chip
+    tidak memulai konversi baru untuk menjawab, sehingga balasan selalu memakai sampel yang sudah
+    ada. Stasiun memeriksa bahwa identitas terdaftar, nonce belum pernah dipakai, dan tag cocok.
+    Apabila salah satunya gagal, riwayat tidak dibaca dan pemeriksaan langsung berlanjut ke
+    langkah~4.
+  \item \textbf{Pembacaan riwayat.} Stasiun membuat nonce kedua dan mengirim READ\_HIST\_REQ.
+    Chip membekukan isi buffer sejak permintaan diterima sampai byte terakhir terkirim. Sampel
+    yang selesai selama pengiriman ditahan dan baru disimpan setelahnya, sehingga satu balasan
+    tidak pernah mencampur catatan lama dan baru.
+  \item \textbf{Verifikasi riwayat.} Stasiun memeriksa balasan dengan urutan pada
+    Gambar~\ref{fig:verifikasi} dan berhenti pada kegagalan pertama. Identitas yang dipakai
+    adalah identitas yang lolos pada langkah~1.
+  \item \textbf{RESULT.} Stasiun mengirim satu RESULT untuk seluruh penukaran, berisi status
+    akhir pemeriksaan. Chip memperbarui penghitung kegagalan dan LED, lalu terkunci pada kegagalan
+    ketiga berturut-turut.
+  \item \textbf{Jangkar dan kesehatan.} Apabila riwayat diterima, basis data mengganti seq
+    terakhir yang telah diverifikasi dengan seq terbaru, dan kesehatan baterai dihitung hanya dari
+    catatan yang lolos. Apabila riwayat ditolak, jangkar tidak berubah dan kesehatan baterai tidak
+    ditampilkan.
+\end{enumerate}
+Chip yang sudah terkunci menjawab AUTH\_REQ dengan CHIP\_LOCKED, sehingga penukaran berhenti di
+langkah~1 dengan status \texttt{BATTERY\_LOCKED}.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[>=stealth, font=\footnotesize, node distance=0.42cm]
+    \tikzset{tanya/.style={kotak, minimum width=5.6cm}}
+    \node[tanya] (q1) {Identitas terdaftar?};
+    \node[tanya, below=of q1] (q2) {Nonce belum pernah dipakai?};
+    \node[tanya, below=of q2] (q3) {Tag autentikasi (\texttt{0x41}) cocok?};
+    \node[proses, below=0.7cm of q3, minimum width=5.6cm] (rh) {Baca riwayat dengan nonce kedua};
+    \node[tanya, below=0.7cm of rh] (q4) {Tag ringkasan (\texttt{0x48}) cocok?};
+    \node[tanya, below=of q4] (q5) {Seq terbaru $\geq$ jangkar basis data?};
+    \node[tanya, below=of q5] (q6) {Seq berurutan dan jumlahnya sesuai?};
+    \node[tanya, below=of q6] (q7) {Semua tag catatan (\texttt{0x53}) cocok?};
+    \node[terima, below=0.7cm of q7, minimum width=5.6cm] (ok)
+      {\texttt{VALID}, atau \texttt{HISTORY\_TRUNCATED} bila catatan\\awal tertimpa.
+       Jangkar diganti seq terbaru};
+    \foreach \a/\b in {q1/q2, q2/q3, q3/rh, q4/q5, q5/q6, q6/q7, q7/ok}
+      \draw[->] (\a) -- node[right, font=\scriptsize, text=covergray] {ya} (\b);
+    \draw[->] (rh) -- (q4);
+    \foreach \q/\s in {q1/UNKNOWN\_BATTERY, q2/REPLAY\_DETECTED, q3/INVALID\_HMAC,
+                       q4/INVALID\_HMAC, q5/HISTORY\_ROLLBACK, q6/HISTORY\_GAP, q7/INVALID\_HMAC} {
+      \node[tolak, anchor=west, font=\scriptsize\ttfamily] (s\q) at ($(\q.east)+(1.1,0)$) {\s};
+      \draw[->] (\q.east) -- node[above, font=\scriptsize, text=covergray] {tidak} (s\q);
+    }
+  \end{tikzpicture}
+  \caption{Urutan pemeriksaan di stasiun.}
+  \label{fig:verifikasi}
+\end{figure}
+
+\subsection{Kode Hasil Pemeriksaan}
+
+Setiap penukaran berakhir dengan satu kode status satu byte. Kode yang sama dikirim ke chip
+melalui RESULT, dicatat di log stasiun, dan ditampilkan di \textit{dashboard}.
+Tabel~\ref{tab:status} merangkum kedelapan kode beserta penyebab yang umum.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l l X}
+    \toprule
+    Kode & Status & Hasil & Penyebab umum \\
+    \midrule
+    \texttt{0x00} & VALID & \textcolor{okgreen}{Diterima} & Semua tanda tangan cocok dan seq
+      berurutan sejak pemeriksaan terakhir \\
+    \texttt{0x07} & HISTORY\_TRUNCATED & \textcolor{okgreen}{Diterima} & Catatan awal tertimpa
+      buffer sebelum dibaca, sisa catatan berurutan dan sah \\
+    \midrule
+    \texttt{0x01} & INVALID\_HMAC & \textcolor{accentred}{Ditolak} & Tegangan diubah, rentang
+      riwayat dipotong, balasan lama diputar ulang, atau baterai tiruan tanpa kunci asli \\
+    \texttt{0x02} & REPLAY\_DETECTED & \textcolor{accentred}{Ditolak} & Nonce yang sama dipakai
+      untuk kedua kalinya \\
+    \texttt{0x03} & BATTERY\_LOCKED & \textcolor{accentred}{Ditolak} & Chip terkunci setelah tiga
+      kegagalan berturut-turut \\
+    \texttt{0x04} & UNKNOWN\_BATTERY & \textcolor{accentred}{Ditolak} & Identitas baterai tidak
+      terdaftar di basis data \\
+    \texttt{0x05} & HISTORY\_GAP & \textcolor{accentred}{Ditolak} & Ada catatan yang dibuang di
+      tengah riwayat \\
+    \texttt{0x06} & HISTORY\_ROLLBACK & \textcolor{accentred}{Ditolak} & Seq chip lebih kecil dari
+      catatan basis data, misalnya chip direset atau dikembalikan ke keadaan lama \\
     \bottomrule
   \end{tabularx}
   \caption{Kode status yang dilaporkan stasiun.}
   \label{tab:status}
 \end{table}
 
-\isi{Satu paragraf: VALID dan HISTORY\_TRUNCATED dinyatakan DITERIMA, sisanya DITOLAK.}
+Hanya dua kode yang dinyatakan diterima. \texttt{VALID} berarti seluruh riwayat sejak pemeriksaan
+terakhir terbukti utuh. \texttt{HISTORY\_TRUNCATED} juga diterima karena catatan yang hilang
+tertimpa oleh buffer chip sendiri, bukan dibuang pihak lain. Keadaan ini wajar terjadi pada
+pembacaan pertama setelah stasiun dijalankan, atau ketika lebih dari 64 sampel diambil di antara
+dua penukaran. Catatan yang tersisa tetap berurutan dan setiap tanda tangannya cocok, sehingga
+dapat dipercaya. Pada produk, selang sampel yang lebih panjang membuat 64 catatan mencakup rentang
+waktu yang jauh lebih lama.
+
+Kedua hasil tersebut berakibat berbeda pada basis data, chip, dan \textit{dashboard}, seperti
+dirangkum pada Tabel~\ref{tab:akibat}.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l X X}
+    \toprule
+     & Diterima & Ditolak \\
+    \midrule
+    Basis data & Jangkar diganti seq terbaru & Jangkar tidak berubah \\
+    Chip & Penghitung kegagalan kembali ke 0, LED hijau menyala & Penghitung kegagalan bertambah
+      satu, LED merah menyala. Pada kegagalan ketiga chip terkunci \\
+    \textit{Dashboard} & Kotak hasil hijau DITERIMA, kartu kesehatan dihitung dari riwayat yang
+      lolos & Kotak hasil merah DITOLAK, kartu kesehatan tidak ditampilkan \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Akibat hasil pemeriksaan.}
+  \label{tab:akibat}
+\end{table}
+
+Pengecualiannya adalah \texttt{BATTERY\_LOCKED}. Chip yang terkunci sudah menjawab dengan
+CHIP\_LOCKED, sehingga stasiun tidak mengirim RESULT dan penghitung kegagalan tidak berubah.
+
+Kode \texttt{INVALID\_HMAC} mencakup beberapa penyebab yang berbeda. Stasiun tidak perlu
+membedakannya, karena semuanya berarti data yang diterima tidak dapat dibuktikan berasal dari chip
+asli. Sebaliknya, \texttt{HISTORY\_GAP} dan \texttt{HISTORY\_ROLLBACK} dipisahkan karena
+tindakannya berbeda. Celah di tengah riwayat menandakan manipulasi, sedangkan seq yang mundur
+dapat juga berasal dari chip yang dayanya dicabut. Purwarupa ini menyimpan penghitung seq di
+memori yang hilang saat daya dicabut, sehingga keadaan kedua tidak dapat dibedakan dari
+manipulasi. Batasan ini dibahas pada Bab~\ref{sec:masalah}.
 
 % ============================================================
 %  4. IMPLEMENTASI RTL
@@ -624,31 +1012,733 @@ mengunci chip.}
 \section{Implementasi RTL}
 \label{sec:rtl}
 
-\isi{Pengantar bab: hierarki kv260\_top, sebatt\_top, ads1115\_ctrl (i2c\_master), dan
-auth\_ctrl (uart\_if, axil\_master, hmac\_sha256, sha256\_core). Semua modul Verilog standar
-tanpa IP vendor dan tanpa prosesor lunak.}
+Bab ini membahas rancangan IP SeBatt dalam Verilog. Seluruh modul ditulis dengan Verilog standar
+tanpa IP vendor dan tanpa prosesor lunak. Dengan cara ini, RTL yang sama sudah disintesis untuk
+KV260 dan Cmod~S7 tanpa perubahan pada modul intinya. Semua logika berjalan pada satu domain \textit{clock} dengan reset
+aktif rendah yang diselaraskan terhadap \textit{clock}. Frekuensi \textit{clock} diberikan sebagai
+parameter, sehingga modul yang sama dipakai pada KV260 dengan 100~MHz dan pada Cmod~S7 dengan
+12~MHz.
 
-\gambarplaceholder{Diagram hierarki modul RTL}
+Gambar~\ref{fig:hierarki} memperlihatkan hierarki modul. Bagian di dalam kotak putus-putus adalah
+IP SeBatt yang sama untuk semua board, dan modul bertepi biru membentuk jalur tanda tangan. Di luarnya, \texttt{kv260\_top} hanya menyesuaikan IP
+tersebut dengan KV260. Satu-satunya blok vendor dalam rancangan adalah \textit{block design} PS
+Zynq, yang dipakai untuk menyediakan \textit{clock} 100~MHz dan sinyal reset. PS tidak menyentuh
+jalur data, sehingga sampel, tanda tangan, dan perintah seluruhnya diproses di logika terprogram.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[font=\footnotesize]
+    \tikzset{
+      mod/.style={kotak, font=\footnotesize\ttfamily, minimum height=0.5cm, inner xsep=4pt},
+      vendor/.style={mod, draw=gray!60, dashed, fill=gray!8, text=covergray},
+      inti/.style={mod, draw=covernavy, fill=covernavy!8},
+      ket/.style={anchor=west, font=\scriptsize, text=covergray},
+    }
+    \def\dy{0.62}
+    \node[mod, anchor=west]    (top)  at (0.0, 0)      {kv260\_top};
+    \node[vendor, anchor=west] (ps)   at (0.8,-1*\dy)  {design\_1\_wrapper};
+    \node[mod, anchor=west]    (seb)  at (0.8,-2*\dy-0.35)  {sebatt\_top};
+    \node[mod, anchor=west]    (adc)  at (1.6,-3*\dy-0.35)  {ads1115\_ctrl};
+    \node[mod, anchor=west]    (i2c)  at (2.4,-4*\dy-0.35)  {i2c\_master};
+    \node[inti, anchor=west]   (auth) at (1.6,-5*\dy-0.35)  {auth\_ctrl};
+    \node[mod, anchor=west]    (uart) at (2.4,-6*\dy-0.35)  {uart\_if};
+    \node[mod, anchor=west]    (axil) at (2.4,-7*\dy-0.35)  {axil\_master};
+    \node[inti, anchor=west]   (hmac) at (2.4,-8*\dy-0.35)  {hmac\_sha256};
+    \node[inti, anchor=west]   (sha)  at (3.2,-9*\dy-0.35)  {sha256\_core};
+    % garis hierarki
+    \foreach \p/\c in {top/ps, top/seb, seb/adc, adc/i2c, seb/auth, auth/uart, auth/axil,
+                       auth/hmac, hmac/sha}
+      \draw[gray!70] ($(\p.south west)+(0.25,0)$) |- (\c.west);
+    % keterangan
+    \node[ket] at (6.2, 0)       {penyesuaian KV260: reset, LED \textit{heartbeat}, pin Pmod};
+    \node[ket] at (6.2,-1*\dy)   {PS Zynq: \textit{clock} 100~MHz dan reset (blok vendor)};
+    \node[ket] at (6.2,-2*\dy-0.35)   {puncak IP SeBatt, sama untuk semua board};
+    \node[ket] at (6.2,-3*\dy-0.35)   {pembacaan ADS1115 mode \textit{single-shot}};
+    \node[ket] at (6.2,-4*\dy-0.35)   {transaksi I2C 100~kHz, cek bus macet};
+    \node[ket] at (6.2,-5*\dy-0.35)   {sampel, seq, buffer 64, perintah, penguncian};
+    \node[ket] at (6.2,-6*\dy-0.35)   {UART 8N1};
+    \node[ket] at (6.2,-7*\dy-0.35)   {akses register \texttt{hmac\_sha256}};
+    \node[ket] at (6.2,-8*\dy-0.35)   {HMAC-SHA-256 dengan register AXI4-Lite};
+    \node[ket] at (6.2,-9*\dy-0.35)   {kompresi SHA-256, 113 siklus per blok};
+    % batas IP portabel
+    \begin{scope}[on background layer]
+      \node[draw=covergold, dashed, rounded corners, inner sep=5pt,
+        fit=(seb)(adc)(i2c)(auth)(uart)(axil)(hmac)(sha)] (ip) {};
+    \end{scope}
+    \node[anchor=north east, font=\scriptsize\bfseries, text=covergold!80!black]
+      at (ip.north east) {IP SeBatt};
+  \end{tikzpicture}
+  \caption{Hierarki modul RTL pada KV260.}
+  \label{fig:hierarki}
+\end{figure}
+
+Modul \texttt{auth\_ctrl} menjadi pusat rancangan. Modul ini mengatur pengambilan sampel,
+penomoran, penyimpanan, penandatanganan, dan pelayanan perintah dari stasiun. Inti kriptografinya
+berada di \texttt{hmac\_sha256}, yang memakai antarmuka register AXI4-Lite. Karena itu
+\texttt{auth\_ctrl} mengaksesnya melalui \texttt{axil\_master}, sebuah pengendali AXI4-Lite kecil
+yang juga ditulis sendiri. Pembacaan ADC terpisah di \texttt{ads1115\_ctrl}, sehingga sumber
+sampel dapat diganti tanpa mengubah logika tanda tangan.
+
+Tabel~\ref{tab:parameter} merangkum parameter yang menyesuaikan IP SeBatt dengan board dan
+kebutuhan demo. Nilai pada kolom KV260 adalah nilai yang dipakai pada purwarupa ini.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l X}
+    \toprule
+    Parameter & KV260 & Fungsi \\
+    \midrule
+    \texttt{CLK\_HZ} & 100.000.000 & Frekuensi \textit{clock}, dasar pewaktu UART, I2C, dan sampel \\
+    \texttt{BAUD} & 115.200 & Kecepatan UART \\
+    \texttt{BATTERY\_ID} & \texttt{0x42415401} & Identitas baterai yang ikut ditandatangani \\
+    \texttt{SAMPLE\_INTERVAL\_MS} & 1.000 & Selang antarsampel dalam milidetik \\
+    \texttt{SAMPLE\_SOURCE} & 0 & Sumber sampel: 0 ADS1115, 1 nilai tetap dari ROM, 2 nilai dari
+      saklar \\
+    \texttt{RX\_TIMEOUT\_CYCLES} & \texttt{CLK\_HZ}/200 & Lama saluran diam sebelum frame yang
+      terputus dibuang (5~ms) \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Parameter IP SeBatt.}
+  \label{tab:parameter}
+\end{table}
+
+Selain parameter tersebut, pin \texttt{src\_sel} memilih sumber sampel saat rancangan berjalan,
+seperti dijelaskan pada Subbab~\ref{subsec:komponen}. Subbab berikutnya membahas modul satu per
+satu, dimulai dari inti kriptografi \texttt{hmac\_sha256}, kemudian \texttt{auth\_ctrl},
+pembacaan ADC, antarmuka UART beserta modul puncak, dan diakhiri dengan verifikasi.
 
 \subsection{Modul \texttt{hmac\_sha256}}
-\isi{Antarmuka, empat blok SHA-256 per tanda tangan, 113 siklus per blok, potongan kode inti.}
+\label{subsec:modulhmac}
+
+Modul \texttt{hmac\_sha256} menghitung persamaan~\eqref{eq:hmac} untuk satu pesan sepanjang
+paling banyak 55 byte dengan kunci 256 bit. Modul ini dikendalikan melalui register AXI4-Lite
+pada Tabel~\ref{tab:reghmac}. Untuk setiap tanda tangan, \texttt{auth\_ctrl} menulis kunci,
+pesan, dan panjang pesan, lalu memberi perintah \textit{start}, menunggu bit \textit{done}, dan
+membaca hasilnya dari register HASH.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l l X}
+    \toprule
+    Alamat & Nama & Akses & Isi \\
+    \midrule
+    \texttt{0x00} & CTRL & tulis & Bit 0 \textit{start}, bit 1 \textit{init}, keduanya kembali ke 0
+      dengan sendirinya \\
+    \texttt{0x04} & STATUS & baca & Bit 0 \textit{done}, bit 1 \textit{busy} \\
+    \texttt{0x08} & MSG\_LEN & baca/tulis & Panjang pesan dalam byte \\
+    \texttt{0x10}--\texttt{0x2C} & KEY[0..7] & baca/tulis & Kunci 256 bit, 8 kata 32 bit \\
+    \texttt{0x30}--\texttt{0x6C} & MSG[0..15] & baca/tulis & Pesan, paling banyak 64 byte \\
+    \texttt{0x70}--\texttt{0x8C} & HASH[0..7] & baca & Hasil HMAC 256 bit \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Peta register \texttt{hmac\_sha256}.}
+  \label{tab:reghmac}
+\end{table}
+
+Satu HMAC dihitung dengan empat blok SHA-256 berurutan seperti pada Gambar~\ref{fig:empatblok}.
+Dua blok pertama menghasilkan \textit{inner hash} dari kunci yang di-XOR dengan \textit{ipad} dan
+pesan. Dua blok berikutnya menghasilkan HMAC dari kunci yang di-XOR dengan \textit{opad} dan
+\textit{inner hash} tersebut. Mesin keadaan di dalam modul mengisi setiap blok 16 kata ke
+\texttt{sha256\_core}, menjalankannya, lalu berpindah ke blok berikutnya tanpa campur tangan
+\texttt{auth\_ctrl}.
+
+\begin{figure}[H]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[>=stealth, font=\footnotesize]
+    \tikzset{blok/.style={kotak, minimum width=2.6cm}, sha/.style={proses, minimum width=1.4cm}}
+    % inner
+    \node[blok] (b1) at (0,0) {$K \oplus \mathit{ipad}$\\64 byte};
+    \node[sha]  (s1) at (2.5,0) {SHA\\blok 1};
+    \node[blok] (b2) at (5.0,0) {pesan, \texttt{0x80}, nol,\\panjang bit};
+    \node[sha]  (s2) at (7.5,0) {SHA\\blok 2};
+    \node[kotak, fill=covergold!15, draw=covergold] (ih) at (10.0,0) {\textit{inner hash}\\32 byte};
+    % outer
+    \node[blok] (b3) at (0,-1.7) {$K \oplus \mathit{opad}$\\64 byte};
+    \node[sha]  (s3) at (2.5,-1.7) {SHA\\blok 3};
+    \node[blok] (b4) at (5.0,-1.7) {\textit{inner hash}, \texttt{0x80},\\nol, panjang bit};
+    \node[sha]  (s4) at (7.5,-1.7) {SHA\\blok 4};
+    \node[terima] (hm) at (10.0,-1.7) {HMAC\\32 byte};
+    \draw[->] (b1) -- (s1);
+    \draw[->] (s1) -- (b2);
+    \draw[->] (b2) -- (s2);
+    \draw[->] (s2) -- (ih);
+    \draw[->] (b3) -- (s3);
+    \draw[->] (s3) -- (b4);
+    \draw[->] (b4) -- (s4);
+    \draw[->] (s4) -- (hm);
+    \draw[->, covergold!80!black] (ih.south) -- ++(0,-0.35) -| (b4.north);
+    \node[anchor=east, font=\scriptsize\bfseries, text=covernavy] at (-1.5,0) {\textit{Inner}};
+    \node[anchor=east, font=\scriptsize\bfseries, text=covernavy] at (-1.5,-1.7) {\textit{Outer}};
+  \end{tikzpicture}}
+  \caption{Empat blok SHA-256 untuk satu HMAC.}
+  \label{fig:empatblok}
+\end{figure}
+
+Kunci 32 byte diperpanjang dengan byte nol sampai 64 byte sebelum di-XOR dengan \textit{ipad}
+(\texttt{0x36}) atau \textit{opad} (\texttt{0x5C}). Karena delapan kata terakhir kunci bernilai
+nol, kata tersebut cukup diisi konstanta \textit{ipad} atau \textit{opad}. Potongan kode
+berikut memperlihatkan pengisian blok pertama.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Pengisian blok $K \oplus \mathit{ipad}$ di \texttt{hmac\_sha256.v}
+  (baris 149--166).}, label={lst:ipad}]
+H_LOAD_IPAD: begin
+    if (sha_ready) begin
+        sha_we   <= 1'b1;
+        sha_addr <= lcnt[3:0];
+        if (lcnt < 5'd8)
+            sha_word <= key_reg[lcnt[2:0]] ^ 32'h36363636;
+        else
+            sha_word <= 32'h36363636;  // 0x00 ^ 0x36
+
+        if (lcnt == 5'd15) begin
+            lcnt        <= 5'd0;
+            sha_started <= 1'b0;
+            hstate      <= H_RUN_IPAD;
+        end else begin
+            lcnt <= lcnt + 5'd1;
+        end
+    end
+end
+\end{lstlisting}
+\end{minipage}
+
+Blok kedua memuat pesan diikuti \textit{padding} SHA-256, yaitu byte \texttt{0x80}, deretan nol,
+dan panjang total data dalam bit pada 64 bit terakhir. Panjang total tersebut dihitung sebagai
+$(64 + \textit{panjang pesan}) \times 8$ karena blok \textit{ipad} ikut terhitung. Seluruhnya harus
+muat dalam satu blok 64 byte, sehingga pesan paling panjang 55 byte. Ketiga pesan SeBatt pada
+Tabel~\ref{tab:pesan} berukuran 11, 39, dan 45 byte, sehingga batas ini selalu terpenuhi. Blok
+keempat berisi \textit{inner hash} 32 byte dengan panjang total tetap $(64 + 32) \times 8 = 768$
+bit.
+
+Perhitungan hash dilakukan oleh \texttt{sha256\_core}. Modul ini memproses satu blok dalam dua
+fase. Fase pertama memperluas 16 kata masukan menjadi 64 kata jadwal pesan, satu kata per siklus,
+sehingga memerlukan 48 siklus. Fase kedua menjalankan 64 ronde kompresi, satu ronde per siklus.
+Ditambah satu siklus untuk menjumlahkan hasil ke status hash, satu blok selesai dalam 113 siklus.
+Empat blok untuk satu HMAC memerlukan $4 \times 113 = 452$ siklus kompresi. Ditambah 16 siklus pengisian per
+blok, satu HMAC memerlukan sekitar 520 siklus, atau sekitar 5,2~$\mu$s pada 100~MHz.
+
+Satu ronde per siklus dipilih karena menghemat luas rangkaian. Seluruh 64 ronde memakai satu
+rangkaian kompresi yang sama secara bergantian, bukan 64 salinan yang dibentangkan. Kecepatan yang
+lebih tinggi juga tidak diperlukan. Mengirim satu frame AUTH\_RESP sepanjang 42 byte melalui UART
+115200~bit/s saja memerlukan sekitar 3,6~ms, ratusan kali lebih lama daripada menghitung tanda
+tangannya.
 
 \subsection{Modul \texttt{auth\_ctrl}}
-\isi{Pewaktu sampel, penghitung seq, buffer 64 catatan, penanda tangan, parser frame dengan
-P\_SKIP dan batas waktu RX, pembekuan buffer saat riwayat dikirim, penghitung gagal dan
-penguncian, LED mengikuti RESULT terakhir.}
+\label{subsec:authctrl}
+
+Modul \texttt{auth\_ctrl} menjalankan seluruh perilaku chip yang dijelaskan pada
+Bab~\ref{sec:arsitektur}. Isinya terbagi menjadi enam bagian yang bekerja bersamaan, seperti pada
+Gambar~\ref{fig:authctrl}. Pada gambar tersebut, \texttt{ads1115\_ctrl} digambar putus-putus
+karena berada di luar \texttt{auth\_ctrl}.
+\begin{enumerate}
+  \item \textbf{Pemilih sumber sampel} memilih ADS1115, nilai tetap dari ROM, atau nilai dari
+    saklar, dan menyelaraskan pin \texttt{src\_sel} terhadap \textit{clock}.
+  \item \textbf{Pengurai frame} membaca byte dari \texttt{uart\_if} dan memeriksa CRC sesuai
+    Subbab~3.2.
+  \item \textbf{Pengambil sampel} mengatur selang sampel, memberi seq, dan menyimpan catatan di
+    buffer.
+  \item \textbf{Penanda tangan catatan} menghitung tag setiap catatan yang baru disimpan.
+  \item \textbf{Mesin perintah} melayani AUTH\_REQ, READ\_HIST\_REQ, RESULT, LOCK, UNLOCK, dan
+    STATUS, lalu mengirim balasannya byte demi byte.
+  \item \textbf{Penghitung kegagalan dan LED} mengikuti RESULT terakhir dan mengunci chip pada
+    kegagalan ketiga.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[>=stealth, font=\footnotesize]
+    \tikzset{
+      blk/.style={kotak, minimum width=2.7cm, minimum height=0.85cm},
+      sub/.style={kotak, font=\footnotesize\ttfamily, minimum height=0.6cm},
+      lab/.style={font=\scriptsize, text=covergray},
+    }
+    % baris perintah
+    \node[sub] (uart) at (-0.7,1) {uart\_if};
+    \node[blk] (parse) at (3.2,1) {Pengurai frame};
+    \node[blk, fill=covernavy!8] (cmd) at (7.8,1) {Mesin perintah\\(\texttt{M\_*})};
+    % baris sampel
+    \node[sub, draw=gray!60, dashed, text=covergray] (adc) at (-2.6,-1.1) {ads1115\_ctrl};
+    \node[blk] (smp) at (3.2,-1.1) {Pengambil sampel\\dan sumber};
+    \node[blk] (buf) at (7.8,-1.1) {Buffer catatan\\\texttt{buf\_mem}, \texttt{tag\_mem}};
+    \node[blk, fill=covernavy!8] (sg) at (3.2,-2.9) {Penanda tangan\\catatan (\texttt{SG\_*})};
+    % jalur HMAC
+    \node[kotak, minimum width=1.0cm] (mux) at (10.6,-1.1) {mux};
+    \node[sub] (axil) at (13.0,-1.1) {axil\_master};
+    \node[sub, draw=covernavy, fill=covernavy!8] (hmac) at (13.0,-2.9) {hmac\_sha256};
+    % kegagalan dan LED
+    \node[blk] (led) at (13.0,1) {Kegagalan, kunci,\\dan LED};
+    % aliran data
+    \draw[->] (uart) -- node[above, lab] {byte RX} (parse);
+    \draw[->] (parse) -- node[above, lab] {frame sah} (cmd);
+    \draw[->] ($(cmd.north)+(-0.6,0)$) -- ++(0,0.55) -| node[pos=0.25, above, lab] {byte TX}
+      (uart.north);
+    \draw[->] (cmd) -- node[above, lab] {RESULT} (led);
+    \draw[->] (adc) -- node[above, lab] {mV} (smp);
+    \draw[->] (smp) -- node[above, lab] {simpan} (buf);
+    \draw[->] (buf) -- node[right, lab] {riwayat} (cmd);
+    \draw[->] (smp) -- node[left, lab] {minta tag} (sg);
+    \draw[->] (sg.east) -| node[pos=0.25, above, lab] {tag disimpan} (buf.south);
+    \draw[->] (cmd.east) ++(0,-0.2) -| (mux.north);
+    \draw[->] (sg.east) ++(0,-0.25) -| (mux.south);
+    \draw[<->] (mux) -- (axil);
+    \draw[<->] (axil) -- node[right, lab] {AXI4-Lite} (hmac);
+    \begin{scope}[on background layer]
+      \node[draw=covergold, dashed, rounded corners, inner sep=9pt,
+        fit=(uart)(parse)(cmd)(smp)(buf)(sg)(mux)(axil)(hmac)(led)] (ac) {};
+    \end{scope}
+    \node[anchor=south east, font=\scriptsize\bfseries, text=covergold!80!black]
+      at ($(ac.south east)+(-0.1,0.05)$) {\texttt{auth\_ctrl}};
+  \end{tikzpicture}}
+  \caption{Bagian di dalam \texttt{auth\_ctrl}.}
+  \label{fig:authctrl}
+\end{figure}
+
+\subsubsection*{Penyimpanan riwayat}
+
+Riwayat disimpan di dua memori yang diindeks oleh posisi yang sama, seperti pada
+Tabel~\ref{tab:memori}. Penunjuk tulis \texttt{buf\_wr} berputar dari 0 sampai 63, sehingga
+catatan ke-65 menimpa posisi catatan pertama. Penghitung \texttt{buf\_cnt} berhenti di 64,
+sedangkan \texttt{seq\_next} terus bertambah. Dari keduanya chip menghitung seq tertua dan seq
+terbaru yang dikirim pada READ\_HIST\_RESP.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l X}
+    \toprule
+    Register atau memori & Ukuran & Isi \\
+    \midrule
+    \texttt{buf\_mem} & $64 \times 48$ bit & Seq (32 bit) dan tegangan (16 bit) setiap catatan \\
+    \texttt{tag\_mem} & $512 \times 32$ bit & Tag 256 bit untuk setiap catatan, 8 kata per catatan \\
+    \texttt{seq\_next} & 32 bit & Seq untuk sampel berikutnya, hanya bertambah \\
+    \texttt{buf\_wr} & 6 bit & Posisi tulis berikutnya, berputar 0--63 \\
+    \texttt{buf\_cnt} & 7 bit & Jumlah catatan di buffer, berhenti di 64 \\
+    \texttt{fail\_cnt}, \texttt{locked\_r} & 5 bit, 1 bit & Penghitung kegagalan dan status
+      kunci \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Penyimpanan di \texttt{auth\_ctrl}.}
+  \label{tab:memori}
+\end{table}
+
+\subsubsection*{Pengambilan dan penandatanganan sampel}
+
+Penghitung \texttt{sample\_cnt} membangkitkan satu \textit{tick} setiap
+\texttt{SAMPLE\_INTERVAL\_MS}. Pada \textit{tick} tersebut, sumber ADS1115 dimulai melalui
+\texttt{ads1115\_ctrl} dan sampel selesai saat ADC menjawab. Sumber ROM dan saklar langsung
+selesai pada \textit{tick} yang sama tanpa menunggu ADC. Sampel yang selesai segera disimpan ke
+buffer dan seq bertambah satu. Pembacaan ADC yang gagal tidak menghasilkan catatan, sehingga
+kegagalan sensor tidak tercatat sebagai tegangan nol.
+
+Setiap catatan yang disimpan menjadi permintaan untuk penanda tangan catatan. Penanda tangan
+menyusun pesan 11 byte dengan prefiks \texttt{0x53}, menulis kunci, pesan, dan panjang pesan ke
+\texttt{hmac\_sha256}, menunggu hasilnya, lalu menyimpan delapan kata tag ke \texttt{tag\_mem}
+pada posisi yang sama dengan catatannya. Proses ini memerlukan beberapa mikrodetik, jauh lebih
+singkat daripada selang sampel 1~detik, sehingga permintaan tidak pernah menumpuk.
+
+\subsubsection*{Berbagi satu \texttt{hmac\_sha256}}
+
+Penanda tangan catatan dan mesin perintah sama-sama membutuhkan HMAC. Keduanya memakai satu
+\texttt{hmac\_sha256} yang sama, karena inti SHA-256 merupakan bagian terbesar dari rancangan dan
+penggunaannya jarang bertumpuk. Pembagiannya diatur oleh multiplexer pada Kode~\ref{lst:mux}.
+Selama penanda tangan bekerja, jalur ke \texttt{axil\_master} menjadi miliknya. Mesin perintah
+baru memakai jalur tersebut setelah tidak ada tag yang sedang atau akan dihitung, dan sinyal
+\texttt{cmd\_reserve} mencegah keduanya mengambil jalur pada siklus yang sama.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Multiplexer jalur HMAC di \texttt{auth\_ctrl.v} (baris 433--436).},
+  label={lst:mux}]
+wire        axi_start = sg_busy ? sg_axi_start : mm_axi_start;
+wire        axi_wr    = sg_busy ? sg_axi_wr    : mm_axi_wr;
+wire [7:0]  axi_addr  = sg_busy ? sg_axi_addr  : mm_axi_addr;
+wire [31:0] axi_wdata = sg_busy ? sg_axi_wdata : mm_axi_wdata;
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection*{Mesin perintah}
+
+Mesin perintah menunggu di keadaan \texttt{M\_IDLE} sampai pengurai frame menyerahkan frame yang
+sah. RESULT, LOCK, UNLOCK, dan STATUS diselesaikan langsung di keadaan tersebut. AUTH\_REQ dan
+READ\_HIST\_REQ memerlukan tanda tangan, sehingga melewati urutan keadaan berikut.
+\begin{enumerate}
+  \item \texttt{M\_WAIT} menunggu sampai sampel terakhir tersedia dan penanda tangan catatan
+    selesai, lalu menyusun pesan. Untuk AUTH\_REQ pesannya 39 byte dengan prefiks \texttt{0x41}.
+    Untuk READ\_HIST\_REQ, keadaan ini juga mengambil potret buffer, yaitu jumlah catatan, seq
+    tertua, dan seq terbaru, lalu menyusun pesan ringkasan 45 byte dengan prefiks \texttt{0x48}.
+  \item \texttt{M\_WR} dan \texttt{M\_WR\_WAIT} menulis kunci, pesan, panjang pesan, dan perintah
+    \textit{start} ke \texttt{hmac\_sha256}.
+  \item \texttt{M\_POLL} dan \texttt{M\_POLL\_WAIT} membaca register STATUS sampai bit
+    \textit{done} bernilai 1.
+  \item \texttt{M\_RD} dan \texttt{M\_RD\_WAIT} membaca delapan kata hasil HMAC.
+  \item \texttt{M\_TX} dan \texttt{M\_TX\_WAIT} mengirim balasan byte demi byte melalui
+    \texttt{uart\_if}. CRC dihitung dari byte yang benar-benar terkirim, kemudian dikirim sebagai
+    byte terakhir.
+\end{enumerate}
+Selama READ\_HIST\_REQ dilayani, buffer dan \texttt{tag\_mem} dibekukan sejak potret diambil
+sampai byte terakhir terkirim. Sampel yang selesai pada rentang tersebut ditahan di satu slot
+cadangan dan baru disimpan setelah pengiriman selesai. Dengan cara ini isi balasan selalu sesuai
+dengan rentang seq yang ditandatangani di tag ringkasan.
+
+\subsubsection*{Penguncian dan LED}
+
+RESULT dengan status \texttt{VALID} atau \texttt{HISTORY\_TRUNCATED} mengosongkan
+\texttt{fail\_cnt}. Status lain menambahkannya satu, dan ketika nilainya mencapai tiga,
+\texttt{locked\_r} menjadi 1. LOCK dan UNLOCK mengubah \texttt{locked\_r} secara langsung, dan
+UNLOCK juga mengosongkan \texttt{fail\_cnt}. Empat keluaran LED diturunkan dari keadaan ini, seperti
+pada Tabel~\ref{tab:led}. Pada KV260, \texttt{sebatt\_top} menyalakan LED hijau di Pmod 9 saat
+\texttt{led[2]} menyala dan \texttt{led[3]} padam, serta menyalakan LED merah di Pmod 10 mengikuti
+\texttt{led[3]}.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l X}
+    \toprule
+    Keluaran & Menyala ketika \\
+    \midrule
+    \texttt{led[0]} & Berkedip terus sebagai \textit{heartbeat}, sekitar 6~Hz pada 100~MHz \\
+    \texttt{led[1]} & Mesin perintah, penanda tangan, atau UART sedang bekerja \\
+    \texttt{led[2]} & RESULT terakhir menyatakan diterima \\
+    \texttt{led[3]} & Chip terkunci, RESULT terakhir menyatakan ditolak, frame rusak, atau pembacaan
+      ADC terakhir gagal \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Keluaran LED \texttt{auth\_ctrl}.}
+  \label{tab:led}
+\end{table}
 
 \subsection{Modul \texttt{ads1115\_ctrl} dan \texttt{i2c\_master}}
-\isi{Mode single-shot, konfigurasi 0xC383, jeda 10 ms, cek bus macet, sinkronisasi SDA/SCL
-dua flip-flop.}
+\label{subsec:adc}
+
+Pembacaan tegangan dibagi menjadi dua modul. Modul \texttt{ads1115\_ctrl} mengatur langkah
+pengambilan satu sampel dari ADS1115, sedangkan \texttt{i2c\_master} menjalankan transaksi I2C
+yang diminta. Pemisahan ini membuat \texttt{i2c\_master} tidak bergantung pada jenis ADC, sehingga
+dapat dipakai ulang untuk perangkat I2C lain.
+
+\subsubsection*{Langkah pengambilan sampel}
+
+Setiap pulsa \textit{start} dari \texttt{auth\_ctrl} menjalankan empat langkah berikut di
+\texttt{ads1115\_ctrl}.
+\begin{enumerate}
+  \item Menulis nilai \texttt{0xC383} ke register konfigurasi (\texttt{0x01}) di alamat I2C
+    \texttt{0x48}. Nilai ini sekaligus memulai satu konversi.
+  \item Menunggu 10~ms. Pada laju 128 sampel per detik, satu konversi memerlukan 7,8~ms.
+  \item Membaca 16 bit hasil konversi dari register \texttt{0x00}.
+  \item Mengubah hasil mentah menjadi milivolt dengan persamaan~\eqref{eq:adc}. Nilai negatif
+    dijadikan nol karena masukan A0 diukur terhadap GND.
+\end{enumerate}
+Tabel~\ref{tab:konfigadc} menguraikan arti nilai konfigurasi tersebut \cite{ads1115}. Mode
+\textit{single-shot} dipilih agar ADC hanya bekerja saat diminta. Dengan cara ini setiap sampel
+berasal dari konversi yang baru dimulai, dan selang sampel sepenuhnya diatur oleh
+\texttt{auth\_ctrl}.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l l X}
+    \toprule
+    Bit & Medan & Nilai & Arti \\
+    \midrule
+    15 & OS & 1 & Mulai satu konversi \\
+    14--12 & MUX & 100 & AIN0 terhadap GND \\
+    11--9 & PGA & 001 & Rentang $\pm$4,096~V, 1 LSB = 0,125~mV \\
+    8 & MODE & 1 & \textit{Single-shot}, ADC kembali diam setelah konversi \\
+    7--5 & DR & 100 & 128 sampel per detik \\
+    4--0 & COMP & 00011 & Komparator dimatikan \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Konfigurasi ADS1115 \texttt{0xC383}.}
+  \label{tab:konfigadc}
+\end{table}
+
+Apabila ADS1115 tidak menjawab dengan ACK pada salah satu transaksi, \texttt{ads1115\_ctrl}
+menaikkan sinyal \textit{error} dan tidak mengeluarkan sampel. Sinyal ini bertahan sampai pulsa
+\textit{start} berikutnya. Seperti dijelaskan pada Subbab~\ref{subsec:authctrl}, sampel yang gagal
+tidak disimpan sebagai catatan.
+
+\subsubsection*{Transaksi I2C}
+
+Modul \texttt{i2c\_master} mendukung dua jenis transaksi pada Gambar~\ref{fig:i2c}. Transaksi tulis
+mengirim alamat register dan dua byte data. Transaksi baca mengirim alamat register, mengulang
+kondisi \textit{start}, lalu menerima dua byte. Satu sampel memakai satu transaksi tulis dan satu
+transaksi baca.
+
+\begin{figure}[H]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[font=\scriptsize]
+    \tikzset{
+      m/.style={draw, minimum height=0.55cm, inner xsep=3pt, fill=covernavy!8},
+      s/.style={draw, minimum height=0.55cm, inner xsep=3pt, fill=covergold!20},
+      sim/.style={draw, minimum height=0.55cm, minimum width=0.5cm, fill=white},
+    }
+    \node[anchor=east, font=\footnotesize\bfseries, text=covernavy] at (-0.2,0) {Tulis};
+    \node[sim, anchor=west] (w0) at (0,0) {S};
+    \foreach \i/\sty/\txt [remember=\i as \prev (initially 0)] in
+      {1/m/{\texttt{0x48}+W}, 2/s/A, 3/m/{\texttt{0x01}}, 4/s/A, 5/m/{\texttt{0xC3}}, 6/s/A,
+       7/m/{\texttt{0x83}}, 8/s/A, 9/sim/P}
+      \node[\sty, anchor=west] (w\i) at (w\prev.east) {\txt};
+    \node[anchor=east, font=\footnotesize\bfseries, text=covernavy] at (-0.2,-1) {Baca};
+    \node[sim, anchor=west] (r0) at (0,-1) {S};
+    \foreach \i/\sty/\txt [remember=\i as \prev (initially 0)] in
+      {1/m/{\texttt{0x48}+W}, 2/s/A, 3/m/{\texttt{0x00}}, 4/s/A, 5/sim/Sr, 6/m/{\texttt{0x48}+R},
+       7/s/A, 8/s/MSB, 9/m/A, 10/s/LSB, 11/m/NA, 12/sim/P}
+      \node[\sty, anchor=west] (r\i) at (r\prev.east) {\txt};
+    \node[m, anchor=west, minimum width=0.45cm, minimum height=0.35cm] at (0,-1.9) {};
+    \node[anchor=west] at (0.5,-1.9) {dikirim FPGA};
+    \node[s, anchor=west, minimum width=0.45cm, minimum height=0.35cm] at (2.4,-1.9) {};
+    \node[anchor=west] at (2.9,-1.9) {dikirim ADS1115};
+    \node[anchor=west] at (5.4,-1.9) {S/Sr/P: \textit{start}, \textit{repeated start},
+      \textit{stop}. A/NA: ACK/NACK};
+  \end{tikzpicture}}
+  \caption{Dua transaksi I2C untuk satu sampel.}
+  \label{fig:i2c}
+\end{figure}
+
+SCL dibangkitkan dari \textit{clock} sistem dengan pembagi seperempat bit. Setiap periode SCL dibagi
+menjadi empat fase, dan perpindahan fase terjadi setiap
+$\texttt{CLK\_HZ} / (4 \times \texttt{I2C\_HZ})$ siklus, yaitu 250 siklus pada 100~MHz untuk SCL
+100~kHz. Pada kecepatan ini, transaksi tulis memerlukan sekitar 0,4~ms dan transaksi baca sekitar
+0,5~ms. Ditambah penantian konversi 10~ms, satu sampel selesai dalam sekitar 11~ms, jauh di bawah
+selang sampel 1~detik.
+
+Kedua jalur I2C dikendalikan secara \textit{open-drain}. FPGA hanya menarik jalur ke nol atau
+melepasnya, sedangkan logika satu berasal dari resistor \textit{pull-up} di modul ADS1115. Karena
+SDA dan SCL datang dari luar chip, keduanya diselaraskan dengan dua \textit{flip-flop} sebelum
+dibaca. Kode~\ref{lst:i2c} memperlihatkan bagian tersebut.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Jalur \textit{open-drain} dan sinkronisasi di \texttt{i2c\_master.v}
+  (diringkas dari baris 75--96).}, label={lst:i2c}]
+assign scl = scl_oen ? 1'b0 : 1'bz;
+assign sda = sda_oen ? 1'b0 : 1'bz;
+
+always @(posedge clk) begin
+    if (!resetn) begin
+        sda_sync <= 2'b11;
+        scl_sync <= 2'b11;
+    end else begin
+        sda_sync <= {sda_sync[0], sda};
+        scl_sync <= {scl_sync[0], scl};
+    end
+end
+
+wire sda_i    = sda_sync[1];
+wire bus_idle = sda_sync[1] && scl_sync[1];
+\end{lstlisting}
+\end{minipage}
+
+Sinyal \texttt{bus\_idle} dipakai untuk memeriksa bus sebelum transaksi dimulai. Transaksi hanya
+berjalan apabila SDA dan SCL sama-sama tinggi. Apabila salah satunya tertahan rendah, misalnya
+karena SDA terhubung singkat ke GND, \texttt{i2c\_master} langsung mengakhiri permintaan dengan
+tanda gagal. Tanpa pemeriksaan ini, jalur SDA yang tertahan rendah akan terbaca sebagai ACK
+diikuti data \texttt{0x0000}, sehingga sampel 0~mV palsu ikut tersimpan dan ditandatangani seolah
+merupakan hasil pengukuran.
 
 \subsection{Modul \texttt{uart\_if} dan \texttt{kv260\_top}}
-\isi{UART 115200 8N1. Top level: clock pl\_clk0 dari PS, sinkronisasi reset, LED heartbeat,
-pemilih sumber src\_sel di Pmod 3, dan file constraint kv260.xdc.}
+\label{subsec:uart}
+
+\subsubsection*{Antarmuka UART}
+
+Modul \texttt{uart\_if} mengirim dan menerima byte dalam format 8N1, yaitu satu bit
+\textit{start}, delapan bit data dengan bit terendah lebih dulu, tanpa paritas, dan satu bit
+\textit{stop}. Lebar satu bit adalah $\texttt{CLK\_HZ}/\texttt{BAUD}$ siklus, dibulatkan ke bawah.
+Pembulatan ini menghasilkan selisih kecepatan yang jauh di bawah toleransi UART pada kedua board,
+seperti pada Tabel~\ref{tab:baud}.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabular}{l r r r}
+    \toprule
+    Board & Siklus per bit & Kecepatan sebenarnya & Selisih \\
+    \midrule
+    KV260, 100~MHz & 868 & 115.207~bit/s & +0,006\% \\
+    Cmod~S7, 12~MHz & 104 & 115.385~bit/s & +0,16\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Pembagi kecepatan UART.}
+  \label{tab:baud}
+\end{table}
+
+Jalur penerima diselaraskan dengan dua \textit{flip-flop} karena datang dari luar chip. Penerima
+menunggu tepi turun, lalu memeriksa bit \textit{start} di tengah bit untuk menyaring gangguan
+singkat. Setiap bit data dibaca di tengah periodenya, sehingga selisih kecepatan kecil antara
+pengirim dan penerima masih dapat ditoleransi. Byte yang bit \textit{stop}-nya tidak bernilai 1
+dibuang tanpa diteruskan ke pengurai frame. Pengirim memakai register geser 10 bit yang berisi bit
+\textit{start}, data, dan bit \textit{stop}, lalu memberi pulsa \textit{done} setelah bit
+\textit{stop} selesai dikirim.
+
+\subsubsection*{Modul puncak \texttt{kv260\_top}}
+
+Modul \texttt{kv260\_top} menghubungkan IP SeBatt dengan KV260. Fungsinya ada empat.
+\begin{enumerate}
+  \item Mengambil \textit{clock} \texttt{pl\_clk0} 100~MHz dan reset \texttt{pl\_resetn0} dari
+    \textit{block design} PS (\texttt{design\_1\_wrapper}).
+  \item Menyelaraskan reset dengan dua \textit{flip-flop}. Reset dari PS tidak sinkron terhadap
+    \textit{clock}, sehingga reset langsung aktif saat diminta tetapi baru dilepas pada tepi
+    \textit{clock}. Dengan cara ini semua register keluar dari reset pada siklus yang sama.
+  \item Mengeluarkan \texttt{led[0]} sebagai LED \textit{heartbeat} di Pmod 4. LED ini berkedip
+    sekitar 6~Hz selama \textit{clock} PL berjalan, sehingga memudahkan memastikan
+    \textit{bitstream} sudah termuat.
+  \item Memasang parameter \texttt{sebatt\_top} sesuai Tabel~\ref{tab:parameter} dan meneruskan pin
+    \texttt{src\_sel} dari Pmod 3.
+\end{enumerate}
+Purwarupa ini tidak menyediakan tombol reset. Reset mengembalikan seq ke nol, sehingga stasiun akan
+melaporkan \texttt{HISTORY\_ROLLBACK} sampai seq kembali melewati jangkar basis data. Untuk memulai
+ulang, \textit{bitstream} dimuat kembali dan jangkar di stasiun ikut dikosongkan.
+
+\subsubsection*{Constraint \texttt{kv260.xdc}}
+
+Berkas \texttt{kv260.xdc} memetakan port \texttt{kv260\_top} ke pin paket FPGA pada header Pmod J2,
+seperti pada Tabel~\ref{tab:xdc}. Semua pin memakai standar I/O LVCMOS33. Berkas ini tidak
+mendefinisikan \textit{clock}, karena \textit{clock} beserta batasan waktunya sudah ditetapkan oleh
+\textit{block design} PS.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{c l l l X}
+    \toprule
+    Pmod & Pin paket & Port & Arah & Catatan \\
+    \midrule
+    1 & H12 & \texttt{scl} & dua arah & \textit{Pull-up} internal, ditambah \textit{pull-up}
+      modul ADS1115 \\
+    2 & E10 & \texttt{sda} & dua arah & Sama dengan \texttt{scl} \\
+    3 & D10 & \texttt{src\_sel} & masuk & Disambung ke GND untuk ADS1115 \\
+    4 & C11 & \texttt{led\_hb} & keluar & LED \textit{heartbeat} \\
+    7 & B10 & \texttt{uart\_tx} & keluar & Ke RXD CP2102 \\
+    8 & E12 & \texttt{uart\_rx} & masuk & \textit{Pull-up} internal agar diam di logika 1 saat
+      CP2102 dilepas \\
+    9 & D11 & \texttt{led\_green} & keluar & LED hijau \\
+    10 & B11 & \texttt{led\_red} & keluar & LED merah \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Pemetaan pin Pmod J2.}
+  \label{tab:xdc}
+\end{table}
+
+Nomor Pmod pada tabel mengikuti penomoran Digilent 12 pin, dengan pin 5 dan 11 sebagai GND serta
+pin 6 dan 12 sebagai 3,3~V. Skematik KV260 memberi label posisi header yang berbeda, sehingga
+penyambungan sebaiknya selalu mengacu pada penomoran Digilent.
+
+Berkas constraint memasang \textit{pull-down} internal pada \texttt{src\_sel}. Meskipun demikian,
+pada uji di board tanggal 21 Oktober 2026, Pmod 3 yang dibiarkan terbuka terbaca sebagai logika 1,
+sehingga chip memakai sumber nilai tetap 3000~mV. Karena itu Pmod 3 harus selalu disambung ke GND
+saat memakai ADS1115.
 
 \subsection{Verifikasi}
-\isi{Model referensi Python dan vektor uji, testbench cocotb beserta jumlah uji yang lolos,
-hasil sintesis dan WNS. Hanya angka yang sudah dijalankan ulang.}
+\label{subsec:verifikasi}
+
+Rancangan diverifikasi dalam tiga lapis sebelum dijalankan di board. Lapis pertama adalah model
+referensi Python yang diuji terhadap vektor resmi. Lapis kedua adalah simulasi RTL dengan
+\textit{testbench} cocotb, yang membandingkan keluaran rancangan dengan model tersebut. Lapis
+ketiga adalah sintesis dan implementasi untuk FPGA. Seluruh angka pada subbab ini berasal dari
+pengujian yang dijalankan ulang pada 22 Oktober 2026.
+
+\subsubsection*{Model referensi Python}
+
+Folder \texttt{model/} berisi implementasi SHA-256, HMAC, protokol frame, model chip, dan stasiun
+dalam Python murni. Model ini menjadi acuan bagi RTL, sehingga diuji lebih dulu terhadap vektor
+SHA-256 dari FIPS 180-4 \cite{fips180} dan vektor HMAC-SHA-256 dari RFC 4231 \cite{rfc4231}.
+Simulasi RTL memakai vektor resmi yang sama, dan untuk pesan SeBatt memanggil model ini secara
+langsung untuk menghitung jawaban yang diharapkan. Tabel~\ref{tab:ujimodel} merangkum hasil uji
+model.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l r X}
+    \toprule
+    Berkas uji & Lolos & Cakupan \\
+    \midrule
+    \texttt{test\_model.py} & 40/40 & Vektor FIPS 180-4 dan RFC 4231, batas pesan 55 dan 56 byte,
+      autentikasi, \textit{replay}, kunci salah, tegangan diubah, penguncian, CRC rusak, model
+      RO-PUF tahap 2 \\
+    \texttt{test\_history.py} & 19/19 & Verifikasi riwayat (utuh, celah, tertimpa, mundur, tag
+      ringkasan diubah), stasiun melalui saluran tiruan, kartu kesehatan untuk tiga profil \\
+    \texttt{web/test\_*.py} & 27/27 & Logika \textit{dashboard} mode simulasi dan mode FPGA dengan
+      model chip di memori \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Hasil uji model dan stasiun.}
+  \label{tab:ujimodel}
+\end{table}
+
+\subsubsection*{Simulasi RTL dengan cocotb}
+
+Simulasi dijalankan dengan cocotb 2.1.0 di atas Icarus Verilog 14.0 melalui perintah
+\texttt{make all} di folder \texttt{sim/}. Setiap modul diuji terpisah, kemudian
+\texttt{auth\_ctrl} diuji bersama seluruh modul di bawahnya melalui \textit{testbench}
+\texttt{tb\_auth.v}. Pada uji tersebut, \textit{testbench} berperan sebagai stasiun yang mengirim
+frame melalui UART, lalu membandingkan setiap balasan dengan hasil model Python. Seluruh 26 uji
+lolos, seperti pada Tabel~\ref{tab:ujicocotb}.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l r X}
+    \toprule
+    Suite & Lolos & Yang diperiksa \\
+    \midrule
+    \texttt{test\_sha256} & 5/5 & Vektor FIPS, pesan kosong, dua blok, inisialisasi ulang, jumlah
+      siklus per blok \\
+    \texttt{test\_hmac} & 4/4 & Tiga vektor RFC 4231 dan pesan autentikasi SeBatt \\
+    \texttt{test\_ads1115} & 4/4 & Pembacaan \textit{single-shot}, nilai negatif dijadikan nol,
+      SDA dan SCL tertahan rendah dilaporkan sebagai galat \\
+    \texttt{test\_auth\_ctrl} & 13/13 & AUTH sesuai model, nonce kedua, CRC salah dan perintah tak
+      dikenal diabaikan, STATUS, CHIP\_LOCKED, kunci setelah tiga kegagalan, LED mengikuti RESULT,
+      selang sampel, READ\_HIST buffer penuh sesuai model termasuk saat sampel masuk, sumber tanpa
+      ADC, pemulihan pengurai setelah frame rusak \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Hasil simulasi cocotb.}
+  \label{tab:ujicocotb}
+\end{table}
+
+Uji yang paling menentukan adalah READ\_HIST dengan buffer penuh saat sampel baru terus masuk. Uji
+ini memastikan pembekuan buffer pada Subbab~\ref{subsec:authctrl} bekerja, karena tag ringkasan
+dan isi 64 catatan dari RTL harus sama persis dengan hitungan model untuk rentang seq yang sama.
+
+\subsubsection*{Sintesis dan implementasi}
+
+Rancangan yang sama disintesis dan diimplementasikan untuk Cmod~S7 (xc7s25csga225-1) dengan
+Vivado 2026.1 melalui skrip \texttt{fpga/cmod\_s7/build.tcl}. Proses selesai tanpa galat dan tanpa
+\textit{critical warning}, dan pemeriksaan DRC bersih. Tabel~\ref{tab:sintesis} merangkum
+pemakaian sumber daya dan hasil analisis waktunya.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabular}{l r r r}
+    \toprule
+    Sumber daya & Terpakai & Tersedia & Persentase \\
+    \midrule
+    LUT & 5.688 & 14.600 & 39,0\% \\
+    \quad sebagai logika & 5.276 & 14.600 & 36,1\% \\
+    \quad sebagai memori & 412 & 5.000 & 8,2\% \\
+    Register & 6.217 & 29.200 & 21,3\% \\
+    Block RAM & 0 & 45 & 0\% \\
+    DSP & 0 & 80 & 0\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Hasil implementasi pada Cmod~S7.}
+  \label{tab:sintesis}
+\end{table}
+
+Rancangan tidak memakai Block RAM maupun DSP. Buffer catatan dan memori tag disusun dari LUT
+sebagai memori terdistribusi, sedangkan seluruh operasi SHA-256 hanya memakai penjumlahan, geser,
+dan logika bit. Analisis waktu pada \textit{clock} 12~MHz (periode 83,33~ns) menghasilkan WNS
++54,826~ns dan WHS +0,027~ns. Kedua nilai positif berarti semua jalur memenuhi batasan waktu, baik
+untuk \textit{setup} maupun \textit{hold}. Pada KV260, rancangan berjalan dengan \textit{clock}
+100~MHz sehingga ruang waktunya lebih sempit. \isian{WNS build KV260 dari laporan timing}
+
+Hasil pengujian di board dibahas pada Bab~\ref{sec:hasil}.
 
 % ============================================================
 %  5. PERAKITAN PERANGKAT
@@ -791,6 +1881,8 @@ berikutnya: kunci dari RO-PUF, penghitung di NVM, ADC satu die, sintesis SKY130.
     (SHS)}, FIPS PUB 180-4, 2015.
   \bibitem{ads1115} Texas Instruments, \textit{ADS111x Ultra-Small, Low-Power, I2C-Compatible,
     860-SPS, 16-Bit ADCs}, lembar data SBAS444.
+  \bibitem{rfc4231} M.~Nystrom, \textit{Identifiers and Test Vectors for HMAC-SHA-224,
+    HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512}, RFC 4231, IETF, 2005.
   % Belum disitasi. Rencana dipakai di Bab 6 (memuat bitstream ke KV260).
   \bibitem{kv260} AMD, \textit{Kria KV260 Vision AI Starter Kit User Guide}, UG1089.
 \end{thebibliography}
