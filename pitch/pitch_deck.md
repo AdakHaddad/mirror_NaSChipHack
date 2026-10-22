@@ -62,7 +62,7 @@ Kondisi per 21 Oktober. Setiap angka diberi sumbernya.
 | Latensi HMAC | ≤ 300 siklus clock | SHA-256 113 siklus per blok. HMAC memakai 4 blok, sekitar 452 siklus ditambah overhead, di atas target | Simulasi cocotb, perhitungan |
 | Latensi ujung ke ujung | < 20 ms (UART 115200) | 13,7 ms rata-rata (50 percobaan), 14,2–14,7 ms per percobaan tunggal | Uji board KV260, 21 Okt |
 | *Throughput* | ≥ 50 autentikasi per detik | 73,1 per detik, 50/50 VALID | Uji board KV260, 21 Okt |
-| Uji fungsi | 100% serangan ditolak, 1.000 percobaan per skenario | Serangan ubah/hapus/potong/replay ditolak di board; uji 1.000 percobaan belum dijalankan. 84 uji Python + 26 uji RTL | Uji board + simulasi, 21 Okt |
+| Uji fungsi | 100% serangan ditolak, 1.000 percobaan per skenario | Serangan ubah/hapus/potong/replay ditolak di board; uji 1.000 percobaan belum dijalankan. 86 uji Python + 26 uji RTL | Uji board + simulasi, 21 Okt |
 | Kepatuhan kripto | FIPS 180-4 dan RFC 4231 | RTL lolos vektor FIPS 180-4 dan RFC 4231 | Simulasi cocotb |
 | Sumber daya FPGA | < 5.000 LUT, Fmax ≥ 50 MHz | Cmod S7 sekitar 4.400 LUT. KV260 build penuh: WNS +0,749 ns @ 100 MHz, 5.607 LUT, 6.207 FF | Sintesis Vivado |
 | Perkiraan ASIC | Jumlah sel, luas, daya SKY130 | Belum dijalankan | – |

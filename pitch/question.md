@@ -322,7 +322,7 @@ pilot results.
 - TAM "USD 1.8 billion" or CAGR "24.5%". Unsourced; use the bottom-up numbers.
 - Royalty "USD 0.25–0.50 per chip". Off-benchmark; use 1–2% of chip price.
 - "No one has done this." Say "we have not found a commercial product."
-- "1,000 trials per scenario." Not run; say 84 Python tests, 26 RTL
+- "1,000 trials per scenario." Not run; say 86 Python tests, 26 RTL
   simulation tests, and the board attack tests.
 
 ## 9. Numbers cheat sheet
@@ -334,7 +334,7 @@ pilot results.
 | READ_HIST, 64 records | 292.5 ms | Includes 65 tag verifications |
 | HMAC core | ~452 cycles (113/block × 4) | Above the 300-cycle proposal target |
 | KV260 build | WNS +0.749 ns @ 100 MHz, 5,607 LUT, 6,207 FF | Latest build; board re-test pending |
-| Tests | 84 Python, 26 RTL (cocotb) | Plus board attack tests |
+| Tests | 86 Python, 26 RTL (cocotb) | Plus board attack tests |
 | History | 64 signed records, 32-bit sequence | 3 consecutive failures → lock |
 | Attacks rejected on board | tamper, delete, cut, replay | VALID on unmodified dumps |
 | Installed base estimate | ~20,000 batteries | 2,200 stations × 8–10 slots |
