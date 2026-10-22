@@ -53,7 +53,7 @@
 
 ---
 
-## Slide 5: Metrik Kinerja & Hasil Pengujian (3:15 - 4:00)
+## Slide 5: Metrik Kinerja & Hasil Pengujian (3:15 - 3:45)
 
 Kondisi per 21 Oktober. Setiap angka diberi sumbernya.
 
@@ -69,7 +69,17 @@ Kondisi per 21 Oktober. Setiap angka diberi sumbernya.
 
 ---
 
-## Slide 6: Model Bisnis & Pasar (4:00 - 4:30)
+## Slide 6: Infrastruktur Cloud & Basis Data Stasiun (3:45 - 4:15)
+
+- **Gambar slide**: [diagram infrastruktur cloud](../docs/gambar/cloud-infra.png) (16:9, siap tempel).
+- **Alur satu penukaran**: chip menandatangani sampel → kios meneruskan `nonce, ID, tag` lewat HTTPS → API gateway → layanan auth memverifikasi HMAC-SHA-256 lewat KMS/HSM (atau membuka kunci terbungkus), memeriksa nonce dan `seq ≥ jangkar` → basis data menyimpan jangkar, status, ringkasan riwayat, dan audit log dalam satu transaksi.
+- **Pembagian tanggung jawab**: tanda tangan dibuat di silikon di titik sensor. Cloud tidak menandatangani pengukuran yang tidak diambilnya; cloud hanya memverifikasi dan menyimpan jangkar. Kios tidak menyimpan K.
+- **Skala & biaya**: 40 byte/baterai → 4 MB per 100.000 baterai; riwayat lengkap ±15 GB/tahun; cloud + KMS/HSM Rp 10–30 juta/tahun (asumsi, dasar di [pitch-dan-angka](../bisnis/pitch-dan-angka.md)).
+- **Jalur produk**: tahap 1 HMAC → kios wajib online setiap penukaran; tahap 2 ECDSA → kios memverifikasi dengan public key dan boleh offline, cloud menyimpan status dan revokasi.
+
+---
+
+## Slide 7: Model Bisnis & Pasar (4:15 - 4:40)
 
 - **Pasar Sasaran**: Operator swap (SWAP Energi, Electrum, V-Green/VinFast, Volta/Oyika) & produsen BMS/gauge nasional.
 - **Model Monetisasi** (dasar & sumber lengkap di [../bisnis/pitch-dan-angka.md](../bisnis/pitch-dan-angka.md)):
@@ -81,7 +91,7 @@ Kondisi per 21 Oktober. Setiap angka diberi sumbernya.
 
 ---
 
-## Slide 7: Tim & Penutup (4:30 - 5:00)
+## Slide 8: Tim & Penutup (4:40 - 5:00)
 
 - **Tim NaS (Universitas Gadjah Mada)**:
   - **Guntur Sulistyo** (Ketua / Hardware-in-the-Loop & Power Electronics)
