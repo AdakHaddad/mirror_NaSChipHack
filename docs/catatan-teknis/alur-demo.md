@@ -2,7 +2,7 @@
 
 ![Ilustrasi demo SeBatt: susunan meja dan tiga adegan](../gambar/alur-demo.png)
 
-Rencana demo sekitar 60 detik di dalam pitch 5 menit. Penjelasan teknis alurnya ada di [alur-teknis.md](alur-teknis.md).
+Rencana demo sekitar 60 detik di dalam pitch 5 menit. Penjelasan teknis alurnya ada di [alur-teknis.md](alur-teknis.md). Langkah operasional dengan board dan dashboard, termasuk urutan tombol yang sudah dicoba di KV260, ada di [cara-demo.md](cara-demo.md).
 
 ## Ringkasan Kebutuhan
 
