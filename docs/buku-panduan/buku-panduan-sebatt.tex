@@ -1,0 +1,855 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+%  Buku Panduan SeBatt (Secure Battery Identity Chip)
+%  Gaya mengikuti buku "Implementasi CORDIC dan Transformasi Clarke-Park"
+%  (POWEL/Project/fpga-cordic). Kompilasi dari folder ini:
+%    latexmk -pdf buku-panduan-sebatt.tex
+%  Status: kerangka. Setiap \isi{...} adalah catatan isi yang masih harus
+%  ditulis, dan \isian{...} adalah angka yang menunggu hasil uji.
+% ============================================================
+
+% ============================================================
+%  PAKET
+% ============================================================
+\usepackage[top=3cm, bottom=3cm, left=3cm, right=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[indonesian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage[nobottomtitles*]{titlesec}
+\usepackage[default]{lato}
+\usepackage{indentfirst}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, fit, backgrounds}
+
+\captionsetup{font=small, labelfont=bf, skip=5pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+
+% ============================================================
+%  WARNA
+% ============================================================
+\definecolor{headinggray}{HTML}{4A5560}
+\definecolor{accentred}{HTML}{D32F2F}
+\definecolor{rule}{HTML}{C7CDD2}
+\definecolor{covernavy}{HTML}{1F2F4A}
+\definecolor{covergold}{HTML}{B8923A}
+\definecolor{covernavylight}{HTML}{3D5A80}
+\definecolor{covergray}{HTML}{6B7280}
+
+\setlist{itemsep=3pt, topsep=4pt}
+% Ruang tambahan agar baris dengan nama modul \texttt panjang tidak menonjol keluar margin
+\setlength{\emergencystretch}{2em}
+% Gambar isi di images/, gambar teknis bersama dari docs/gambar/
+\graphicspath{{images/}{../gambar/}}
+\renewcommand{\figurename}{Gambar}
+\renewcommand{\tablename}{Tabel}
+\renewcommand{\contentsname}{Daftar Isi}
+\renewcommand{\refname}{Daftar Pustaka}
+\renewcommand{\lstlistingname}{Kode}
+
+% Isian yang menunggu hasil uji: \isian{keterangan}
+\newcommand{\isian}[1]{\textcolor{accentred}{[#1]}}
+
+% Catatan kerangka (isi yang belum ditulis): \isi{keterangan}
+\newcommand{\isi}[1]{%
+  \par\noindent\fcolorbox{rule}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+    \small\itshape\color{gray!70!black}[Isi] #1}}\par\medskip}
+
+% Kotak pengganti gambar yang belum ada: \gambarplaceholder{keterangan}
+\newcommand{\gambarplaceholder}[1]{%
+  \begin{center}
+    \fbox{\parbox[c][2.6cm][c]{0.8\textwidth}{\centering\small\itshape\color{gray}
+      [GAMBAR BELUM ADA]\\[4pt] #1}}
+  \end{center}
+}
+
+% Gambar dari berkas: \gambarberkas{nama.png}{lebar}{keterangan}{label}
+% Selama berkasnya belum ada, yang tampil kotak berisi nama berkas yang harus disiapkan.
+\newcommand{\gambarberkas}[4]{%
+  \begin{figure}[H]
+    \centering
+    \IfFileExists{images/#1}{\includegraphics[width=#2\textwidth]{#1}}{%
+    \IfFileExists{../gambar/#1}{\includegraphics[width=#2\textwidth]{#1}}{%
+      \fbox{\parbox[c][2.6cm][c]{0.8\textwidth}{\centering\small\color{gray}
+        [GAMBAR BELUM ADA]\\[4pt] \texttt{images/#1}}}}}
+    \caption{#3}
+    \label{#4}
+  \end{figure}
+}
+
+% ============================================================
+%  HEADER DAN FOOTER
+% ============================================================
+\setlength{\headheight}{14pt}
+% \rightmark memberi bab pertama pada halaman, sehingga header cocok dengan judul di atasnya
+\renewcommand{\sectionmark}[1]{\markboth{\thesection\quad #1}{\thesection\quad #1}}
+\renewcommand{\subsectionmark}[1]{}
+\renewcommand{\headrule}{{\color{rule}\hrule width\headwidth height\headrulewidth}}
+\newcommand{\nomorhalaman}{%
+  \tikz[baseline=(n.base)]\node[fill=covernavy, text=white, rounded corners=2pt, inner xsep=5pt,
+    inner ysep=3pt, font=\small\bfseries] (n) {\thepage};}
+\fancypagestyle{isi}{%
+  \fancyhf{}
+  \fancyhead[L]{%
+    \begin{tikzpicture}[remember picture, overlay]
+      \fill[covernavy] (current page.north west) rectangle
+        ([xshift=0.9cm, yshift=-2.6cm]current page.north west);
+    \end{tikzpicture}%
+    \small\color{headinggray!70}SeBatt: Secure Battery Identity Chip pada FPGA}
+  \fancyhead[R]{\small\bfseries\color{covernavy}%
+    \tikz[baseline=-0.6ex]\fill[covergold] (0,0) rectangle (0.16,0.16);\hspace{0.5em}\rightmark}
+  \fancyfoot[C]{\nomorhalaman}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0pt}}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\small\color{headinggray}\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}}
+\pagestyle{isi}
+
+% ============================================================
+%  GAYA LISTING KODE (Verilog dan terminal)
+% ============================================================
+\lstset{
+  language=Verilog,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\bfseries\color{headinggray},
+  commentstyle=\itshape\color{gray!70!black},
+  stringstyle=\color{accentred!80!black},
+  breaklines=true,
+  breakindent=1.5em,
+  frame=single,
+  rulecolor=\color{rule},
+  columns=fixed,
+  basewidth=0.52em,
+  keepspaces=true,
+  backgroundcolor=\color{gray!5},
+  showstringspaces=false,
+  tabsize=2,
+}
+\lstdefinestyle{terminal}{language={}, basicstyle=\ttfamily\small}
+
+% ============================================================
+%  HYPERLINK DAN METADATA PDF
+% ============================================================
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=covernavylight,
+  urlcolor=blue,
+  pdftitle={SeBatt: Secure Battery Identity Chip pada FPGA},
+  pdfauthor={Guntur Sulistyo, Muhammad Budi Setiawan, Muhammad Muqtada Alhaddad},
+}
+
+\newcommand{\tanggalindo}{%
+  \number\day{} %
+  \ifcase\month\or Januari\or Februari\or Maret\or April\or Mei\or Juni\or
+    Juli\or Agustus\or September\or Oktober\or November\or Desember\fi
+  \space \number\year}
+
+% ============================================================
+%  FORMAT JUDUL SECTION
+% ============================================================
+\titleformat{\section}
+  {\Large\bfseries\color{covernavy}}
+  {\thesection}{0.6em}{}
+  [{\color{covergold}\titlerule[1.2pt]}]
+\titleformat{\subsection}{\large\bfseries\color{covernavy}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{covernavylight}}{\thesubsubsection}{0.6em}{}
+
+\titlespacing*{\section}{0pt}{1.6em}{0.8em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.5em}
+\titlespacing*{\subsubsection}{0pt}{1em}{0.4em}
+
+\begin{document}
+
+% ============================================================
+%  SAMPUL
+% ============================================================
+\begin{titlepage}
+  \begin{tikzpicture}[remember picture, overlay, >=stealth]
+    % batang tepi kiri
+    \fill[covernavy] (current page.north west) rectangle
+      ([xshift=0.9cm]current page.south west);
+    % judul
+    \node[anchor=north west, text width=14.5cm, align=left, text=covernavy]
+      at ([xshift=3cm, yshift=-5cm]current page.north west) {%
+      {\fontsize{30}{38}\selectfont\bfseries\spaceskip=0.32em\xspaceskip=0.32em
+        SeBatt: Secure\\Battery Identity Chip\\pada FPGA\par}};
+    \fill[covergold] ([xshift=3cm, yshift=-11.4cm]current page.north west) rectangle
+      ([xshift=5.5cm, yshift=-11.55cm]current page.north west);
+    \node[anchor=north west, text width=14.5cm, align=left, text=covergray]
+      at ([xshift=3cm, yshift=-12cm]current page.north west) {%
+      {\large Riwayat Tegangan Baterai Bertanda Tangan HMAC-SHA-256,\\
+        Perakitan, dan Penggunaan\par}};
+    % ilustrasi: rantai catatan bertanda tangan, satu catatan disorot
+    \begin{scope}[shift={([xshift=-9.6cm, yshift=4.2cm]current page.south east)}]
+      \foreach \i/\s in {0/41, 1/42, 2/43, 3/44} {
+        \draw[covernavy!35, line width=0.6pt, rounded corners=2pt]
+          (\i*2.2, 0) rectangle ++(1.7, 1.15);
+        \node[font=\scriptsize\ttfamily, text=covernavy!60, anchor=north west]
+          at (\i*2.2+0.12, 1.05) {seq \s};
+        \draw[covernavy!25, line width=0.5pt] (\i*2.2+0.15, 0.45) -- ++(1.4, 0);
+        \draw[covernavy!25, line width=0.5pt] (\i*2.2+0.15, 0.25) -- ++(1.0, 0);
+      }
+      \foreach \i in {0, 1, 2}
+        \draw[->, covernavy!35, line width=0.6pt] (\i*2.2+1.7, 0.575) -- ++(0.5, 0);
+      \draw[covergold, line width=1.4pt, rounded corners=2pt] (3*2.2, 0) rectangle ++(1.7, 1.15);
+      \fill[covergold] (3*2.2+1.45, 0.25) circle (0.07);
+    \end{scope}
+    % penulis
+    \node[anchor=south west, align=left, text width=14cm, text=covernavy]
+      at ([xshift=3cm, yshift=3cm]current page.south west) {%
+      {\large\bfseries Guntur Sulistyo\par}
+      \vspace{0.15cm}
+      {\large\bfseries Muhammad Budi Setiawan\par}
+      \vspace{0.15cm}
+      {\large\bfseries Muhammad Muqtada Alhaddad\par}
+      \vspace{0.3cm}
+      {\normalsize\color{covergray} Tim NaS, Universitas Gadjah Mada\par}};
+  \end{tikzpicture}
+\end{titlepage}
+
+\pagenumbering{roman}
+\pagestyle{plain}
+
+% ============================================================
+%  PENGANTAR
+% ============================================================
+\section*{Pengantar}
+\addcontentsline{toc}{section}{Pengantar}
+
+Puji syukur penulis panjatkan ke hadirat Tuhan Yang Maha Esa, karena atas rahmat-Nya buku
+\textit{SeBatt: Secure Battery Identity Chip pada FPGA} ini dapat diselesaikan.
+
+Baterai motor listrik pada jaringan stasiun penukaran berpindah tangan setiap kali ditukar.
+Riwayat pemakaiannya, misalnya pernah terkuras dalam, menentukan nilai sisa dan klaim garansi,
+tetapi riwayat tersebut dapat diubah atau di-reset tanpa diketahui stasiun. SeBatt menandatangani
+setiap sampel tegangan dengan HMAC-SHA-256 beserta nomor urutnya, sehingga stasiun dapat
+memeriksa apakah riwayat sebuah baterai masih utuh.
+
+Buku ini membahas SeBatt mulai dari konsep dasar dan protokolnya, rancangan modul Verilog, dan
+perakitan rangkaian pembacaan tegangan, sampai penggunaan stasiun dan hasil pengujian di
+perangkat keras. Purwarupa yang dibahas berjalan sebagai RTL pada FPGA AMD Kria KV260, membaca
+baterai LiPo melalui ADC ADS1115, dan diperiksa oleh program stasiun berbasis Python. Kode
+lengkap semua modul dimuat pada lampiran, sehingga pembaca dapat mengikuti dan mengulangi setiap
+langkah.
+
+Buku ini ditujukan bagi mahasiswa, peneliti, dan pengembang di bidang sistem digital dan sistem
+baterai yang ingin menjalankan ulang atau melanjutkan purwarupa SeBatt. Pembaca diharapkan sudah
+mengenal dasar Verilog dan Python, tetapi tidak harus sudah memahami HMAC maupun protokol
+stasiun penukaran.
+
+Purwarupa SeBatt dikembangkan dalam Hackathon Deeptech 2026: \textit{Designing Chips for
+Real-World Impact} yang diselenggarakan oleh ICDeC ITB. Penulis mengucapkan terima kasih kepada
+penyelenggara, para mentor, serta semua pihak yang telah membantu.
+
+Penulis berharap buku ini bermanfaat bagi pembaca. Kritik dan saran untuk perbaikan buku ini
+sangat penulis harapkan.
+
+\vspace{1cm}
+\begin{flushright}
+  Bandung, \tanggalindo\\[1.5cm]
+  Tim NaS
+\end{flushright}
+
+\clearpage
+
+% ============================================================
+%  DAFTAR ISI
+% ============================================================
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+\pagestyle{isi}
+
+% ============================================================
+%  1. PENDAHULUAN
+% ============================================================
+\section{Pendahuluan}
+\label{sec:pendahuluan}
+
+Jumlah kendaraan listrik di Indonesia mencapai 541.678 unit pada Agustus 2026
+\cite{okezone}. Sebagian sepeda motor listrik memakai baterai yang ditukar di stasiun penukaran.
+SWAP Energi mengoperasikan lebih dari 1.500 stasiun \cite{swapid}, Electrum lebih dari 400
+stasiun \cite{electrum}, dan V-Green lebih dari 2.000 titik penukaran \cite{detikvgreen}.
+Pertumbuhan ini juga diperhitungkan dalam perencanaan ketenagalistrikan nasional. Rencana Umum
+Ketenagalistrikan Nasional (RUKN) memproyeksikan kebutuhan listrik naik dari sekitar 539~TWh
+pada 2025 menjadi sekitar 1.813~TWh pada 2060, dengan kendaraan bermotor listrik menyumbang
+sekitar 11\% dari kebutuhan tahun 2060 \cite{rukn}. Rencana Usaha Penyediaan Tenaga Listrik
+(RUPTL) PT PLN (Persero) 2025--2034 memasukkan kendaraan listrik sebagai salah satu pendorong
+pertumbuhan kebutuhan listrik \cite{paparanruptl} dan mencakup penyediaan stasiun penukaran
+baterai kendaraan listrik umum (SPBKLU) untuk kendaraan roda dua \cite{databoksruptl}.
+
+Pada model penukaran, baterai dimiliki operator, sehingga satu baterai berpindah dari satu pengendara ke
+pengendara lain setiap kali ditukar. Harga satu baterai mencapai Rp4,55 juta \cite{detikvgreen}.
+Nilai sisa dan klaim garansinya bergantung pada riwayat pemakaian, misalnya berapa kali baterai
+pernah terkuras di bawah batas aman.
+
+\textit{Gauge} baterai yang beredar sudah merekam riwayat pemakaian. Sebagai contoh, BQ40Z50 dari
+Texas Instruments menyimpan \textit{Lifetime Data} dan \textit{Black Box Recorder}, tetapi riwayat
+tersebut hanya dilindungi mode akses \texttt{SEALED} dan \texttt{UNSEALED} serta dapat dihapus
+melalui perintah \textit{Lifetime Data Reset} \cite{bq40z50}. Autentikasi pada \textit{gauge}
+tersebut hanya membuktikan identitas baterai, sedangkan data ukurnya tidak ikut ditandatangani.
+Akibatnya, stasiun yang membaca riwayat tidak dapat membedakan riwayat asli dari riwayat yang
+telah diubah atau di-\textit{reset}.
+
+SeBatt menandatangani setiap sampel tegangan di dalam rangkaian yang sama dengan pembacanya.
+Setiap sampel diberi nomor urut yang hanya bertambah, lalu ditandatangani dengan HMAC-SHA-256
+bersama identitas baterai. Saat baterai ditukar, stasiun meminta seluruh riwayat dengan nonce
+baru dan menghitung ulang setiap tanda tangan, sehingga catatan yang diubah, dihapus, atau
+diputar balik akan ditolak. Buku ini memandu pembuatan dan penggunaan SeBatt sampai terbukti
+bekerja di FPGA. Setiap bagian dikerjakan dengan urutan yang sama, yaitu konsep, protokol, modul
+Verilog, verifikasi dengan model Python dan \textit{testbench} cocotb, lalu uji di board.
+
+{\sloppy
+Modul yang dibahas adalah \texttt{auth\_ctrl}, \texttt{hmac\_sha256}, \texttt{sha256\_core},
+\texttt{uart\_if}, \texttt{ads1115\_ctrl}, dan \texttt{i2c\_master}, yang dirangkai oleh
+\texttt{sebatt\_top} dan \texttt{kv260\_top}. Semua modul ditulis dalam Verilog standar tanpa IP
+vendor dan tanpa prosesor lunak. Rancangan dijalankan pada board AMD Kria KV260 dengan
+\textit{clock} 100~MHz dari PS. Tegangan baterai LiPo 3S dibaca melalui modul ADC ADS1115,
+sedangkan stasiun berjalan sebagai program Python di laptop yang terhubung melalui adaptor UART
+CP2102. Purwarupa ini masih memakai kunci tetap, penghitung nomor urut yang kembali ke nol saat
+daya dicabut, dan ADC berupa modul terpisah. Batasan tersebut dibahas pada Bab~\ref{sec:masalah}.
+\par}
+
+Pembaca diasumsikan sudah mengenal dasar Verilog, seperti \texttt{module}, \texttt{reg}, dan
+blok \texttt{always}, pernah memakai Vivado, serta dapat menjalankan program Python dari
+terminal. Pembaca tidak harus sudah memahami HMAC, nonce, atau protokol stasiun penukaran, karena
+konsep tersebut dijelaskan pada Bab~\ref{sec:konsep}.
+
+Gambar~\ref{fig:petabuku} memperlihatkan hubungan antarbab. Bab~\ref{sec:konsep} menjelaskan
+tanda tangan HMAC, nonce, nomor urut, dan pembacaan tegangan. Konsep tersebut dipakai
+Bab~\ref{sec:arsitektur} untuk menyusun format frame, alur penukaran, dan kode status.
+Bab~\ref{sec:rtl} mewujudkan protokol tersebut menjadi modul Verilog beserta verifikasinya.
+Bab~\ref{sec:rakit} merakit rangkaian pembacaan tegangan dan sambungannya ke board.
+Bab~\ref{sec:panduan} memandu penggunaan stasiun dalam skenario normal maupun serangan. Hasil
+pengujiannya di board dimuat pada Bab~\ref{sec:hasil}. Pemecahan masalah, peringatan, dan batasan
+purwarupa dimuat pada Bab~\ref{sec:masalah}.
+
+\begin{figure}[H]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[>=stealth, font=\footnotesize,
+      blok/.style={draw, rounded corners, fill=white, minimum width=2.4cm,
+        minimum height=0.7cm, align=center}]
+    \node[blok, minimum height=2.3cm] (ks) at (0,0) {HMAC, nonce,\\nomor urut,\\pembagi\\tegangan};
+    \node[blok, minimum height=2.3cm] (pr) at (3.2,0) {Frame dan\\perintah,\\kode status};
+    \node[blok] (au) at (6.6,0.85) {\texttt{auth\_ctrl}};
+    \node[blok] (hm) at (6.6,0) {\texttt{hmac\_sha256}};
+    \node[blok] (ad) at (6.6,-0.85) {\texttt{ads1115\_ctrl}};
+    \node[blok] (rk) at (10.0,0.45) {Rangkaian\\LiPo + ADC};
+    \node[blok] (pm) at (10.0,-0.6) {Pmod J2};
+    \node[blok] (st) at (13.4,0.45) {Stasiun dan\\\textit{dashboard}};
+    \node[blok] (sk) at (13.4,-0.6) {Skenario uji};
+    \begin{scope}[on background layer]
+      \node[draw=gray!60, fill=gray!6, rounded corners, inner sep=7pt, fit=(ks),
+        label={[font=\small]above:Bab~\ref{sec:konsep}}] (b2) {};
+      \node[draw=gray!60, fill=gray!6, rounded corners, inner sep=7pt, fit=(pr),
+        label={[font=\small]above:Bab~\ref{sec:arsitektur}}] (b3) {};
+      \node[draw=gray!60, fill=gray!6, rounded corners, inner sep=7pt, fit=(au)(hm)(ad),
+        label={[font=\small]above:Bab~\ref{sec:rtl}}] (b4) {};
+      \node[draw=gray!60, fill=gray!6, rounded corners, inner sep=7pt, fit=(rk)(pm),
+        label={[font=\small]above:Bab~\ref{sec:rakit}}] (b5) {};
+      \node[draw=gray!60, fill=gray!6, rounded corners, inner sep=7pt, fit=(st)(sk),
+        label={[font=\small]above:Bab~\ref{sec:panduan}--\ref{sec:hasil}}] (b6) {};
+    \end{scope}
+    \draw[->] (b2.east) -- (b3.west);
+    \draw[->] (b3.east) -- (b4.west);
+    \draw[->] (b4.east) -- (b5.west);
+    \draw[->] (b5.east) -- (b6.west);
+  \end{tikzpicture}}
+  \caption{Peta buku dan bagian yang dibangun pada setiap bab.}
+  \label{fig:petabuku}
+\end{figure}
+
+% ============================================================
+%  2. KONSEP DASAR
+% ============================================================
+\section{Konsep Dasar}
+\label{sec:konsep}
+
+Bab ini menjelaskan empat konsep yang dipakai di seluruh buku, yaitu tanda tangan HMAC-SHA-256,
+nonce, nomor urut monoton, dan pembacaan tegangan baterai melalui pembagi tegangan. Setiap
+konsep langsung dikaitkan dengan perannya di SeBatt dan dengan kode status yang dilaporkan
+stasiun. Istilah lain yang muncul di buku ini dirangkum pada Lampiran~\ref{app:istilah}.
+
+\subsection{Tanda Tangan HMAC-SHA-256}
+\label{subsec:hmac}
+
+Tanda tangan pada SeBatt dibuat dengan HMAC, yaitu fungsi yang menggabungkan kunci rahasia $K$
+dengan sebuah pesan $m$ melalui fungsi hash \cite{rfc2104}. Fungsi hash yang dipakai adalah
+SHA-256, yang menghasilkan keluaran 32 byte \cite{fips180}. HMAC dihitung dengan dua kali
+pemanggilan hash:
+\begin{equation}
+  \mathrm{HMAC}(K, m) = H\big((K \oplus \mathit{opad}) \,\|\, H((K \oplus \mathit{ipad}) \,\|\, m)\big)
+  \label{eq:hmac}
+\end{equation}
+dengan $H$ fungsi SHA-256, $\|$ penyambungan byte, serta $\mathit{ipad}$ dan $\mathit{opad}$
+konstanta 64 byte bernilai \texttt{0x36} dan \texttt{0x5C} yang diulang. Keluaran HMAC disebut
+\textit{tag}.
+
+Ada dua sifat tag yang dipakai SeBatt. Pertama, perubahan satu bit saja pada pesan menghasilkan
+tag yang sama sekali berbeda. Kedua, tag yang benar tidak dapat dibuat tanpa mengetahui $K$.
+Kunci $K$ sepanjang 32 byte tersimpan di chip dan di basis data stasiun, dan tidak pernah
+dikirim melalui saluran komunikasi.
+
+Setiap sampel tegangan ditandatangani saat sampel diambil. Pesan yang ditandatangani terdiri
+atas satu byte prefiks \texttt{0x53}, identitas baterai 4 byte, nomor urut 4 byte, dan tegangan
+2 byte:
+\begin{equation}
+  \mathit{tag} = \mathrm{HMAC}\big(K,\; \texttt{0x53} \,\|\, \mathit{ID} \,\|\, \mathit{seq}
+    \,\|\, V\big)
+  \label{eq:tagcatatan}
+\end{equation}
+Stasiun menghitung ulang persamaan~\eqref{eq:tagcatatan} untuk setiap catatan yang diterimanya.
+Apabila sebuah tegangan diubah setelah keluar dari chip, tag hasil hitungan stasiun tidak lagi
+cocok dengan tag di catatan, sehingga riwayat ditolak dengan status \texttt{INVALID\_HMAC}.
+Prefiks \texttt{0x53} membedakan pesan catatan dari dua pesan bertanda tangan lain pada
+Bab~\ref{sec:arsitektur}, sehingga tag dari satu jenis pesan tidak dapat dipakai sebagai tag
+jenis pesan lainnya.
+
+\subsection{Nonce dan Serangan \textit{Replay}}
+\label{subsec:nonce}
+
+Tag pada persamaan~\eqref{eq:tagcatatan} membuktikan bahwa sebuah catatan berasal dari chip,
+tetapi belum membuktikan bahwa catatan tersebut dikirim saat ini. Penyerang dapat merekam
+balasan chip pada suatu waktu, lalu memutarnya ulang di kemudian hari, misalnya untuk menutupi
+riwayat yang terjadi sesudah rekaman dibuat. Serangan semacam ini disebut \textit{replay}.
+
+Untuk mencegahnya, stasiun membuat nonce, yaitu bilangan acak 32 byte yang baru untuk setiap
+pemeriksaan. Nonce dikirim ke chip dan ikut ditandatangani di dalam balasan. Balasan hasil
+rekaman memuat nonce lama, sehingga tag-nya tidak cocok dengan nonce baru yang sedang diperiksa
+stasiun dan balasan tersebut ditolak dengan status \texttt{INVALID\_HMAC}. Stasiun juga
+mencatat setiap nonce yang sudah dipakai. Pemeriksaan yang memakai nonce yang sama untuk kedua
+kalinya ditolak dengan status \texttt{REPLAY\_DETECTED}.
+
+\subsection{Nomor Urut Monoton}
+\label{subsec:seq}
+
+Tanda tangan per catatan belum cukup untuk mendeteksi catatan yang dihapus, karena catatan yang
+tersisa tetap memiliki tag yang sah. Karena itu, setiap sampel diberi nomor urut (\textit{seq})
+dari penghitung 32 bit di chip. Penghitung ini hanya bertambah satu setiap kali sampel diambil
+dan tidak dapat diatur ulang melalui perintah apa pun. Akibatnya, riwayat yang utuh selalu
+berupa deret seq yang berurutan tanpa celah.
+
+Saat membaca riwayat, chip juga mengirim tag ringkasan yang mengikat nonce, identitas baterai,
+seq tertua, dan seq terbaru di dalam buffer. Dengan tag ini stasiun mengetahui rentang seq yang
+seharusnya diterima. Basis data stasiun menyimpan seq terakhir yang telah diverifikasi untuk
+setiap baterai. Dari dua informasi tersebut, stasiun membedakan empat keadaan berikut.
+\begin{itemize}
+  \item \textbf{Deret utuh.} Seq berurutan dari seq tertua sampai seq terbaru dan setiap tag
+    cocok. Riwayat diterima dengan status \texttt{VALID}.
+  \item \textbf{Celah di tengah.} Ada seq yang hilang atau jumlah catatan tidak sesuai rentang
+    yang ditandatangani. Riwayat ditolak dengan status \texttt{HISTORY\_GAP}.
+  \item \textbf{Mundur.} Seq terbaru lebih kecil daripada seq terakhir di basis data, misalnya
+    karena chip dikembalikan ke keadaan lama. Riwayat ditolak dengan status
+    \texttt{HISTORY\_ROLLBACK}.
+  \item \textbf{Tertimpa buffer.} Buffer chip hanya menampung 64 catatan, sehingga catatan
+    tertua dapat tertimpa sebelum stasiun sempat membacanya. Selama sisa catatan berurutan dan
+    seluruh tag cocok, riwayat tetap diterima dengan status \texttt{HISTORY\_TRUNCATED}.
+\end{itemize}
+Memotong catatan terbaru juga terdeteksi. Seq terbaru ikut ditandatangani di dalam tag
+ringkasan, sehingga rentang yang dipersempit membuat tag ringkasan tidak cocok dan riwayat
+ditolak dengan status \texttt{INVALID\_HMAC}.
+
+\subsection{Pembacaan Tegangan Baterai}
+\label{subsec:pembagi}
+
+Tegangan baterai LiPo 3S berada di antara 9,0~V saat batas terkuras dan 12,6~V saat penuh,
+jauh di atas batas masukan ADC sebesar 3,3~V. Tegangan tersebut diturunkan lebih dulu dengan
+pembagi tegangan yang tersusun atas resistor $R_1$, potensiometer $P$, dan resistor $R_2$.
+Dengan potensiometer di ujung atas, tegangan yang masuk ke ADC adalah
+\begin{equation}
+  V_{A0} = V_{\mathrm{bat}} \cdot \frac{P + R_2}{R_1 + P + R_2}
+         = V_{\mathrm{bat}} \cdot \frac{10 + 15}{120 + 10 + 15}
+         = \frac{V_{\mathrm{bat}}}{5{,}8}
+  \label{eq:pembagi}
+\end{equation}
+sehingga tegangan 9,0--12,6~V menjadi 1,55--2,17~V di masukan ADC. Memutar potensiometer ke
+bawah memperkecil rasio pembagi sampai $15/145$. Cara ini dipakai untuk memperagakan baterai
+yang terkuras tanpa benar-benar menguras sel LiPo, sebagaimana dijelaskan pada
+Bab~\ref{sec:rakit}.
+
+Tegangan pada masukan A0 diubah menjadi bilangan 16 bit oleh ADS1115 \cite{ads1115}. Dengan
+rentang $\pm$4,096~V, satu LSB setara dengan 0,125~mV, sehingga nilai dalam milivolt diperoleh
+dengan menggeser hasil mentah tiga bit ke kanan:
+\begin{equation}
+  V_{A0}\,[\mathrm{mV}] = \frac{\mathit{raw}}{8}
+  \label{eq:adc}
+\end{equation}
+FPGA membaca nilai tersebut melalui I2C dan menandatanganinya apa adanya. Nilai yang
+ditandatangani adalah milivolt di pin A0, bukan tegangan baterai. Stasiun kemudian
+mengalikannya dengan faktor 5,8 dari persamaan~\eqref{eq:pembagi} untuk menampilkan tegangan
+baterai dan menilai kesehatannya. Dengan pembagian tugas ini, faktor tersebut dapat dikalibrasi
+tanpa mengubah rancangan di FPGA.
+
+% ============================================================
+%  3. ARSITEKTUR DAN PROTOKOL
+% ============================================================
+\section{Arsitektur dan Protokol}
+\label{sec:arsitektur}
+
+\subsection{Komponen Sistem}
+
+Purwarupa SeBatt terdiri atas tiga bagian, yaitu perangkat keras di sisi baterai, IP SeBatt
+yang berjalan di FPGA, dan perangkat lunak stasiun di laptop. Gambar~\ref{fig:alurteknis}
+memperlihatkan rantai ketiganya. Bagian A menunjukkan jalur data dari baterai sampai stasiun,
+sedangkan bagian B menunjukkan urutan pesan saat baterai ditukar, yang dibahas pada
+Subbab~\ref{subsec:alur}.
+
+\gambarberkas{alur-teknis.png}{1.0}{Rantai perangkat dan urutan protokol SeBatt.}{fig:alurteknis}
+
+Pada produk, IP SeBatt ditempatkan di dalam chip BMS baterai dan berkomunikasi dengan stasiun
+melalui bus CAN. Purwarupa ini mengganti bus CAN dengan UART dan menjalankan stasiun beserta basis
+datanya sebagai program Python di laptop. Protokol yang dipakai tetap sama, sehingga penggantian
+saluran komunikasi tidak mengubah cara pemeriksaan riwayat.
+
+\subsubsection*{Perangkat keras}
+
+Tabel~\ref{tab:perangkat} merangkum perangkat keras yang dipakai beserta sambungannya. Semua
+sinyal antara FPGA dan rangkaian luar melewati header Pmod J2 pada KV260. Nomor pin mengikuti
+penomoran Pmod 12 pin, dengan pin 5 dan 11 sebagai GND serta pin 6 dan 12 sebagai 3,3~V.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l X l}
+    \toprule
+    Komponen & Peran & Sambungan \\
+    \midrule
+    AMD Kria KV260 & Menjalankan IP SeBatt di logika terprogram (PL). Prosesor (PS) hanya
+      menyediakan \textit{clock} 100~MHz dan sinyal reset & Pmod J2 \\
+    LiPo 3S dan pembagi tegangan & Sumber tegangan yang dicatat. Kenop pada pembagi dipakai untuk
+      memperagakan baterai terkuras & Ke A0 ADS1115 \\
+    Modul ADS1115 & ADC 16 bit yang mengubah tegangan A0 menjadi milivolt & I2C, Pmod 1--2 \\
+    Adaptor CP2102 & Saluran UART 115200~8N1 antara FPGA dan laptop & Pmod 7--8 \\
+    LED hijau dan merah & Hasil RESULT terakhir dari stasiun, merah juga saat chip terkunci
+      & Pmod 9 dan 10 \\
+    LED \textit{heartbeat} & Berkedip sekitar 6~Hz sebagai tanda rancangan di PL berjalan & Pmod 4 \\
+    Kabel ke GND & Memilih ADS1115 sebagai sumber sampel & Pmod 3 \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Perangkat keras purwarupa SeBatt.}
+  \label{tab:perangkat}
+\end{table}
+
+Pin Pmod 3 memilih sumber sampel. Apabila pin ini terhubung ke GND, sampel diambil dari
+ADS1115. Apabila terhubung ke 3,3~V, chip mencatat nilai tetap 3000~mV, yang berguna untuk
+menguji jalur UART tanpa rangkaian ADC. Pin ini tidak boleh dibiarkan terbuka, karena pin yang
+terbuka terbaca sebagai logika 1. Rangkaian lengkapnya dibahas pada Bab~\ref{sec:rakit}.
+
+\subsubsection*{IP SeBatt di FPGA}
+
+IP SeBatt ditulis dalam Verilog standar tanpa IP vendor dan tanpa prosesor lunak. Modul puncak
+\texttt{kv260\_top} menerima \textit{clock} dari PS, menyelaraskan reset terhadap
+\textit{clock}, dan mengeluarkan LED \textit{heartbeat}. Di bawahnya, \texttt{sebatt\_top}
+menghubungkan dua bagian utama. Bagian pertama adalah \texttt{ads1115\_ctrl}, yang membaca ADC
+melalui \texttt{i2c\_master}. Bagian kedua adalah \texttt{auth\_ctrl}, yang mengambil sampel
+setiap 1~detik, memberi nomor urut, menandatangani sampel dengan \texttt{hmac\_sha256}, menyimpan
+64 catatan terakhir, dan melayani perintah stasiun melalui \texttt{uart\_if}.
+
+Jalur dari ADC sampai tanda tangan seluruhnya berupa rangkaian logika, tanpa perangkat lunak di
+antaranya. Identitas baterai pada purwarupa ini bernilai \texttt{0x42415401}, yaitu teks
+\texttt{BAT} diikuti byte \texttt{0x01}. Rincian setiap modul dibahas pada Bab~\ref{sec:rtl}.
+
+\subsubsection*{Perangkat lunak stasiun}
+
+Perangkat lunak stasiun terdiri atas dua program Python. Program utama berada di berkas
+\texttt{model/station.py}. Program ini mengirim perintah ke chip, memeriksa setiap tanda tangan,
+dan mengirim hasil pemeriksaan kembali ke chip. Basis datanya menyimpan empat hal untuk setiap
+baterai, yaitu kunci $K$, seq terakhir yang telah diverifikasi, status kunci, dan nonce yang
+sudah dipakai. Program ini juga menghitung kesehatan baterai dari riwayat yang lolos
+pemeriksaan, seperti jumlah kejadian terkuras dalam dan siklus pengisian.
+
+Program kedua adalah \textit{dashboard} web di folder \texttt{web/}, yang menampilkan hasil
+pemeriksaan, grafik riwayat tegangan, dan kartu kesehatan baterai. \textit{Dashboard} memakai
+aturan pemeriksaan dan penilaian kesehatan yang sama dengan \texttt{model/station.py}. Program ini
+dapat berjalan dalam mode FPGA, yang terhubung ke board, atau mode simulasi, yang memakai model
+chip di laptop untuk latihan tanpa board. Cara menjalankan kedua program dijelaskan pada
+Bab~\ref{sec:panduan}.
+
+\subsection{Format Frame dan Perintah}
+
+\isi{Format [CMD][LEN big-endian][PAYLOAD][CRC-8 poly 0x31] dan tabel perintah 0x01--0x09
+beserta isi payload. Prefiks tanda tangan: 0x41 autentikasi, 0x53 catatan, 0x48 ringkasan.}
+
+\subsection{Alur Penukaran Baterai}
+\label{subsec:alur}
+
+\isi{Empat tahap: pencatatan sampel setiap 1 detik, AUTH\_REQ dengan nonce, READ\_HIST\_REQ
+dengan tag ringkasan, lalu verifikasi di stasiun dan RESULT. Tiga RESULT gagal berturut-turut
+mengunci chip.}
+
+\subsection{Kode Hasil Pemeriksaan}
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l l X}
+    \toprule
+    Kode & Status & Arti \\
+    \midrule
+    0x00 & VALID & Tanda tangan cocok dan riwayat utuh \\
+    0x01 & INVALID\_HMAC & Isi catatan atau balasan tidak cocok dengan tanda tangannya \\
+    0x02 & REPLAY\_DETECTED & Nonce yang sama dipakai untuk kedua kalinya \\
+    0x03 & BATTERY\_LOCKED & Chip terkunci setelah tiga kegagalan \\
+    0x05 & HISTORY\_GAP & Ada nomor urut yang hilang di tengah riwayat \\
+    0x06 & HISTORY\_ROLLBACK & Nomor urut chip lebih kecil dari catatan basis data \\
+    0x07 & HISTORY\_TRUNCATED & Catatan lama tertimpa buffer 64, sisa riwayat sah \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Kode status yang dilaporkan stasiun.}
+  \label{tab:status}
+\end{table}
+
+\isi{Satu paragraf: VALID dan HISTORY\_TRUNCATED dinyatakan DITERIMA, sisanya DITOLAK.}
+
+% ============================================================
+%  4. IMPLEMENTASI RTL
+% ============================================================
+\section{Implementasi RTL}
+\label{sec:rtl}
+
+\isi{Pengantar bab: hierarki kv260\_top, sebatt\_top, ads1115\_ctrl (i2c\_master), dan
+auth\_ctrl (uart\_if, axil\_master, hmac\_sha256, sha256\_core). Semua modul Verilog standar
+tanpa IP vendor dan tanpa prosesor lunak.}
+
+\gambarplaceholder{Diagram hierarki modul RTL}
+
+\subsection{Modul \texttt{hmac\_sha256}}
+\isi{Antarmuka, empat blok SHA-256 per tanda tangan, 113 siklus per blok, potongan kode inti.}
+
+\subsection{Modul \texttt{auth\_ctrl}}
+\isi{Pewaktu sampel, penghitung seq, buffer 64 catatan, penanda tangan, parser frame dengan
+P\_SKIP dan batas waktu RX, pembekuan buffer saat riwayat dikirim, penghitung gagal dan
+penguncian, LED mengikuti RESULT terakhir.}
+
+\subsection{Modul \texttt{ads1115\_ctrl} dan \texttt{i2c\_master}}
+\isi{Mode single-shot, konfigurasi 0xC383, jeda 10 ms, cek bus macet, sinkronisasi SDA/SCL
+dua flip-flop.}
+
+\subsection{Modul \texttt{uart\_if} dan \texttt{kv260\_top}}
+\isi{UART 115200 8N1. Top level: clock pl\_clk0 dari PS, sinkronisasi reset, LED heartbeat,
+pemilih sumber src\_sel di Pmod 3, dan file constraint kv260.xdc.}
+
+\subsection{Verifikasi}
+\isi{Model referensi Python dan vektor uji, testbench cocotb beserta jumlah uji yang lolos,
+hasil sintesis dan WNS. Hanya angka yang sudah dijalankan ulang.}
+
+% ============================================================
+%  5. PERAKITAN PERANGKAT
+% ============================================================
+\section{Perakitan Perangkat}
+\label{sec:rakit}
+
+\subsection{Daftar Perangkat dan Bahan}
+\isi{Tabel: KV260 beserta adaptor 12 V dan kartu SD Ubuntu, kabel micro-USB, ADS1115, LiPo 3S,
+R1 120 k$\Omega$, kenop 10 k$\Omega$, R2 15 k$\Omega$, kapasitor 100 nF, tiga LED dan resistor
+330 $\Omega$, CP2102, kabel jumper, laptop dengan Vivado Hardware Manager dan Python 3.}
+
+\subsection{Rangkaian Pembacaan Tegangan}
+\gambarberkas{rangkaian-adc.png}{1.0}{Skematik rangkaian ADC, LED, dan sambungan Pmod J2.}{fig:skematik}
+\isi{Langkah merakit bernomor dan tabel tegangan LiPo terhadap tegangan A0. Ukur wiper sebelum
+disambung ke A0. Skematik sebaiknya dipindah ke halaman landscape atau dipecah dua.}
+
+\subsection{Sambungan ke Header Pmod J2}
+\isi{Tabel 12 pin beserta nama pin paket. Pmod 3 ke GND, pin 5V CP2102 tidak disambung.}
+
+\subsection{Perangkat Lunak Stasiun}
+\isi{Python 3, pyserial, dan uji tanpa board:}
+\begin{lstlisting}[style=terminal]
+py -3.14 -m model.station --offline --demo
+\end{lstlisting}
+
+% ============================================================
+%  6. PANDUAN PENGGUNAAN
+% ============================================================
+\section{Panduan Penggunaan}
+\label{sec:panduan}
+
+\subsection{Memuat \textit{Bitstream} ke KV260}
+\isi{Boot Ubuntu dari kartu SD, Vivado Hardware Manager, Auto Connect, xck26, Program Device.
+LED heartbeat berkedip.}
+
+\subsection{Pemeriksaan Awal}
+\begin{lstlisting}[style=terminal]
+py -3.14 -m model.station --check --port COM8
+\end{lstlisting}
+\isi{Contoh keluaran [OK] untuk STATUS, AUTH, READ\_HIST.}
+
+\subsection{Menjalankan \textit{Dashboard}}
+\begin{lstlisting}[style=terminal]
+py -3.14 -m web.server --fpga COM8 --profil lipo3s --open
+\end{lstlisting}
+\gambarplaceholder{Tangkapan layar \textit{dashboard} dengan penanda nomor pada tiap bagian}
+\isi{Arti tiap bagian dan warna pada \textit{dashboard}.}
+
+\subsection{Skenario Penukaran Normal}
+\isi{Langkah, hasil DITERIMA, LED hijau, kartu kesehatan terisi.}
+
+\subsection{Skenario Baterai Terkuras Dalam}
+\isi{Kenop diputar turun di bawah 9,0 V lalu kembali. Riwayat tetap DITERIMA dan kartu kesehatan
+mencatat terkuras dalam.}
+
+\subsection{Skenario Serangan}
+\isi{Hapus catatan (HISTORY\_GAP), ubah angka (INVALID\_HMAC), muat ulang \textit{bitstream}
+(HISTORY\_ROLLBACK). Untuk setiap serangan: langkah, hasil, LED, dan tangkapan layar.}
+
+\subsection{Penguncian Chip dan Mode Terminal}
+\isi{Tiga penolakan mengunci chip dan cara membukanya. Perintah interaktif station:}
+\begin{lstlisting}[style=terminal]
+py -3.14 -m model.station --port COM8 --interactive --profil lipo3s
+\end{lstlisting}
+
+\subsection{Kalibrasi Faktor Pembagi}
+\isi{Kenop di ujung atas, ukur LiPo dengan multimeter, faktor = tegangan multimeter dibagi
+pin mV, isi ke profil lipo3s.}
+
+% ============================================================
+%  7. HASIL UJI DI PERANGKAT KERAS
+% ============================================================
+\section{Hasil Uji di Perangkat Keras}
+\label{sec:hasil}
+
+\subsection{Susunan Uji}
+\gambarplaceholder{Foto susunan uji: KV260, rangkaian LiPo dan ADS1115, CP2102, laptop}
+
+\subsection{Kinerja Autentikasi dan Pembacaan Riwayat}
+\isi{Tabel dari docs/catatan-teknis/hasil-uji-kv260.md: waktu AUTH rata-rata, jumlah
+autentikasi per detik, waktu READ\_HIST 64 catatan, beserta tanggal uji dan bitstream yang
+dipakai.} Nilai yang belum diukur ditulis sebagai \isian{belum diuji}.
+
+\subsection{Deteksi Serangan}
+\isi{Tabel setiap serangan dan status yang dihasilkan di board.}
+
+% ============================================================
+%  8. PEMECAHAN MASALAH DAN PERINGATAN
+% ============================================================
+\section{Pemecahan Masalah dan Peringatan}
+\label{sec:masalah}
+
+\subsection{Pemecahan Masalah}
+\isi{Tabel gejala, penyebab, dan tindakan: port COM tidak muncul, tegangan selalu 3000 mV,
+sampel 0 mV atau berhenti, HISTORY\_ROLLBACK setelah memuat ulang \textit{bitstream}, chip
+terkunci.}
+
+\subsection{Peringatan Penggunaan}
+\isi{ADS1115 hanya 3,3 V. Kenop tidak boleh langsung ke 12 V. Jangan kuras LiPo di bawah
+3,0 V per sel, dan cabut konektor balance setelah dipakai. Pmod 3 tidak dibiarkan terbuka.}
+
+\subsection{Batasan Purwarupa}
+\isi{ADC berupa modul eksternal, penghitung seq volatil, kunci simetris tetap dan tersimpan
+di basis data, PUF belum terpasang, adegan terkuras dibuat dengan kenop. Pengembangan
+berikutnya: kunci dari RO-PUF, penghitung di NVM, ADC satu die, sintesis SKY130.}
+
+% ============================================================
+%  DAFTAR PUSTAKA
+% ============================================================
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{Daftar Pustaka}
+% Urutan \bibitem mengikuti urutan sitasi pertama di teks, sehingga nomor [1] adalah sumber
+% yang pertama disitasi. Sumber baru disisipkan sesuai posisi sitasi pertamanya.
+\begin{thebibliography}{99}
+  \bibitem{okezone} Okezone, ``Pengguna Kendaraan Listrik di Indonesia Terus Bertambah,''
+    15 Oktober 2026. \url{https://digital.okezone.com/view/2026/10/15/4/106303/pengguna-kendaraan-listrik-di-indonesia-terus-bertambah}
+  \bibitem{swapid} SWAP Energi, situs resmi. \url{https://www.swap.id/}
+  \bibitem{electrum} Electrum, ``Tentang Kami.'' \url{https://electrum.id/id/about-us}
+  \bibitem{detikvgreen} detikOto, ``Begini Sistem dan Biaya Sewa Baterai Motor Listrik
+    VinFast,'' 2026. \url{https://oto.detik.com/motor-listrik/d-8581711/begini-sistem-dan-biaya-sewa-baterai-motor-listrik-vinfast}
+  \bibitem{rukn} Kementerian Energi dan Sumber Daya Mineral, \textit{Keputusan Menteri ESDM
+    Nomor 85.K/TL.01/MEM.L/2025 tentang Rencana Umum Ketenagalistrikan Nasional}, 5 Maret 2025.
+    Ringkasan angka: CNBC Indonesia, ``Rencana Umum Ketenagalistrikan Resmi Dirilis, PLTU Batu
+    Bara Masih Ada,'' 25 Maret 2025.
+    \url{https://www.cnbcindonesia.com/news/20250325131108-4-621534/rencana-umum-ketenagalistrikan-resmi-dirilis-pltu-batu-bara-masih-ada}
+  \bibitem{paparanruptl} Kementerian Energi dan Sumber Daya Mineral, \textit{Materi Konferensi
+    Pers RUPTL PT PLN (Persero) Tahun 2025--2034: Meningkatkan Ketahanan dan Keberlanjutan Energi
+    Nasional}, Jakarta, 26 Mei 2025.
+    \url{https://gatrik.esdm.go.id/gatrik/gatrik-api/storage/migrasi/download_index/files/4ec39-materi-paparan-ruptl-2025-2034.pdf}
+  \bibitem{databoksruptl} Databoks Katadata, ``Projected Number of Electric Vehicles in
+    Indonesia 2025--2034,'' 3 Juli 2025, merangkum RUPTL PT PLN (Persero) 2025--2034.
+    \url{https://databoks.katadata.co.id/en/transportation-logistics/statistics/68665063883b9/projected-number-of-electric-vehicles-in-indonesia-2025-2034}
+  \bibitem{bq40z50} Texas Instruments, \textit{BQ40Z50-R5 Technical Reference Manual},
+    SLUUCN4B, bagian 13.3--13.5. \url{https://www.ti.com/lit/ug/sluucn4b/sluucn4b.pdf}
+  \bibitem{rfc2104} H.~Krawczyk, M.~Bellare, dan R.~Canetti, \textit{HMAC: Keyed-Hashing for
+    Message Authentication}, RFC 2104, IETF, 1997.
+  \bibitem{fips180} National Institute of Standards and Technology, \textit{Secure Hash Standard
+    (SHS)}, FIPS PUB 180-4, 2015.
+  \bibitem{ads1115} Texas Instruments, \textit{ADS111x Ultra-Small, Low-Power, I2C-Compatible,
+    860-SPS, 16-Bit ADCs}, lembar data SBAS444.
+  % Belum disitasi. Rencana dipakai di Bab 6 (memuat bitstream ke KV260).
+  \bibitem{kv260} AMD, \textit{Kria KV260 Vision AI Starter Kit User Guide}, UG1089.
+\end{thebibliography}
+
+% ============================================================
+%  LAMPIRAN
+% ============================================================
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+
+\section{Daftar Istilah}
+\label{app:istilah}
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{l X}
+    \toprule
+    Istilah & Arti \\
+    \midrule
+    ADC & \textit{Analog-to-Digital Converter}, pengubah tegangan menjadi angka \\
+    \textit{Bitstream} & Berkas konfigurasi yang dimuat ke FPGA \\
+    BMS & \textit{Battery Management System} \\
+    FPGA & \isian{isi} \\
+    HMAC & \isian{isi} \\
+    I2C & \isian{isi} \\
+    KV260 & \isian{isi} \\
+    LiPo 3S & \isian{isi} \\
+    Nonce & \isian{isi} \\
+    Pmod & \isian{isi} \\
+    PUF & \isian{isi} \\
+    RTL & \isian{isi} \\
+    Seq & \isian{isi} \\
+    Stasiun penukaran (BSS) & \isian{isi} \\
+    UART & \isian{isi} \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Daftar istilah.}
+  \label{tab:istilah}
+\end{table}
+
+\section{Daftar Port Modul}
+\label{app:port}
+
+\isi{Tabel port untuk kv260\_top, sebatt\_top, auth\_ctrl, hmac\_sha256, ads1115\_ctrl,
+i2c\_master, dan uart\_if: nama, arah, lebar, dan fungsi.}
+
+\section{Kode Sumber}
+\label{app:kode}
+
+\isi{Kode lengkap dimuat dengan \texttt{\textbackslash lstinputlisting} dari folder rtl/ dan
+fpga/kv260/ agar selalu sama dengan repositori. Urutan: kv260\_top.v, sebatt\_top.v,
+auth\_ctrl.v, uart\_if.v, axil\_master.v, hmac\_sha256.v, sha256\_core.v, ads1115\_ctrl.v,
+i2c\_master.v, kv260.xdc. Modul key\_vault.v dan ro\_puf.v untuk tahap 2 tidak termasuk.}
+
+\subsection{Modul Puncak}
+\subsection{Modul Autentikasi dan Komunikasi}
+\subsection{Modul Kriptografi}
+\subsection{Modul Pembacaan ADC}
+\subsection{Constraint KV260}
+
+\end{document}
